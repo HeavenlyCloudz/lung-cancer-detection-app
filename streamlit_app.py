@@ -112,7 +112,8 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.sidebar.title("Controls")
 
 # Input for training data directory
-train_data_dir = st.sidebar.text_input("Enter the training data directory:", value='data/train')
+train_data_dir = st.sidebar.text_input("Enter the training data directory:", 
+                                         value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train')
 
 # Training button
 if st.sidebar.button("Train Model"):
