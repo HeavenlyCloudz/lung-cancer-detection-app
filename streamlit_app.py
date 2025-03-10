@@ -1,17 +1,27 @@
 import streamlit as st
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import cv2
 import os
 import matplotlib.pyplot as plt
 
+# Print current working directory
+st.write("Current working directory:", os.getcwd())
+
 # Load the model
-model_file = os.path.join('streamlit_project', 'lung_cancer_detection_model.h5')
-model = load_model(model_file)
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-model.summary()
+model_file = os.path.abspath(os.path.join('streamlit_project', 'lung_cancer_detection_model.h5'))
+
+# Check if the model file exists
+if not os.path.exists(model_file):
+    st.error(f"Model file not found: {model_file}")
+else:
+    try:
+        model = load_model(model_file)
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        model.summary()
+    except Exception as e:
+        st.error(f"Error loading model: {str(e)}")
 
 # Preprocess the image
 def preprocess_image(img_path):
