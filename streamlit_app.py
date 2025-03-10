@@ -12,6 +12,7 @@ image_height, image_width = 150, 150
 batch_size = 32
 model_file = os.path.abspath('lung_cancer_detection_model.h5')  # Adjusted path
 train_data_dir = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train'
+val_data_dir = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\val'  # Ensure this path is correct
 
 # Load the model
 model = None  # Initialize model variable
@@ -128,28 +129,30 @@ if st.sidebar.button("Train Model"):
         try:
             # Data preparation
             train_datagen = ImageDataGenerator(rescale=1./255)
-             # Load the data
-                train_generator = train_datagen.flow_from_directory(
-                    'data/train',
-                    target_size=(image_height, image_width),
-                    batch_size=batch_size,
-                    class_mode='binary'
-                )
+            val_datagen = ImageDataGenerator(rescale=1./255)  # Add validation data generator
+            
+            # Load the data
+            train_generator = train_datagen.flow_from_directory(
+                train_data_dir,
+                target_size=(image_height, image_width),
+                batch_size=batch_size,
+                class_mode='binary'
+            )
 
-                val_generator = val_datagen.flow_from_directory(
-                    'data/val',
-                    target_size=(image_height, image_width),
-                    batch_size=batch_size,
-                    class_mode='binary'
-                )
+            val_generator = val_datagen.flow_from_directory(
+                val_data_dir,
+                target_size=(image_height, image_width),
+                batch_size=batch_size,
+                class_mode='binary'
+            )
 
             # Model training
             history = model.fit(
                 train_generator,
                 steps_per_epoch=train_generator.samples // batch_size,
                 epochs=10,
-                validation_data=train_generator,
-                validation_steps=train_generator.samples // batch_size
+                validation_data=val_generator,
+                validation_steps=val_generator.samples // batch_size
             )
             # Save the trained model
             model.save(model_file)  # Save the model after training
