@@ -13,7 +13,7 @@ image_height, image_width = (150, 150)
 batch_size = 32
 
 # Load the model
-model_file = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\lung_cancer_detection_model.h5'
+model_file = r'streamlit_project\lung_cancer_detection_model.h5'
 
 # Check if the model exists, if not download it
 if not os.path.exists(model_file):
