@@ -8,7 +8,7 @@ import os
 import matplotlib.pyplot as plt
 
 # Load the model
-model_file = r'streamlit_project\lung_cancer_detection_model.h5'
+model_file = os.path.join('streamlit_project', 'lung_cancer_detection_model.h5')
 model = load_model(model_file)
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 model.summary()
