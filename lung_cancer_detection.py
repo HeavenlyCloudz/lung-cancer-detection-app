@@ -13,14 +13,19 @@ image_height, image_width = (150, 150)
 batch_size = 32
 
 # Load the model
-model_file = r'streamlit_project\lung_cancer_detection_model.h5'
+model_file = os.path.abspath(os.path.join('streamlit_project', 'lung_cancer_detection_model.h5'))
 
 # Check if the model exists, if not download it
 if not os.path.exists(model_file):
+    # Make sure to define model_url before using gdown
     gdown.download(model_url, model_file, quiet=False)
 
 # Load the model
-model = tf.keras.models.load_model(model_file)
+try:
+    model = tf.keras.models.load_model(model_file)
+except Exception as e:
+    print(f"Error loading model: {str(e)}")
+    model = None
 
 # Data augmentation for training
 train_datagen = ImageDataGenerator(
