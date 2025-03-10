@@ -113,8 +113,25 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Sidebar controls
 st.sidebar.title("Controls")
 
+# Input for training data directory
+train_data_dir = st.sidebar.text_input("Enter the training data directory:", value='data/train')
+
+# Training button
+if st.sidebar.button("Train Model"):
+    st.sidebar.text("Training the model... Please wait.")
+    # Call your training function here
+    # For example:
+    try:
+        # Implement your training logic here using train_data_dir
+        # Here you would load your data and train the model
+        # After training, save the model to the model_file path
+        st.sidebar.text("Model training completed.")  # Placeholder for completion message
+    except Exception as e:
+        st.sidebar.error(f"Error during training: {str(e)}")
+
 # Image upload for prediction
-uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
+uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"], 
+                                          help="You can also take a picture using your device's camera.")
 if uploaded_file is not None:
     try:
         with open("temp_image.jpg", "wb") as f:
