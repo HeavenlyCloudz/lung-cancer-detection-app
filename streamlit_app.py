@@ -7,8 +7,13 @@ import cv2
 import os
 import matplotlib.pyplot as plt
 
-# Load the model
+# Constants
+image_height, image_width = 150, 150
+batch_size = 32
 model_file = os.path.abspath('lung_cancer_detection_model.h5')  # Adjusted path
+train_data_dir = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train'
+
+# Load the model
 model = None  # Initialize model variable
 
 if os.path.exists(model_file):
@@ -30,7 +35,7 @@ def preprocess_image(img_path):
         img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
     elif len(img.shape) == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    img = cv2.resize(img, (150, 150))
+    img = cv2.resize(img, (image_height, image_width))
     img_array = np.expand_dims(img, axis=0)
     return img_array / 255.0
 
@@ -49,7 +54,7 @@ def generate_gradcam(model, img_array):
 
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
-    heatmap = cv2.resize(heatmap.numpy(), (150, 150))
+    heatmap = cv2.resize(heatmap.numpy(), (image_width, image_height))
     heatmap = np.uint8(255 * heatmap)  # Scale heatmap to [0, 255]
     return heatmap
 
@@ -112,8 +117,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.sidebar.title("Controls")
 
 # Input for training data directory
-train_data_dir = st.sidebar.text_input("Enter the training data directory:", 
-                                         value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train')
+train_data_dir = st.sidebar.text_input("Enter the training data directory:", value=train_data_dir)
 
 # Training button
 if st.sidebar.button("Train Model"):
@@ -126,21 +130,21 @@ if st.sidebar.button("Train Model"):
             train_datagen = ImageDataGenerator(rescale=1./255)
             train_generator = train_datagen.flow_from_directory(
                 train_data_dir,
-                target_size=(150, 150),
-                batch_size=32,
+                target_size=(image_height, image_width),
+                batch_size=batch_size,
                 class_mode='binary'
             )
 
             # Model training
             history = model.fit(
                 train_generator,
-                steps_per_epoch=train_generator.samples // 32,
+                steps_per_epoch=train_generator.samples // batch_size,
                 epochs=10,
                 validation_data=train_generator,
-                validation_steps=train_generator.samples // 32
+                validation_steps=train_generator.samples // batch_size
             )
             # Save the trained model
-            model.save('lung_cancer_detection_model.h5')  # Save the model after training
+            model.save(model_file)  # Save the model after training
             
             # Plotting training history
             plot_training_history(history)
@@ -167,7 +171,7 @@ if uploaded_file is not None:
             img_array = preprocess_image(temp_image_path)
 
             # Ensure the input shape is correct
-            if img_array.shape != (1, 150, 150, 3):
+            if img_array.shape != (1, image_height, image_width, 3):
                 st.error("Input shape is incorrect for the model. Expected shape: (1, 150, 150, 3).")
             else:
                 prediction = model.predict(img_array)
@@ -181,13 +185,12 @@ if uploaded_file is not None:
 
                 # Overlay heatmap on the original image
                 original_image = cv2.imread(temp_image_path)
-                original_image = cv2.resize(original_image, (150, 150))
+                original_image = cv2.resize(original_image, (image_width, image_height))
                 superimposed_img = cv2.addWeighted(original_image, 0.6, heatmap_img, 0.4, 0)
 
                 st.image(superimposed_img, caption='Overlayed Grad-CAM', use_column_width=True)
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
         finally:
-            # Check if the file exists before attempting to remove it
             if os.path.exists(temp_image_path):
                 os.remove(temp_image_path)
