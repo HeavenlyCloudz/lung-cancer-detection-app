@@ -139,7 +139,9 @@ if st.sidebar.button("Train Model"):
                 validation_data=train_generator,
                 validation_steps=train_generator.samples // 32
             )
-
+            # Save the trained model
+            model.save('lung_cancer_detection_model.h5')  # Save the model after training
+            
             # Plotting training history
             plot_training_history(history)
 
