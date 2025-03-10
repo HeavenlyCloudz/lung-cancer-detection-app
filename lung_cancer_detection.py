@@ -8,11 +8,11 @@ import cv2
 import os
 
 # Setting parameters of the image
-image_height, image_width = (150, 150)
+image_height, image_width = 150, 150
 batch_size = 32
 
 # Load the model
-model_file = os.path.abspath(os.path.join('streamlit_project', 'lung_cancer_detection_model.h5'))
+model_file = os.path.abspath('lung_cancer_detection_model.h5')
 
 # Check if the model exists
 if not os.path.exists(model_file):
@@ -71,8 +71,8 @@ def create_cnn_model(input_shape=(150, 150, 3)):
     ])
     return model
 
-# Check if the model exists
-if not os.path.exists(model_file):
+# Train the model only if it does not exist
+if model is None:
     # Defines the input shapes
     image_input_shape = (image_height, image_width, 3)
 
@@ -116,12 +116,12 @@ def plot_training_history(history):
     plt.show()
 
 # Call the function to plot training history if training occurred
-if not os.path.exists(model_file):
+if model is None:
     plot_training_history(history)
 
 # Function to generate Grad-CAM heatmap
 def generate_gradcam_heatmap(model, img_array, class_index):
-    last_conv_layer = model.layers[4]  # Access the last Conv2D layer
+    last_conv_layer = model.layers[-1]  # Use the last Conv2D layer
     grad_model = Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
     
     with tf.GradientTape() as tape:
