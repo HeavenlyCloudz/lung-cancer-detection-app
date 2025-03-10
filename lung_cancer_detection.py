@@ -45,15 +45,16 @@ val_datagen = ImageDataGenerator(rescale=1./255)
 train_data_dir = os.path.abspath('data/train')
 val_data_dir = os.path.abspath('data/val')
 
+ # Load the data
 train_generator = train_datagen.flow_from_directory(
-    train_data_dir,
+    'data/train',
     target_size=(image_height, image_width),
     batch_size=batch_size,
     class_mode='binary'
 )
 
 val_generator = val_datagen.flow_from_directory(
-    val_data_dir,
+    'data/val',
     target_size=(image_height, image_width),
     batch_size=batch_size,
     class_mode='binary'
