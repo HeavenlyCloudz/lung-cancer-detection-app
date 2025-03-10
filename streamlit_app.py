@@ -7,18 +7,22 @@ import cv2
 import os
 import matplotlib.pyplot as plt
 
+# Print current working directory
+st.write("Current working directory:", os.getcwd())
+
 # Load the model
 model_file = os.path.abspath(os.path.join('streamlit_project', 'lung_cancer_detection_model.h5'))
+model = None  # Initialize model variable
 
-if not os.path.exists(model_file):
-    st.error(f"Model file not found: {model_file}")
-else:
+if os.path.exists(model_file):
     try:
         model = load_model(model_file)
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
         model.summary()
     except Exception as e:
         st.error(f"Error loading model: {str(e)}")
+else:
+    st.error(f"Model file not found: {model_file}")
 
 # Preprocess the image
 def preprocess_image(img_path):
@@ -115,66 +119,72 @@ train_data_dir = st.sidebar.text_input("Enter the training data directory:", val
 
 # Training button
 if st.sidebar.button("Train Model"):
-    st.sidebar.text("Training the model... Please wait.")
-    try:
-        # Data preparation
-        train_datagen = ImageDataGenerator(rescale=1./255)
-        train_generator = train_datagen.flow_from_directory(
-            train_data_dir,
-            target_size=(150, 150),
-            batch_size=32,
-            class_mode='binary'
-        )
+    if model is None:
+        st.sidebar.error("Model is not loaded. Please check the model file.")
+    else:
+        st.sidebar.text("Training the model... Please wait.")
+        try:
+            # Data preparation
+            train_datagen = ImageDataGenerator(rescale=1./255)
+            train_generator = train_datagen.flow_from_directory(
+                train_data_dir,
+                target_size=(150, 150),
+                batch_size=32,
+                class_mode='binary'
+            )
 
-        # Model training
-        history = model.fit(
-            train_generator,
-            steps_per_epoch=train_generator.samples // 32,
-            epochs=10,
-            validation_data=train_generator,
-            validation_steps=train_generator.samples // 32
-        )
+            # Model training
+            history = model.fit(
+                train_generator,
+                steps_per_epoch=train_generator.samples // 32,
+                epochs=10,
+                validation_data=train_generator,
+                validation_steps=train_generator.samples // 32
+            )
 
-        # Plotting training history
-        plot_training_history(history)
+            # Plotting training history
+            plot_training_history(history)
 
-        # Display the training history plot
-        st.image('training_history.png', caption='Training History', use_column_width=True)
+            # Display the training history plot
+            st.image('training_history.png', caption='Training History', use_column_width=True)
 
-        st.sidebar.text("Model training completed.")  # Placeholder for completion message
-    except Exception as e:
-        st.sidebar.error(f"Error during training: {str(e)}")
+            st.sidebar.text("Model training completed.")  # Placeholder for completion message
+        except Exception as e:
+            st.sidebar.error(f"Error during training: {str(e)}")
 
 # Image upload for prediction
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"], 
                                           help="You can also take a picture using your device's camera.")
 if uploaded_file is not None:
-    try:
-        with open("temp_image.jpg", "wb") as f:
-            f.write(uploaded_file.getbuffer())
+    if model is None:
+        st.error("Model is not loaded. Please check the model file.")
+    else:
+        try:
+            with open("temp_image.jpg", "wb") as f:
+                f.write(uploaded_file.getbuffer())
 
-        img_array = preprocess_image("temp_image.jpg")
+            img_array = preprocess_image("temp_image.jpg")
 
-        # Ensure the input shape is correct
-        if img_array.shape != (1, 150, 150, 3):
-            st.error("Input shape is incorrect for the model.")
-        else:
-            prediction = model.predict(img_array)
-            result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-            st.subheader("Prediction Result:")
-            st.write(f"The model predicts the image is: **{result}**")
+            # Ensure the input shape is correct
+            if img_array.shape != (1, 150, 150, 3):
+                st.error("Input shape is incorrect for the model.")
+            else:
+                prediction = model.predict(img_array)
+                result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+                st.subheader("Prediction Result:")
+                st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = generate_gradcam(model, img_array)
-            heatmap_img = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)  # Apply color map to heatmap
-            heatmap_img = cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
+                heatmap = generate_gradcam(model, img_array)
+                heatmap_img = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)  # Apply color map to heatmap
+                heatmap_img = cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
 
-            # Overlay heatmap on the original image
-            original_image = cv2.imread("temp_image.jpg")
-            original_image = cv2.resize(original_image, (150, 150))
-            superimposed_img = cv2.addWeighted(original_image, 0.6, heatmap_img, 0.4, 0)
+                # Overlay heatmap on the original image
+                original_image = cv2.imread("temp_image.jpg")
+                original_image = cv2.resize(original_image, (150, 150))
+                superimposed_img = cv2.addWeighted(original_image, 0.6, heatmap_img, 0.4, 0)
 
-            st.image(superimposed_img, caption='Overlayed Grad-CAM', use_container_width=True)
-    except Exception as e:
-        st.error(f"Error during prediction: {str(e)}")
+                st.image(superimposed_img, caption='Overlayed Grad-CAM', use_column_width=True)
+        except Exception as e:
+            st.error(f"Error during prediction: {str(e)}")
 
     os.remove("temp_image.jpg")
