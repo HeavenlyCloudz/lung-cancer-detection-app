@@ -12,20 +12,15 @@ image_height, image_width = 150, 150
 batch_size = 32
 model_file = os.path.abspath('lung_cancer_detection_model.h5')  # Adjusted path
 train_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\train'
-val_data_dir = r'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\val'  # Ensure this path is correct
+val_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\val'  # Ensure this path is correct
 
 # Load the model
 model = None  # Initialize model variable
 
 if os.path.exists(model_file):
-    try:
-        model = load_model(model_file)
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-        model.summary()
-    except Exception as e:
-        st.error(f"Error loading model: {str(e)}")
-else:
-    st.error(f"Model file not found: {model_file}")
+    model = load_model(model_file)
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model.summary()
 
 # Preprocess the image
 def preprocess_image(img_path):
@@ -123,7 +118,7 @@ train_data_dir = st.sidebar.text_input("Enter the training data directory:", val
 # Training button
 if st.sidebar.button("Train Model"):
     if model is None:
-        st.sidebar.error("Model is not loaded. Please check the model file.")
+        st.sidebar.error("Model is not loaded. Please train the model first.")
     else:
         st.sidebar.text("Training the model... Please wait.")
         try:
