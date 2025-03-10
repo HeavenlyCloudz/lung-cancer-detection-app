@@ -1,18 +1,15 @@
 import streamlit as st
 import tensorflow as tf
 from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import cv2
 import os
 import matplotlib.pyplot as plt
 
-# Print current working directory
-st.write("Current working directory:", os.getcwd())
-
 # Load the model
 model_file = os.path.abspath(os.path.join('streamlit_project', 'lung_cancer_detection_model.h5'))
 
-# Check if the model file exists
 if not os.path.exists(model_file):
     st.error(f"Model file not found: {model_file}")
 else:
@@ -119,12 +116,31 @@ train_data_dir = st.sidebar.text_input("Enter the training data directory:", val
 # Training button
 if st.sidebar.button("Train Model"):
     st.sidebar.text("Training the model... Please wait.")
-    # Call your training function here
-    # For example:
     try:
-        # Implement your training logic here using train_data_dir
-        # Here you would load your data and train the model
-        # After training, save the model to the model_file path
+        # Data preparation
+        train_datagen = ImageDataGenerator(rescale=1./255)
+        train_generator = train_datagen.flow_from_directory(
+            train_data_dir,
+            target_size=(150, 150),
+            batch_size=32,
+            class_mode='binary'
+        )
+
+        # Model training
+        history = model.fit(
+            train_generator,
+            steps_per_epoch=train_generator.samples // 32,
+            epochs=10,
+            validation_data=train_generator,
+            validation_steps=train_generator.samples // 32
+        )
+
+        # Plotting training history
+        plot_training_history(history)
+
+        # Display the training history plot
+        st.image('training_history.png', caption='Training History', use_column_width=True)
+
         st.sidebar.text("Model training completed.")  # Placeholder for completion message
     except Exception as e:
         st.sidebar.error(f"Error during training: {str(e)}")
