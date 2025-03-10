@@ -159,11 +159,12 @@ if uploaded_file is not None:
     if model is None:
         st.error("Model is not loaded. Please check the model file.")
     else:
+        temp_image_path = "temp_image.jpg"  # Store path in a variable
         try:
-            with open("temp_image.jpg", "wb") as f:
+            with open(temp_image_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
-            img_array = preprocess_image("temp_image.jpg")
+            img_array = preprocess_image(temp_image_path)
 
             # Ensure the input shape is correct
             if img_array.shape != (1, 150, 150, 3):
@@ -179,12 +180,14 @@ if uploaded_file is not None:
                 heatmap_img = cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
 
                 # Overlay heatmap on the original image
-                original_image = cv2.imread("temp_image.jpg")
+                original_image = cv2.imread(temp_image_path)
                 original_image = cv2.resize(original_image, (150, 150))
                 superimposed_img = cv2.addWeighted(original_image, 0.6, heatmap_img, 0.4, 0)
 
                 st.image(superimposed_img, caption='Overlayed Grad-CAM', use_column_width=True)
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
-
-    os.remove("temp_image.jpg")
+        finally:
+            # Check if the file exists before attempting to remove it
+            if os.path.exists(temp_image_path):
+                os.remove(temp_image_path)
