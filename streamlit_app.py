@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 image_height, image_width = 150, 150
 batch_size = 32
 model_file = os.path.abspath('lung_cancer_detection_model.h5')  # Adjusted path
-train_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\train'
-val_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\val'  # Ensure this path is correct
+train_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project'
+val_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project'  # Ensure this path is correct
 
 # Load the model
 model = None  # Initialize model variable
