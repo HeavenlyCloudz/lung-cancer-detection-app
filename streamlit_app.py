@@ -11,7 +11,7 @@ import gdown
 # Download the model if it does not exist
 model_file = 'lung_cancer_detection_model.h5'
 if not os.path.exists(model_file):
-    gdown.download('https://drive.google.com/uc?id=1Tr02W2qSIrHma0yKGbTWsgQK1zv8qufZ', model_file, quiet=False)
+    gdown.download('https://drive.google.com/file/d/1Tr02W2qSIrHma0yKGbTWsgQK1zv8qufZ/view?usp=drive_link', model_file, quiet=False)
 
 # Load the model
 model = load_model(model_file)
@@ -47,6 +47,7 @@ def generate_gradcam(model, img_array):
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
     heatmap = cv2.resize(heatmap.numpy(), (150, 150))
+    heatmap = np.uint8(255 * heatmap)  # Scale heatmap to [0, 255]
     return heatmap
 
 # Function to plot training history
@@ -192,8 +193,15 @@ if uploaded_file is not None:
         st.write(f"The model predicts the image is: **{result}**")
 
         heatmap = generate_gradcam(model, img_array)
-        st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
-        st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+        heatmap_img = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)  # Apply color map to heatmap
+        heatmap_img = cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
+
+        # Overlay heatmap on the original image
+        original_image = cv2.imread("temp_image.jpg")
+        original_image = cv2.resize(original_image, (150, 150))
+        superimposed_img = cv2.addWeighted(original_image, 0.6, heatmap_img, 0.4, 0)
+
+        st.image(superimposed_img, caption='Overlayed Grad-CAM', use_container_width=True)
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
 
@@ -216,8 +224,15 @@ if photo is not None:
         st.write(f"The model predicts the image is: **{result}**")
 
         heatmap = generate_gradcam(model, img_array)
-        st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
-        st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+        heatmap_img = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)  # Apply color map to heatmap
+        heatmap_img = cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
+
+        # Overlay heatmap on the original image
+        original_image = cv2.imread("captured_image.jpg")
+        original_image = cv2.resize(original_image, (150, 150))
+        superimposed_img = cv2.addWeighted(original_image, 0.6, heatmap_img, 0.4, 0)
+
+        st.image(superimposed_img, caption='Overlayed Grad-CAM for Captured Image', use_container_width=True)
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
 
