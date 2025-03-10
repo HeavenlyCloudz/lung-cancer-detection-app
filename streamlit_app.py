@@ -168,7 +168,7 @@ if uploaded_file is not None:
 
             # Ensure the input shape is correct
             if img_array.shape != (1, 150, 150, 3):
-                st.error("Input shape is incorrect for the model.")
+                st.error("Input shape is incorrect for the model. Expected shape: (1, 150, 150, 3).")
             else:
                 prediction = model.predict(img_array)
                 result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
