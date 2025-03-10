@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 import os
-import gdown  # Import gdown for downloading files
 
 # Setting parameters of the image
 image_height, image_width = (150, 150)
@@ -15,10 +14,10 @@ batch_size = 32
 # Load the model
 model_file = os.path.abspath(os.path.join('streamlit_project', 'lung_cancer_detection_model.h5'))
 
-# Check if the model exists, if not download it
+# Check if the model exists
 if not os.path.exists(model_file):
-    # Make sure to define model_url before using gdown
-    gdown.download(model_url, model_file, quiet=False)
+    print(f"Model file not found: {model_file}")
+    exit(1)  # Exit if the model is not found
 
 # Load the model
 try:
