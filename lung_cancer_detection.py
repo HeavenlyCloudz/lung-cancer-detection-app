@@ -12,9 +12,8 @@ import gdown  # Import gdown for downloading files
 image_height, image_width = (150, 150)
 batch_size = 32
 
-# Model file path and download link
-model_file = 'lung_cancer_detection_model.h5'
-model_url = 'https://drive.google.com/uc?id=1Tr02W2qSIrHma0yKGbTWsgQK1zv8qufZ'  # Google Drive link
+# Load the model
+model_file = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\lung_cancer_detection_model.h5'
 
 # Check if the model exists, if not download it
 if not os.path.exists(model_file):
