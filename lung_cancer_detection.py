@@ -17,9 +17,10 @@ model_file = os.path.abspath('lung_cancer_detection_model.h5')
 # Check if the model exists
 if not os.path.exists(model_file):
     print(f"Model file not found: {model_file}")
-    exit(1)  # Exit if the model is not found
+    exit(1)
 
 # Load the model
+model = None
 try:
     model = tf.keras.models.load_model(model_file)
 except Exception as e:
@@ -45,7 +46,7 @@ val_datagen = ImageDataGenerator(rescale=1./255)
 train_data_dir = os.path.abspath('data/train')
 val_data_dir = os.path.abspath('data/val')
 
- # Load the data
+# Load the data
 train_generator = train_datagen.flow_from_directory(
     'data/train',
     target_size=(image_height, image_width),
