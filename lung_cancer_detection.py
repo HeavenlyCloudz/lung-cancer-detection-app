@@ -90,7 +90,7 @@ if model is None:
     )
 
     # Save the model
-    model.save(model_file)
+   model.save('lung_cancer_detection_model.h5')
 
 # Plot training & validation accuracy and loss
 def plot_training_history(history):
