@@ -6,14 +6,9 @@ import numpy as np
 import cv2
 import os
 import matplotlib.pyplot as plt
-import gdown
-
-# Download the model if it does not exist
-model_file = 'lung_cancer_detection_model.h5'
-if not os.path.exists(model_file):
-    gdown.download('https://drive.google.com/file/d/1Tr02W2qSIrHma0yKGbTWsgQK1zv8qufZ/view?usp=drive_link', model_file, quiet=False)
 
 # Load the model
+model_file = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\lung_cancer_detection_model.h5'
 model = load_model(model_file)
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 model.summary()
@@ -74,54 +69,6 @@ def plot_training_history(history):
     plt.savefig('training_history.png')
     plt.close()
 
-# Create and compile the CNN model
-def create_cnn_model(input_shape=(150, 150, 3)):
-    model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dense(1, activation='sigmoid')
-    ])
-    return model
-
-# Function to train the model
-def train_model(data_dir, epochs, batch_size):
-    # Data generators
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
-                                       height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
-                                       horizontal_flip=True, fill_mode='nearest')
-    val_datagen = ImageDataGenerator(rescale=1./255)
-
-    # Load data
-    train_generator = train_datagen.flow_from_directory(os.path.join(data_dir, 'train'), target_size=(150, 150),
-                                                        batch_size=batch_size, class_mode='binary')
-    val_generator = val_datagen.flow_from_directory(os.path.join(data_dir, 'val'), target_size=(150, 150),
-                                                    batch_size=batch_size, class_mode='binary')
-
-    # Create and compile the model
-    model = create_cnn_model((150, 150, 3))
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-    # Call the model with a dummy input to initialize it
-    dummy_input = np.random.rand(1, 150, 150, 3)
-    model(dummy_input)
-
-    # Train the model with progress feedback
-    history = model.fit(train_generator, steps_per_epoch=train_generator.samples // batch_size,
-                        validation_data=val_generator, validation_steps=val_generator.samples // batch_size,
-                        epochs=epochs, verbose=1)
-
-    # Save the model
-    model.save('lung_cancer_detection_model.h5')
-
-    # Plot and save the training history
-    plot_training_history(history)
-
 # Streamlit UI
 st.title("Lung Cancer Detection")
 st.markdown(
@@ -156,28 +103,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Sidebar controls
 st.sidebar.title("Controls")
 
-# Data directory input
-data_directory = st.sidebar.text_input("Enter the data directory path", value='data')
-epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
-batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
-
-# Train model button
-if st.sidebar.button("Train Model"):
-    if data_directory:
-        with st.spinner("Training the model..."):
-            try:
-                train_model(data_directory, epochs, batch_size)
-                st.success("Model training complete!")
-            except Exception as e:
-                st.error(f"Error during training: {str(e)}")
-    else:
-        st.error("Please enter a valid data directory.")
-
-# Display training history if it exists
-if os.path.exists('training_history.png'):
-    st.subheader("Training History")
-    st.image('training_history.png', caption='Training History', use_container_width=True)
-
 # Image upload for prediction
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
 if uploaded_file is not None:
@@ -187,53 +112,26 @@ if uploaded_file is not None:
 
         img_array = preprocess_image("temp_image.jpg")
 
-        prediction = model.predict(img_array)
-        result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-        st.subheader("Prediction Result:")
-        st.write(f"The model predicts the image is: **{result}**")
+        # Ensure the input shape is correct
+        if img_array.shape != (1, 150, 150, 3):
+            st.error("Input shape is incorrect for the model.")
+        else:
+            prediction = model.predict(img_array)
+            result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+            st.subheader("Prediction Result:")
+            st.write(f"The model predicts the image is: **{result}**")
 
-        heatmap = generate_gradcam(model, img_array)
-        heatmap_img = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)  # Apply color map to heatmap
-        heatmap_img = cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
+            heatmap = generate_gradcam(model, img_array)
+            heatmap_img = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)  # Apply color map to heatmap
+            heatmap_img = cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
 
-        # Overlay heatmap on the original image
-        original_image = cv2.imread("temp_image.jpg")
-        original_image = cv2.resize(original_image, (150, 150))
-        superimposed_img = cv2.addWeighted(original_image, 0.6, heatmap_img, 0.4, 0)
+            # Overlay heatmap on the original image
+            original_image = cv2.imread("temp_image.jpg")
+            original_image = cv2.resize(original_image, (150, 150))
+            superimposed_img = cv2.addWeighted(original_image, 0.6, heatmap_img, 0.4, 0)
 
-        st.image(superimposed_img, caption='Overlayed Grad-CAM', use_container_width=True)
+            st.image(superimposed_img, caption='Overlayed Grad-CAM', use_container_width=True)
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
 
     os.remove("temp_image.jpg")
-
-# Mobile Upload Option
-st.sidebar.header("Take a Picture")
-photo = st.sidebar.file_uploader("Capture a photo", type=["jpg", "jpeg", "png"])
-
-if photo is not None:
-    try:
-        with open("captured_image.jpg", "wb") as f:
-            f.write(photo.getbuffer())
-
-        img_array = preprocess_image("captured_image.jpg")
-
-        prediction = model.predict(img_array)
-        result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-        st.subheader("Prediction Result for Captured Image:")
-        st.write(f"The model predicts the image is: **{result}**")
-
-        heatmap = generate_gradcam(model, img_array)
-        heatmap_img = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)  # Apply color map to heatmap
-        heatmap_img = cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
-
-        # Overlay heatmap on the original image
-        original_image = cv2.imread("captured_image.jpg")
-        original_image = cv2.resize(original_image, (150, 150))
-        superimposed_img = cv2.addWeighted(original_image, 0.6, heatmap_img, 0.4, 0)
-
-        st.image(superimposed_img, caption='Overlayed Grad-CAM for Captured Image', use_container_width=True)
-    except Exception as e:
-        st.error(f"Error during prediction: {str(e)}")
-
-    os.remove("captured_image.jpg")
