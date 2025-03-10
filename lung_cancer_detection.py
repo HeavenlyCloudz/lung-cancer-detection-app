@@ -5,10 +5,23 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
+import os
+import gdown  # Import gdown for downloading files
 
 # Setting parameters of the image
 image_height, image_width = (150, 150)
 batch_size = 32
+
+# Model file path and download link
+model_file = 'lung_cancer_detection_model.h5'
+model_url = 'https://drive.google.com/uc?id=1Tr02W2qSIrHma0yKGbTWsgQK1zv8qufZ'  # Google Drive link
+
+# Check if the model exists, if not download it
+if not os.path.exists(model_file):
+    gdown.download(model_url, model_file, quiet=False)
+
+# Load the model
+model = tf.keras.models.load_model(model_file)
 
 # Data augmentation for training
 train_datagen = ImageDataGenerator(
@@ -55,31 +68,29 @@ def create_cnn_model(input_shape=(150, 150, 3)):
     ])
     return model
 
-# Defines the input shapes
-image_input_shape = (image_height, image_width, 3)
+# Check if the model exists
+if not os.path.exists(model_file):
+    # Defines the input shapes
+    image_input_shape = (image_height, image_width, 3)
 
-# Create and compile the model
-model = create_cnn_model(image_input_shape)
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    # Create and compile the model
+    model = create_cnn_model(image_input_shape)
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-# Print the model summary
-model.summary()
+    # Train the model
+    history = model.fit(
+        train_generator,
+        steps_per_epoch=train_generator.samples // batch_size,
+        validation_data=val_generator,
+        validation_steps=val_generator.samples // batch_size,
+        epochs=10
+    )
 
-# Train the model
-history = model.fit(
-    train_generator,
-    steps_per_epoch=train_generator.samples // batch_size,
-    validation_data=val_generator,
-    validation_steps=val_generator.samples // batch_size,
-    epochs=10
-)
-
-# Save the model
-model.save('lung_cancer_detection_model.h5')
+    # Save the model
+    model.save(model_file)
 
 # Plot training & validation accuracy and loss
 def plot_training_history(history):
-    # Plot training & validation accuracy values
     plt.figure(figsize=(12, 4))
     
     plt.subplot(1, 2, 1)
@@ -90,7 +101,6 @@ def plot_training_history(history):
     plt.ylabel('Accuracy')
     plt.legend()
 
-    # Plot training & validation loss values
     plt.subplot(1, 2, 2)
     plt.plot(history.history['loss'], label='Train Loss')
     plt.plot(history.history['val_loss'], label='Validation Loss')
@@ -102,8 +112,9 @@ def plot_training_history(history):
     plt.tight_layout()
     plt.show()
 
-# Call the function to plot training history
-plot_training_history(history)
+# Call the function to plot training history if training occurred
+if not os.path.exists(model_file):
+    plot_training_history(history)
 
 # Function to generate Grad-CAM heatmap
 def generate_gradcam_heatmap(model, img_array, class_index):
