@@ -6,28 +6,32 @@ import numpy as np
 import cv2
 import os
 import matplotlib.pyplot as plt
+import gdown
 
-# Load the model if it exists
-model_exists = os.path.exists('lung_cancer_detection_model.h5')
-if model_exists:
-    model = load_model('lung_cancer_detection_model.h5')
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Recompile if necessary
-    model.summary()  # Print model summary for debugging
+# Download the model if it does not exist
+model_file = 'lung_cancer_detection_model.h5'
+if not os.path.exists(model_file):
+    gdown.download('https://drive.google.com/uc?id=1Tr02W2qSIrHma0yKGbTWsgQK1zv8qufZ', model_file, quiet=False)
+
+# Load the model
+model = load_model(model_file)
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.summary()
 
 # Preprocess the image
 def preprocess_image(img_path):
-    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)  # Read the image in original format
-    if img.shape[-1] == 4:  # Check if the image has 4 channels (RGBA)
-        img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)  # Convert RGBA to RGB
-    elif len(img.shape) == 2:  # Check if the image is grayscale
-        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)  # Convert to RGB by repeating the channel
-    img = cv2.resize(img, (150, 150))  # Resize to the input shape expected by the model
-    img_array = np.expand_dims(img, axis=0)  # Add batch dimension
-    return img_array / 255.0  # Normalize the image
+    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+    if img.shape[-1] == 4:
+        img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+    elif len(img.shape) == 2:
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+    img = cv2.resize(img, (150, 150))
+    img_array = np.expand_dims(img, axis=0)
+    return img_array / 255.0
 
 # Generate the Grad-CAM
 def generate_gradcam(model, img_array):
-    last_conv_layer = model.layers[4]  # Access the last Conv2D layer
+    last_conv_layer = model.layers[4]
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
@@ -39,8 +43,8 @@ def generate_gradcam(model, img_array):
     last_conv_layer_output = last_conv_layer_output[0]
 
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)  # Normalize
-    heatmap = cv2.resize(heatmap.numpy(), (150, 150))  # Keep original size
+    heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
+    heatmap = cv2.resize(heatmap.numpy(), (150, 150))
     return heatmap
 
 # Function to plot training history
@@ -64,8 +68,8 @@ def plot_training_history(history):
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig('training_history.png')  # Save the plot as an image
-    plt.close()  # Close the plot to free memory
+    plt.savefig('training_history.png')
+    plt.close()
 
 # Create and compile the CNN model
 def create_cnn_model(input_shape=(150, 150, 3)):
@@ -78,12 +82,12 @@ def create_cnn_model(input_shape=(150, 150, 3)):
         tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dense(1, activation='sigmoid')  # Output layer for binary classification
+        tf.keras.layers.Dense(1, activation='sigmoid')
     ])
     return model
 
 # Function to train the model
-def train_model():
+def train_model(data_dir):
     # Data generators
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
                                        height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
@@ -91,9 +95,9 @@ def train_model():
     val_datagen = ImageDataGenerator(rescale=1./255)
 
     # Load data
-    train_generator = train_datagen.flow_from_directory('data/train', target_size=(150, 150),
+    train_generator = train_datagen.flow_from_directory(os.path.join(data_dir, 'train'), target_size=(150, 150),
                                                         batch_size=32, class_mode='binary')
-    val_generator = val_datagen.flow_from_directory('data/val', target_size=(150, 150),
+    val_generator = val_datagen.flow_from_directory(os.path.join(data_dir, 'val'), target_size=(150, 150),
                                                     batch_size=32, class_mode='binary')
 
     # Create and compile the model
@@ -101,8 +105,8 @@ def train_model():
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
     # Call the model with a dummy input to initialize it
-    dummy_input = np.random.rand(1, 150, 150, 3)  # Create a dummy input
-    model(dummy_input)  # Call the model with dummy input
+    dummy_input = np.random.rand(1, 150, 150, 3)
+    model(dummy_input)
 
     # Train the model
     history = model.fit(train_generator, steps_per_epoch=train_generator.samples // 32,
@@ -141,7 +145,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Headers of the website
 st.markdown('<div class="section">', unsafe_allow_html=True)
 st.header("Thank you for using ONCOSCAN")
 st.write("CNNs are the preferred network for detecting lung cancer due to their ability to process image data. They can perform tasks such as classification, segmentation, and object recognition. In the case of lung cancer detection, CNNs have surpassed radiologists.")
@@ -150,11 +153,17 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Sidebar controls
 st.sidebar.title("Controls")
 
+# Data directory input
+data_directory = st.sidebar.text_input("Enter the data directory path", value='data')
+
 # Train model button
 if st.sidebar.button("Train Model"):
-    with st.spinner("Training the model..."):
-        train_model()
-    st.success("Model training complete!")
+    if data_directory:
+        with st.spinner("Training the model..."):
+            train_model(data_directory)
+        st.success("Model training complete!")
+    else:
+        st.error("Please enter a valid data directory.")
 
 # Display training history if it exists
 if os.path.exists('training_history.png'):
@@ -169,20 +178,17 @@ if uploaded_file is not None:
 
     img_array = preprocess_image("temp_image.jpg")
 
-    if model_exists:
-        try:
-            prediction = model.predict(img_array)
-            result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-            st.subheader("Prediction Result:")
-            st.write(f"The model predicts the image is: **{result}**")
+    try:
+        prediction = model.predict(img_array)
+        result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+        st.subheader("Prediction Result:")
+        st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = generate_gradcam(model, img_array)
-            st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
-            st.image(heatmap, caption='Grad-CAM', use_container_width=True)
-        except Exception as e:
-            st.error(f"Error during prediction: {str(e)}")
-    else:
-        st.error("Model not found. Please train the model first.")
+        heatmap = generate_gradcam(model, img_array)
+        st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
+        st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+    except Exception as e:
+        st.error(f"Error during prediction: {str(e)}")
 
     os.remove("temp_image.jpg")
 
@@ -191,26 +197,21 @@ st.sidebar.header("Take a Picture")
 photo = st.sidebar.file_uploader("Capture a photo", type=["jpg", "jpeg", "png"])
 
 if photo is not None:
-    # Save the captured image temporarily
     with open("captured_image.jpg", "wb") as f:
         f.write(photo.getbuffer())
 
-    # Preprocess the captured image
     img_array = preprocess_image("captured_image.jpg")
 
-    if model_exists:
-        try:
-            prediction = model.predict(img_array)
-            result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-            st.subheader("Prediction Result for Captured Image:")
-            st.write(f"The model predicts the image is: **{result}**")
+    try:
+        prediction = model.predict(img_array)
+        result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+        st.subheader("Prediction Result for Captured Image:")
+        st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = generate_gradcam(model, img_array)
-            st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
-            st.image(heatmap, caption='Grad-CAM', use_container_width=True)
-        except Exception as e:
-            st.error(f"Error during prediction: {str(e)}")
-    else:
-        st.error("Model not found. Please train the model first.")
+        heatmap = generate_gradcam(model, img_array)
+        st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
+        st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+    except Exception as e:
+        st.error(f"Error during prediction: {str(e)}")
 
     os.remove("captured_image.jpg")
