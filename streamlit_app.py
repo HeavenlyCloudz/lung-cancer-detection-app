@@ -128,12 +128,20 @@ if st.sidebar.button("Train Model"):
         try:
             # Data preparation
             train_datagen = ImageDataGenerator(rescale=1./255)
-            train_generator = train_datagen.flow_from_directory(
-                train_data_dir,
-                target_size=(image_height, image_width),
-                batch_size=batch_size,
-                class_mode='binary'
-            )
+             # Load the data
+                train_generator = train_datagen.flow_from_directory(
+                    'data/train',
+                    target_size=(image_height, image_width),
+                    batch_size=batch_size,
+                    class_mode='binary'
+                )
+
+                val_generator = val_datagen.flow_from_directory(
+                    'data/val',
+                    target_size=(image_height, image_width),
+                    batch_size=batch_size,
+                    class_mode='binary'
+                )
 
             # Model training
             history = model.fit(
