@@ -21,6 +21,8 @@ model.summary()
 # Preprocess the image
 def preprocess_image(img_path):
     img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+    if img is None:
+        raise ValueError("Image not found or unable to load.")
     if img.shape[-1] == 4:
         img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
     elif len(img.shape) == 2:
@@ -87,7 +89,7 @@ def create_cnn_model(input_shape=(150, 150, 3)):
     return model
 
 # Function to train the model
-def train_model(data_dir):
+def train_model(data_dir, epochs, batch_size):
     # Data generators
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
                                        height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
@@ -96,9 +98,9 @@ def train_model(data_dir):
 
     # Load data
     train_generator = train_datagen.flow_from_directory(os.path.join(data_dir, 'train'), target_size=(150, 150),
-                                                        batch_size=32, class_mode='binary')
+                                                        batch_size=batch_size, class_mode='binary')
     val_generator = val_datagen.flow_from_directory(os.path.join(data_dir, 'val'), target_size=(150, 150),
-                                                    batch_size=32, class_mode='binary')
+                                                    batch_size=batch_size, class_mode='binary')
 
     # Create and compile the model
     model = create_cnn_model((150, 150, 3))
@@ -108,10 +110,10 @@ def train_model(data_dir):
     dummy_input = np.random.rand(1, 150, 150, 3)
     model(dummy_input)
 
-    # Train the model
-    history = model.fit(train_generator, steps_per_epoch=train_generator.samples // 32,
-                        validation_data=val_generator, validation_steps=val_generator.samples // 32,
-                        epochs=10)
+    # Train the model with progress feedback
+    history = model.fit(train_generator, steps_per_epoch=train_generator.samples // batch_size,
+                        validation_data=val_generator, validation_steps=val_generator.samples // batch_size,
+                        epochs=epochs, verbose=1)
 
     # Save the model
     model.save('lung_cancer_detection_model.h5')
@@ -155,13 +157,18 @@ st.sidebar.title("Controls")
 
 # Data directory input
 data_directory = st.sidebar.text_input("Enter the data directory path", value='data')
+epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
+batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
 
 # Train model button
 if st.sidebar.button("Train Model"):
     if data_directory:
         with st.spinner("Training the model..."):
-            train_model(data_directory)
-        st.success("Model training complete!")
+            try:
+                train_model(data_directory, epochs, batch_size)
+                st.success("Model training complete!")
+            except Exception as e:
+                st.error(f"Error during training: {str(e)}")
     else:
         st.error("Please enter a valid data directory.")
 
@@ -173,12 +180,12 @@ if os.path.exists('training_history.png'):
 # Image upload for prediction
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
 if uploaded_file is not None:
-    with open("temp_image.jpg", "wb") as f:
-        f.write(uploaded_file.getbuffer())
-
-    img_array = preprocess_image("temp_image.jpg")
-
     try:
+        with open("temp_image.jpg", "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        img_array = preprocess_image("temp_image.jpg")
+
         prediction = model.predict(img_array)
         result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
         st.subheader("Prediction Result:")
@@ -197,12 +204,12 @@ st.sidebar.header("Take a Picture")
 photo = st.sidebar.file_uploader("Capture a photo", type=["jpg", "jpeg", "png"])
 
 if photo is not None:
-    with open("captured_image.jpg", "wb") as f:
-        f.write(photo.getbuffer())
-
-    img_array = preprocess_image("captured_image.jpg")
-
     try:
+        with open("captured_image.jpg", "wb") as f:
+            f.write(photo.getbuffer())
+
+        img_array = preprocess_image("captured_image.jpg")
+
         prediction = model.predict(img_array)
         result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
         st.subheader("Prediction Result for Captured Image:")
