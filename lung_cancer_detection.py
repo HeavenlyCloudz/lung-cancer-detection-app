@@ -42,15 +42,18 @@ train_datagen = ImageDataGenerator(
 val_datagen = ImageDataGenerator(rescale=1./255)
 
 # Load the data
+train_data_dir = os.path.abspath('data/train')
+val_data_dir = os.path.abspath('data/val')
+
 train_generator = train_datagen.flow_from_directory(
-    'data/train',
+    train_data_dir,
     target_size=(image_height, image_width),
     batch_size=batch_size,
     class_mode='binary'
 )
 
 val_generator = val_datagen.flow_from_directory(
-    'data/val',
+    val_data_dir,
     target_size=(image_height, image_width),
     batch_size=batch_size,
     class_mode='binary'
@@ -90,9 +93,12 @@ if model is None:
     )
 
     # Save the model
-   model.save('lung_cancer_detection_model.h5')
+    model.save(model_file)
 
-# Plot training & validation accuracy and loss
+    # Plot training & validation accuracy and loss
+    plot_training_history(history)
+
+# Function to plot training history
 def plot_training_history(history):
     plt.figure(figsize=(12, 4))
     
@@ -114,10 +120,6 @@ def plot_training_history(history):
 
     plt.tight_layout()
     plt.show()
-
-# Call the function to plot training history if training occurred
-if model is None:
-    plot_training_history(history)
 
 # Function to generate Grad-CAM heatmap
 def generate_gradcam_heatmap(model, img_array, class_index):
