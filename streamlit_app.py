@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 
 # Load the model
 model_file = os.path.abspath('lung_cancer_detection_model.h5')  # Adjusted path
-st.write("Looking for model file at:", model_file)  # Debug information
 model = None  # Initialize model variable
 
 if os.path.exists(model_file):
