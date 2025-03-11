@@ -98,18 +98,30 @@ def train_model(data_dir, epochs, batch_size):
     val_datagen = ImageDataGenerator(rescale=1./255)
 
     # Load data with absolute paths
-    train_data_dir = os.path.abspath(os.path.join(data_dir, 'train'))
-    val_data_dir = os.path.abspath(os.path.join(data_dir, 'val'))
+    train_data_dir = os.path.join(data_dir, 'train')
+    val_data_dir = os.path.join(data_dir, 'val')
 
     # Log paths for debugging
     st.write(f"Training data directory: {train_data_dir}")
     st.write(f"Validation data directory: {val_data_dir}")
 
+    # Check if directories exist
+    if not os.path.exists(train_data_dir):
+        st.error(f"Training data directory does not exist: {train_data_dir}")
+        return
+    if not os.path.exists(val_data_dir):
+        st.error(f"Validation data directory does not exist: {val_data_dir}")
+        return
+
     # Load data
-    train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(image_height, image_width),
+    try:
+        train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(image_height, image_width),
+                                                            batch_size=batch_size, class_mode='binary')
+        val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(image_height, image_width),
                                                         batch_size=batch_size, class_mode='binary')
-    val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(image_height, image_width),
-                                                    batch_size=batch_size, class_mode='binary')
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return
 
     # Create and compile the model
     model = create_cnn_model((image_height, image_width, 3))
