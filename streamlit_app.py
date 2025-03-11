@@ -1,197 +1,239 @@
+import streamlit as st
+import os
 import tensorflow as tf
-from tensorflow.keras import layers, Model
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2
 import os
+import matplotlib.pyplot as plt
+import streamlit as st
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
-BATCH_SIZE = 32
-EPOCHS = 10
-MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')
+MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')  # Model file path
+MODEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lung_cancer_detection_model.h5')
 
+# Load the model
+try:
+model = load_model(MODEL_FILE)
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.summary()
+except Exception as e:
+st.error(f"Error loading model: {str(e)}")
+
+# Preprocess the image
+def preprocess_image(img_path):
+img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+if img is None:
+raise ValueError("Image not found or unable to load.")
+if img.shape[-1] == 4:
+img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+elif len(img.shape) == 2:
+img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+img = cv2.resize(img, (IMAGE_WIDTH, IMAGE_HEIGHT))
+img_array = np.expand_dims(img, axis=0)
+return img_array / 255.0
+
+# Generate the Grad-CAM
+def generate_gradcam(model, img_array):
+last_conv_layer = model.layers[-4]  # Adjust depending on your model architecture
+grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
+
+with tf.GradientTape() as tape:
+model_output, last_conv_layer_output = grad_model(img_array)
+class_id = tf.argmax(model_output[0])
+grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
+
+pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
+last_conv_layer_output = last_conv_layer_output[0]
+
+heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
+heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+return heatmap
+
+# Function to plot training history
 def plot_training_history(history):
-    """Plot the training and validation accuracy and loss."""
-    plt.figure(figsize=(12, 4))
-    
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['accuracy'], label='Train Accuracy')
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-    plt.title('Model Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.legend()
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title('Model Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
 
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['loss'], label='Train Loss')
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-    plt.title('Model Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('Model Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
 
-    plt.tight_layout()
-    plt.show()
+plt.tight_layout()
+plt.savefig('training_history.png')
+plt.close()
 
+# Create and compile the CNN model
 def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
-    """Create and return a CNN model."""
-    model = tf.keras.Sequential([
-        Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
-        MaxPooling2D(pool_size=(2, 2)),
-        Conv2D(64, (3, 3), activation='relu'),
-        MaxPooling2D(pool_size=(2, 2)),
-        Conv2D(128, (3, 3), activation='relu'),
-        MaxPooling2D(pool_size=(2, 2)),
-        Flatten(),
-        Dense(128, activation='relu'),
-        Dense(1, activation='sigmoid')  # Output layer for binary classification
-    ])
-    return model
+model = tf.keras.Sequential([
+tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
+tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
+tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+tf.keras.layers.Flatten(),
+tf.keras.layers.Dense(128, activation='relu'),
+tf.keras.layers.Dense(1, activation='sigmoid')
+])
+return model
 
-def load_model_file(model_file):
-    """Load the model from the specified file."""
-    if not os.path.exists(model_file):
-        print(f"Model file not found: {model_file}")
-        return None
+# Function to train the model
+def train_model(data_dir, epochs, batch_size):
+# Data generators
+train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
+height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
+horizontal_flip=True, fill_mode='nearest')
+val_datagen = ImageDataGenerator(rescale=1./255)
 
-    try:
-        model = tf.keras.models.load_model(model_file)
-        return model
-    except Exception as e:
-        print(f"Error loading model: {str(e)}")
-        return None
+    # Load data with absolute paths
+    # Use os.path.join to avoid duplicate slashes or backslashes
+train_data_dir = os.path.join(data_dir, 'train')
+val_data_dir = os.path.join(data_dir, 'val')
 
-def load_data(train_dir, val_dir):
-    """Load training and validation data from directories."""
-    train_datagen = ImageDataGenerator(
-        rescale=1./255,
-        rotation_range=20,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        shear_range=0.2,
-        zoom_range=0.2,
-        horizontal_flip=True,
-        fill_mode='nearest'
-    )
+# Check if directories exist
+if not os.path.exists(train_data_dir):
+st.error(f"Training data directory does not exist: {train_data_dir}")
+return
+if not os.path.exists(val_data_dir):
+st.error(f"Validation data directory does not exist: {val_data_dir}")
+return
 
-    val_datagen = ImageDataGenerator(rescale=1./255)
+# Load data
+try:
+train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+batch_size=batch_size, class_mode='binary')
+val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+batch_size=batch_size, class_mode='binary')
+except Exception as e:
+st.error(f"Error loading data: {str(e)}")
+return
 
-    try:
-        train_generator = train_datagen.flow_from_directory(
-            train_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=BATCH_SIZE,
-            class_mode='binary'
-        )
+# Create and compile the model
+model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-        val_generator = val_datagen.flow_from_directory(
-            val_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=BATCH_SIZE,
-            class_mode='binary'
-        )
-        return train_generator, val_generator
-    except Exception as e:
-        print(f"Error loading data: {str(e)}")
-        return None, None
+# Train the model
+history = model.fit(train_generator, steps_per_epoch=train_generator.samples // batch_size,
+validation_data=val_generator, validation_steps=val_generator.samples // batch_size,
+epochs=epochs)
 
-def generate_gradcam_heatmap(model, img_array, class_index):
-    """Generate a Grad-CAM heatmap for a given image array."""
-    last_conv_layer = model.layers[-4]  # Use the last Conv2D layer
-    grad_model = Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
-    
-    with tf.GradientTape() as tape:
-        conv_outputs, preds = grad_model(np.expand_dims(img_array, axis=0))
-        loss = preds[:, class_index]
+# Save the model
+model.save(MODEL_FILE)
 
-    grads = tape.gradient(loss, conv_outputs)[0]
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
+# Plot and save the training history
+plot_training_history(history)
 
-    conv_output = conv_outputs[0]
-    heatmap = conv_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.squeeze(heatmap)
+# Streamlit UI
+st.title("Lung Cancer Detection")
+st.markdown(
+"""
+   <style>
+   .section {
+       background-image: url('https://jnj-content-lab2.brightspotcdn.com/dims4/default/78c6313/2147483647/strip/false/crop/1440x666+0+0/resize/1440x666!/quality/90/?url=https%3A%2F%2Fjnj-production-jnj.s3.us-east-1.amazonaws.com%2Fbrightspot%2F1b%2F32%2F2e138abbf1792e49103c9e3516a8%2Fno-one-would-believe-me-when-i-suspected-i-had-lung-cancer-0923-new.jpg');
+       background-size: cover;
+       background-repeat: no-repeat;
+       background-position: center;
+       padding: 40px;
+       min-height: 400px;
+       border-radius: 10px;
+       color: white;
+       margin: 20px 0;
+   }
+   
+   .sidebar .sidebar-content {
+       background-color: #ADD8E6; /* Light blue color */
+       color: black; /* Change text color for visibility */
+   }
+   </style>
+   """,
+unsafe_allow_html=True
+)
 
-    heatmap = tf.keras.activations.relu(heatmap)
-    heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
+st.markdown('<div class="section">', unsafe_allow_html=True)
+st.header("Thank you for using ONCOSCAN")
+st.write("CNNs are the preferred network for detecting lung cancer due to their ability to process image data. They can perform tasks such as classification, segmentation, and object recognition. In the case of lung cancer detection, CNNs have surpassed radiologists.")
+st.markdown('</div>', unsafe_allow_html=True)
 
-    return heatmap.numpy()
+# Sidebar controls
+st.sidebar.title("Controls")
 
-def display_gradcam_heatmap(img_array, heatmap, alpha=0.4):
-    """Display the Grad-CAM heatmap overlayed on the original image."""
-    heatmap = np.uint8(255 * heatmap)
-    heatmap = cv2.resize(heatmap, (IMAGE_WIDTH, IMAGE_HEIGHT))
-    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_GRAY2RGB)
+# Data directory input
+data_directory = st.sidebar.text_input(
+"Enter the data directory path", 
+value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data'
+)
 
-    img_array = img_array * 255
-    superimposed_img = cv2.addWeighted(img_array.astype(np.uint8), alpha, heatmap, 1 - alpha, 0)
+# Hyperparameter inputs
+epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
+batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
 
-    plt.imshow(superimposed_img)
-    plt.axis('off')
-    plt.show()
+# Train model button
+if st.sidebar.button("Train Model"):
+with st.spinner("Training the model..."):
+train_model(data_directory, epochs, batch_size)
+st.success("Model training complete!")
 
-def load_image(image_path):
-    """Load and preprocess an image from a given path."""
-    try:
-        img_array = cv2.imread(image_path)
-        if img_array is None:
-            print(f"Error: Unable to load image at {image_path}")
-            return None
-        img_array = cv2.resize(img_array, (IMAGE_WIDTH, IMAGE_HEIGHT))
-        img_array = img_array / 255.0
-        return img_array
-    except Exception as e:
-        print("Error loading image:", e)
-        return None
+# Display training history if it exists
+if os.path.exists('training_history.png'):
+st.subheader("Training History")
+st.image('training_history.png', caption='Training History', use_container_width=True)
 
-if __name__ == "__main__":
-    # Load the model
-    model = load_model_file(MODEL_FILE)
+# Image upload for prediction
+uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
+if uploaded_file is not None:
+with open("temp_image.jpg", "wb") as f:
+f.write(uploaded_file.getbuffer())
 
-    if model is None:
-        # If model doesn't exist, we will train it
-        print("Model not found, training a new model.")
-        base_dir = os.path.abspath('data')  # Define the base directory
-        train_data_dir = os.path.join(base_dir, 'train')  # Use os.path.join for paths
-        val_data_dir = os.path.join(base_dir, 'val')
+img_array = preprocess_image("temp_image.jpg")
 
-        # Check if directories exist
-        if not os.path.exists(train_data_dir):
-            print(f"Training data directory does not exist: {train_data_dir}")
-            exit(1)
-        if not os.path.exists(val_data_dir):
-            print(f"Validation data directory does not exist: {val_data_dir}")
-            exit(1)
+try:
+prediction = model.predict(img_array)
+result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+st.subheader("Prediction Result:")
+st.write(f"The model predicts the image is: **{result}**")
 
-        train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        
-        if train_generator is None or val_generator is None:
-            print("Error loading data. Exiting.")
-            exit(1)
+heatmap = generate_gradcam(model, img_array)
+st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
+st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+except Exception as e:
+st.error(f"Error during prediction: {str(e)}")
 
-        # Create and train the model
-        model = create_cnn_model()
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-        history = model.fit(
-            train_generator,
-            steps_per_epoch=train_generator.samples // BATCH_SIZE,
-            validation_data=val_generator,
-            validation_steps=val_generator.samples // BATCH_SIZE,
-            epochs=EPOCHS
-        )
-        model.save(MODEL_FILE)
-        plot_training_history(history)
+os.remove("temp_image.jpg")
 
-    # Test the model and show Grad-CAM heatmap
-    test_image_path = input("Enter the path to the JPG/PNG test image: ")
-    test_image_array = load_image(test_image_path)
+# Mobile Upload Option
+st.sidebar.header("Take a Picture")
+photo = st.sidebar.file_uploader("Capture a photo", type=["jpg", "jpeg", "png"])
 
-    if test_image_array is not None:
-        test_image_array = np.expand_dims(test_image_array, axis=0)
-        predictions = model.predict(test_image_array)
-        class_index = int(predictions[0] > 0.5)
+if photo is not None:
+with open("captured_image.jpg", "wb") as f:
+f.write(photo.getbuffer())
 
-        heatmap = generate_gradcam_heatmap(model, test_image_array[0], class_index)
-        display_gradcam_heatmap(test_image_array[0], heatmap)
+img_array = preprocess_image("captured_image.jpg")
+
+try:
+prediction = model.predict(img_array)
+result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+st.subheader("Prediction Result for Captured Image:")
+st.write(f"The model predicts the image is: **{result}**")
+
+heatmap = generate_gradcam(model, img_array)
+st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
+st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+except Exception as e:
+st.error(f"Error during prediction: {str(e)}")
+
+os.remove("captured_image.jpg")
