@@ -161,7 +161,8 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.sidebar.title("Controls")
 
 # Data directory input
-data_directory = st.sidebar.text_input("Enter the data directory path", value='data')
+data_directory = st.sidebar.text_input("Enter the data directory path", 
+                                        value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data')
 
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
