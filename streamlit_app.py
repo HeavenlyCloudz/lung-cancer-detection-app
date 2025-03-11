@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
-MODEL_FILE = 'lung_cancer_detection_model.h5'  # Model file path
+MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')  # Model file path
 
 # Load the model
 try:
@@ -53,7 +53,6 @@ def generate_gradcam(model, img_array):
 # Function to plot training history
 def plot_training_history(history):
     plt.figure(figsize=(12, 4))
-
     plt.subplot(1, 2, 1)
     plt.plot(history.history['accuracy'], label='Train Accuracy')
     plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
