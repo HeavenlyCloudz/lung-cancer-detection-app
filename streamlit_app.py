@@ -169,8 +169,10 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.sidebar.title("Controls")
 
 # Data directory input
-data_directory = st.sidebar.text_input("Enter the data directory path", 
-                                        value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data')
+data_directory = st.sidebar.text_input(
+    "Enter the data directory path", 
+    value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data'
+)
 
 # Define absolute paths for train and val
 train_data_dir = os.path.join(data_directory, 'train')
