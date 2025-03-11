@@ -8,12 +8,12 @@ import os
 import matplotlib.pyplot as plt
 
 # Constants
-image_height, image_width = 150, 150
-model_file = 'lung_cancer_detection_model.h5'  # Model file path
+IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
+MODEL_FILE = 'lung_cancer_detection_model.h5'  # Model file path
 
 # Load the model
 try:
-    model = load_model(model_file)
+    model = load_model(MODEL_FILE)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     model.summary()
 except Exception as e:
@@ -28,7 +28,7 @@ def preprocess_image(img_path):
         img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
     elif len(img.shape) == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    img = cv2.resize(img, (image_width, image_height))
+    img = cv2.resize(img, (IMAGE_WIDTH, IMAGE_HEIGHT))
     img_array = np.expand_dims(img, axis=0)
     return img_array / 255.0
 
@@ -47,7 +47,7 @@ def generate_gradcam(model, img_array):
 
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
-    heatmap = cv2.resize(heatmap.numpy(), (image_width, image_height))
+    heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
     return heatmap
 
 # Function to plot training history
@@ -75,7 +75,7 @@ def plot_training_history(history):
     plt.close()
 
 # Create and compile the CNN model
-def create_cnn_model(input_shape=(image_height, image_width, 3)):
+def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
     model = tf.keras.Sequential([
         tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
         tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
@@ -101,10 +101,6 @@ def train_model(data_dir, epochs, batch_size):
     train_data_dir = os.path.join(data_dir, 'train')
     val_data_dir = os.path.join(data_dir, 'val')
 
-    # Log paths for debugging
-    st.write(f"Training data directory: {train_data_dir}")
-    st.write(f"Validation data directory: {val_data_dir}")
-
     # Check if directories exist
     if not os.path.exists(train_data_dir):
         st.error(f"Training data directory does not exist: {train_data_dir}")
@@ -115,16 +111,16 @@ def train_model(data_dir, epochs, batch_size):
 
     # Load data
     try:
-        train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(image_height, image_width),
+        train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
                                                             batch_size=batch_size, class_mode='binary')
-        val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(image_height, image_width),
+        val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
                                                         batch_size=batch_size, class_mode='binary')
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return
 
     # Create and compile the model
-    model = create_cnn_model((image_height, image_width, 3))
+    model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
     # Train the model
@@ -133,7 +129,7 @@ def train_model(data_dir, epochs, batch_size):
                         epochs=epochs)
 
     # Save the model
-    model.save(model_file)
+    model.save(MODEL_FILE)
 
     # Plot and save the training history
     plot_training_history(history)
