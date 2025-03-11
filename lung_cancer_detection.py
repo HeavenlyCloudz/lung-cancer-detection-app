@@ -13,7 +13,6 @@ BATCH_SIZE = 32
 EPOCHS = 10
 MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')
 
-
 def plot_training_history(history):
     """Plot the training and validation accuracy and loss."""
     plt.figure(figsize=(12, 4))
@@ -37,7 +36,6 @@ def plot_training_history(history):
     plt.tight_layout()
     plt.show()
 
-
 def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
     """Create and return a CNN model."""
     model = tf.keras.Sequential([
@@ -53,7 +51,6 @@ def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
     ])
     return model
 
-
 def load_model_file(model_file):
     """Load the model from the specified file."""
     if not os.path.exists(model_file):
@@ -66,7 +63,6 @@ def load_model_file(model_file):
     except Exception as e:
         print(f"Error loading model: {str(e)}")
         return None
-
 
 def load_data(train_dir, val_dir):
     """Load training and validation data from directories."""
@@ -99,7 +95,6 @@ def load_data(train_dir, val_dir):
 
     return train_generator, val_generator
 
-
 def generate_gradcam_heatmap(model, img_array, class_index):
     """Generate a Grad-CAM heatmap for a given image array."""
     last_conv_layer = model.layers[-4]  # Use the last Conv2D layer
@@ -121,7 +116,6 @@ def generate_gradcam_heatmap(model, img_array, class_index):
 
     return heatmap.numpy()
 
-
 def display_gradcam_heatmap(img_array, heatmap, alpha=0.4):
     """Display the Grad-CAM heatmap overlayed on the original image."""
     heatmap = np.uint8(255 * heatmap)
@@ -135,7 +129,6 @@ def display_gradcam_heatmap(img_array, heatmap, alpha=0.4):
     plt.axis('off')
     plt.show()
 
-
 def load_image(image_path):
     """Load and preprocess an image from a given path."""
     try:
@@ -147,7 +140,6 @@ def load_image(image_path):
         print("Error loading image:", e)
         return None
 
-
 if __name__ == "__main__":
     # Load the model
     model = load_model_file(MODEL_FILE)
@@ -157,6 +149,14 @@ if __name__ == "__main__":
     train_data_dir = os.path.join(base_dir, 'train')  # Use os.path.join for paths
     val_data_dir = os.path.join(base_dir, 'val')
     
+    # Check if directories exist
+    if not os.path.exists(train_data_dir):
+        print(f"Training data directory does not exist: {train_data_dir}")
+        exit(1)
+    if not os.path.exists(val_data_dir):
+        print(f"Validation data directory does not exist: {val_data_dir}")
+        exit(1)
+
     train_generator, val_generator = load_data(train_data_dir, val_data_dir)
 
     # Train the model if it does not exist
