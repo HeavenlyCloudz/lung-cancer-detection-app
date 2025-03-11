@@ -153,8 +153,10 @@ if __name__ == "__main__":
     model = load_model_file(MODEL_FILE)
 
     # Load data
-    train_data_dir = os.path.abspath('data/train')
-    val_data_dir = os.path.abspath('data/val')
+    base_dir = os.path.abspath('data')  # Define the base directory
+    train_data_dir = os.path.join(base_dir, 'train')  # Use os.path.join for paths
+    val_data_dir = os.path.join(base_dir, 'val')
+    
     train_generator, val_generator = load_data(train_data_dir, val_data_dir)
 
     # Train the model if it does not exist
