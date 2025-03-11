@@ -34,7 +34,7 @@ def preprocess_image(img_path):
 
 # Generate the Grad-CAM
 def generate_gradcam(model, img_array):
-    last_conv_layer = model.layers[4]
+    last_conv_layer = model.layers[-4]  # Adjust depending on your model architecture
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
@@ -97,10 +97,18 @@ def train_model(data_dir, epochs, batch_size):
                                        horizontal_flip=True, fill_mode='nearest')
     val_datagen = ImageDataGenerator(rescale=1./255)
 
+    # Load data with absolute paths
+    train_data_dir = os.path.abspath(os.path.join(data_dir, 'train'))
+    val_data_dir = os.path.abspath(os.path.join(data_dir, 'val'))
+
+    # Log paths for debugging
+    st.write(f"Training data directory: {train_data_dir}")
+    st.write(f"Validation data directory: {val_data_dir}")
+
     # Load data
-    train_generator = train_datagen.flow_from_directory(os.path.join(data_dir, 'train'), target_size=(image_height, image_width),
+    train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(image_height, image_width),
                                                         batch_size=batch_size, class_mode='binary')
-    val_generator = val_datagen.flow_from_directory(os.path.join(data_dir, 'val'), target_size=(image_height, image_width),
+    val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(image_height, image_width),
                                                     batch_size=batch_size, class_mode='binary')
 
     # Create and compile the model
