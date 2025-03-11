@@ -1,15 +1,15 @@
-import streamlit as st
+import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import cv2
-import os
 import matplotlib.pyplot as plt
+import streamlit as st
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
-MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')  # Model file path
+MODEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lung_cancer_detection_model.h5')
 
 # Load the model
 try:
@@ -96,7 +96,7 @@ def train_model(data_dir, epochs, batch_size):
                                        horizontal_flip=True, fill_mode='nearest')
     val_datagen = ImageDataGenerator(rescale=1./255)
 
-    # Load data with absolute paths
+    # Use os.path.join to avoid duplicate slashes or backslashes
     train_data_dir = os.path.join(data_dir, 'train')
     val_data_dir = os.path.join(data_dir, 'val')
 
