@@ -176,18 +176,22 @@ st.sidebar.title("Controls")
 data_directory = st.sidebar.text_input("Enter the data directory path", 
                                         value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data')
 
+# Define absolute paths for train and val
+train_data_dir = os.path.join(data_directory, 'train')
+val_data_dir = os.path.join(data_directory, 'val')
+
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
 
 # Train model button
 if st.sidebar.button("Train Model"):
-    if data_directory:
+    if os.path.exists(train_data_dir) and os.path.exists(val_data_dir):
         with st.spinner("Training the model..."):
             train_model(data_directory, epochs, batch_size)
         st.success("Model training complete!")
     else:
-        st.error("Please enter a valid data directory.")
+        st.error("Please ensure that both the 'train' and 'val' directories exist in the specified data directory.")
 
 # Display training history if it exists
 if os.path.exists('training_history.png'):
