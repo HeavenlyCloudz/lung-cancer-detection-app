@@ -44,7 +44,7 @@ def generate_gradcam(model, img_array):
         grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
 
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
-    last_conv_layer_output = last_conv_layer_output[0]
+    last_conv_layer_output = last_conv_layer_output[-3]
 
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
@@ -97,9 +97,6 @@ def train_model(data_dir, epochs, batch_size):
                                        horizontal_flip=True, fill_mode='nearest')
     val_datagen = ImageDataGenerator(rescale=1./255)
 
-    # Load data with absolute paths
-    train_data_dir = os.path.join(data_dir, 'train')
-    val_data_dir = os.path.join(data_dir, 'val')
 
     # Check if directories exist
     if not os.path.exists(train_data_dir):
