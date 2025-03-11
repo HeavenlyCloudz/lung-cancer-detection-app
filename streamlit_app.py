@@ -182,12 +182,9 @@ batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, va
 
 # Train model button
 if st.sidebar.button("Train Model"):
-    if os.path.exists(train_data_dir) and os.path.exists(val_data_dir):
-        with st.spinner("Training the model..."):
-            train_model(data_directory, epochs, batch_size)
-        st.success("Model training complete!")
-    else:
-        st.error("Please ensure that both the 'train' and 'val' directories exist in the specified data directory.")
+    with st.spinner("Training the model..."):
+        train_model(data_directory, epochs, batch_size)
+    st.success("Model training complete!")
 
 # Display training history if it exists
 if os.path.exists('training_history.png'):
