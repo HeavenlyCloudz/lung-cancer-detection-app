@@ -98,8 +98,8 @@ def train_model(data_dir, epochs, batch_size):
     val_datagen = ImageDataGenerator(rescale=1./255)
 
     # Load data with absolute paths
-    train_data_dir = os.path.join(data_dir, 'train')
-    val_data_dir = os.path.join(data_dir, 'val')
+    train_data_dir = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train"
+    val_data_dir = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\val"
 
     # Check if directories exist
     if not os.path.exists(train_data_dir):
