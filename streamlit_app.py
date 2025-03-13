@@ -176,7 +176,7 @@ epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100,
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
 
 # Display expected dataset path
-expected_path = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data"
+expected_path = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\lung-cancer-detection-app\data"
 st.text("Expected Dataset Path:")
 st.code(expected_path)
 
