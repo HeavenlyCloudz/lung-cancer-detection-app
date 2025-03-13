@@ -9,7 +9,12 @@ import matplotlib.pyplot as plt
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
-MODEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lung_cancer_detection_model.h5')
+MODEL_FILE = os.path.join(os.path.dirname(__file__), 'lung_cancer_detection_model.h5')
+
+# Set dataset paths using relative paths
+base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
+train_data_dir = os.path.join(base_data_dir, 'train')
+val_data_dir = os.path.join(base_data_dir, 'val')
 
 # Load the model
 try:
@@ -90,16 +95,12 @@ def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
     return model
 
 # Function to train the model
-def train_model(data_dir, epochs, batch_size):
+def train_model(epochs, batch_size):
     # Data generators
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
                                        height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
                                        horizontal_flip=True, fill_mode='nearest')
     val_datagen = ImageDataGenerator(rescale=1./255)
-
-    # Load data with absolute paths
-    train_data_dir = os.path.join(data_dir, 'train')
-    val_data_dir = os.path.join(data_dir, 'val')
 
     # Check if paths exist
     if not os.path.exists(train_data_dir):
@@ -175,23 +176,10 @@ st.sidebar.title("Controls")
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
 
-# Display expected dataset path
-expected_path = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\lung-cancer-detection-app\data"
-st.text("Expected Dataset Path:")
-st.code(expected_path)
-
-# Button to open the dataset folder
-if st.sidebar.button("Open Dataset Folder"):
-    if os.path.exists(expected_path):
-        os.startfile(expected_path)
-        st.success(f"Opening dataset folder: {expected_path}")
-    else:
-        st.error("Dataset path does not exist.")
-
-# Train model button
+# Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
-        train_model(expected_path, epochs, batch_size)  # Call your training function
+        train_model(epochs, batch_size)  # Call your training function
     st.success("Model training complete!")  # This will display after training is done
 
 # Display training history if it exists
