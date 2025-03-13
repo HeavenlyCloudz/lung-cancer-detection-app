@@ -174,15 +174,22 @@ st.sidebar.title("Controls")
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
-dataset_path = st.text_input("Please enter the path to your dataset:", value=r"C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data")
+
+# Display expected dataset path
+expected_path = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data"
+st.text("Expected Dataset Path:")
+st.code(expected_path)
+
+# Dataset path input
+dataset_path = st.text_input("Please enter the path to your dataset:", value=expected_path)
 
 # Button to check the path
 if st.button("Check Path"):
+    st.write(f"Checking path: {dataset_path}")  # Debug line
     if os.path.exists(dataset_path):
         st.success(f"Path exists: {dataset_path}")
     else:
         st.error(f"Path does not exist: {dataset_path}")
-
 # Train model button
 if st.sidebar.button("Train Model"):
     if os.path.exists(dataset_path):
