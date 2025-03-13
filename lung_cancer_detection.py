@@ -97,7 +97,7 @@ def load_data(train_dir, val_dir):
 
 def generate_gradcam_heatmap(model, img_array, class_index):
     """Generate a Grad-CAM heatmap for a given image array."""
-    last_conv_layer = model.layers[-4]  # Use the last Conv2D layer
+    last_conv_layer = model.layers[4]  # Use the last Conv2D layer
     grad_model = Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
     
     with tf.GradientTape() as tape:
