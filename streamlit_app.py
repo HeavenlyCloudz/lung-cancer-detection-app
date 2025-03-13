@@ -108,6 +108,11 @@ def train_model(data_dir, epochs, batch_size):
     if not os.path.exists(val_data_dir):
         st.error(f"Validation data directory does not exist: {val_data_dir}")
         return
+       
+    if os.path.exists(train_data_dir):
+    print("Directory exists")
+else:
+    print("Directory does not exist")
 
     # Load data
     try:
@@ -130,6 +135,7 @@ def train_model(data_dir, epochs, batch_size):
 
     # Save the model
     model.save(MODEL_FILE)
+    
 
     # Plot and save the training history
     plot_training_history(history)
