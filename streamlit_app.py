@@ -180,6 +180,18 @@ if st.sidebar.button("Train Model"):
         train_model(r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data', epochs, batch_size)
     st.success("Model training complete!")
 
+# Input for the dataset path
+dataset_path = st.text_input("Please enter the path to your dataset:", 
+                              value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train')
+
+# Button to check the directory
+if st.button("Check Directory"):
+    # Check if the provided path exists
+    if os.path.exists(dataset_path):
+        st.success(f"Directory exists: {dataset_path}")
+    else:
+        st.error(f"Directory does not exist: {dataset_path}")
+
 # Display training history if it exists
 if os.path.exists('training_history.png'):
     st.subheader("Training History")
