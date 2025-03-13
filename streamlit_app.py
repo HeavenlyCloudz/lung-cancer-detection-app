@@ -154,7 +154,7 @@ st.markdown(
         border-radius: 10px;
         color: black; /* Text color */
         margin: 20px 0;
-        height: 800px; /* Increased height for the section */
+        height: 400px; /* Increased height for the section */
     }
     
     .sidebar .sidebar-content {
