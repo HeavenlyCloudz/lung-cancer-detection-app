@@ -141,8 +141,8 @@ def load_image(image_path):
         return None
 
 if __name__ == "__main__":
-    # Set dataset paths
-    base_data_dir = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\lung-cancer-detection-app\data"
+    # Set dataset paths using relative paths
+    base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
     train_data_dir = os.path.join(base_data_dir, "train")
     val_data_dir = os.path.join(base_data_dir, "val")
     
