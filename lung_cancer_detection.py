@@ -156,6 +156,8 @@ if __name__ == "__main__":
 
     train_generator, val_generator = load_data(train_data_dir, val_data_dir)
 
+    dataset_path = "C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\train"
+
     # Train the model if it does not exist
     if model is None:
         image_input_shape = (IMAGE_HEIGHT, IMAGE_WIDTH, 3)
