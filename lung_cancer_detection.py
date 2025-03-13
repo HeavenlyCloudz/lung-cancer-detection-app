@@ -144,6 +144,7 @@ if __name__ == "__main__":
     # Set dataset paths
     train_data_dir = "C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\train"
     val_data_dir = "C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\val"
+    dataset_path  = "C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data"
     
     # Load the model
     model = load_model_file(MODEL_FILE)
