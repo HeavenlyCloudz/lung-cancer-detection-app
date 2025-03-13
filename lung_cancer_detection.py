@@ -149,12 +149,15 @@ if __name__ == "__main__":
     # Load the model
     model = load_model_file(MODEL_FILE)
 
-    # Check if paths exist
+    # Check if dataset paths exist
+    if not os.path.exists(base_data_dir):
+        print(f"Dataset path does not exist: {base_data_dir}")
+        exit(1)
     if not os.path.exists(train_data_dir):
-        print(f"Training data path does not exist: {train_data_dir}")
+        print(f"Dataset path does not exist: {train_data_dir}")
         exit(1)
     if not os.path.exists(val_data_dir):
-        print(f"Validation data path does not exist: {val_data_dir}")
+        print(f"Dataset path does not exist: {val_data_dir}")
         exit(1)
 
     train_generator, val_generator = load_data(train_data_dir, val_data_dir)
