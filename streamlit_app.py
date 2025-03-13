@@ -175,7 +175,7 @@ st.sidebar.title("Controls")
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
-directory_path = st.text_input("Please enter the path to your dataset:", value="C:\\Users\\YourUsername\\Path\\To\\Dataset")
+dataset_path = st.text_input("Please enter the path to your dataset:", value="C:\\Users\\YourUsername\\Path\\To\\Dataset")
 
 
 # Button to check the directory
