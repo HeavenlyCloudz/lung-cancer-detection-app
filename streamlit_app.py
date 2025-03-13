@@ -147,13 +147,14 @@ st.markdown(
     }
     .section {
         background-image: url('https://jnj-content-lab2.brightspotcdn.com/dims4/default/78c6313/2147483647/strip/false/crop/1440x666+0+0/resize/1440x666!/quality/90/?url=https%3A%2F%2Fjnj-production-jnj.s3.us-east-1.amazonaws.com%2Fbrightspot%2F1b%2F32%2F2e138abbf1792e49103c9e3516a8%2Fno-one-would-believe-me-when-i-suspected-i-had-lung-cancer-0923-new.jpg');
-        background-size: cover;
+        background-size: cover; /* Cover the entire section */
         background-repeat: no-repeat;
         background-position: center;
         padding: 40px;
         border-radius: 10px;
         color: black; /* Text color */
         margin: 20px 0;
+        height: 600px; /* Set a specific height for the section */
     }
     
     .sidebar .sidebar-content {
