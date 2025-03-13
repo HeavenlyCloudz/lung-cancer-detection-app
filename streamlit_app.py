@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 MODEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lung_cancer_detection_model.h5')
 
+# Define the dataset path
+dataset_path = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train"
+
 # Load the model
 try:
     model = load_model(MODEL_FILE)
@@ -139,15 +142,14 @@ st.title("Lung Cancer Detection")
 st.markdown(
     """
     <style>
+    body {
+        background-color: #ADD8E6; /* Light blue color */
+    }
     .section {
-        background-image: url('https://jnj-content-lab2.brightspotcdn.com/dims4/default/78c6313/2147483647/strip/false/crop/1440x666+0+0/resize/1440x666!/quality/90/?url=https%3A%2F%2Fjnj-production-jnj.s3.us-east-1.amazonaws.com%2Fbrightspot%2F1b%2F32%2F2e138abbf1792e49103c9e3516a8%2Fno-one-would-believe-me-when-i-suspected-i-had-lung-cancer-0923-new.jpg');
-        background-size: cover;
-        background-repeat: no-repeat;
-        background-position: center;
+        background-color: rgba(255, 255, 255, 0.8); /* White background for the section */
         padding: 40px;
-        min-height: 400px;
         border-radius: 10px;
-        color: white;
+        color: black; /* Text color */
         margin: 20px 0;
     }
     
@@ -171,9 +173,6 @@ st.sidebar.title("Controls")
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
-
-# Input for the dataset path
-dataset_path = st.text_input("Please enter the path to your dataset:", value=r"C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\streamlit_project\\data\\train")
 
 
 # Button to check the directory
