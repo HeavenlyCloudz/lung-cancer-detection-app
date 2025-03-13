@@ -16,7 +16,7 @@ MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')
 def plot_training_history(history):
     """Plot the training and validation accuracy and loss."""
     plt.figure(figsize=(12, 4))
-    
+
     plt.subplot(1, 2, 1)
     plt.plot(history.history['accuracy'], label='Train Accuracy')
     plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
@@ -99,7 +99,7 @@ def generate_gradcam_heatmap(model, img_array, class_index):
     """Generate a Grad-CAM heatmap for a given image array."""
     last_conv_layer = model.layers[4]  # Use the last Conv2D layer
     grad_model = Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
-    
+
     with tf.GradientTape() as tape:
         conv_outputs, preds = grad_model(np.expand_dims(img_array, axis=0))
         loss = preds[:, class_index]
@@ -141,22 +141,22 @@ def load_image(image_path):
         return None
 
 if __name__ == "__main__":
+    # Set dataset paths
+    train_data_dir = "C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\train"
+    val_data_dir = "C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\val"
+    
     # Load the model
     model = load_model_file(MODEL_FILE)
 
-    
-    
-    # Check if directories exist
+    # Check if paths exist
     if not os.path.exists(train_data_dir):
-        print(f"Training data directory does not exist: {train_data_dir}")
+        print(f"Training data path does not exist: {train_data_dir}")
         exit(1)
     if not os.path.exists(val_data_dir):
-        print(f"Validation data directory does not exist: {val_data_dir}")
+        print(f"Validation data path does not exist: {val_data_dir}")
         exit(1)
 
     train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-
-    dataset_path = "C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\train"
 
     # Train the model if it does not exist
     if model is None:
