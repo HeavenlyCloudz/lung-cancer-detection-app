@@ -176,9 +176,12 @@ batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, va
 
 # Train model button
 if st.sidebar.button("Train Model"):
-    with st.spinner("Training the model..."):
-        train_model(r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data', epochs, batch_size)
-    st.success("Model training complete!")
+    if os.path.exists(dataset_path):
+        with st.spinner("Training the model..."):
+            train_model(dataset_path, epochs, batch_size)  # Call your training function
+        st.success("Model training complete!")  # This will display after training is done
+    else:
+        st.error("Please enter a valid path to your dataset before training.")
 
 # Input for the dataset path
 dataset_path = st.text_input("Please enter the path to your dataset:", 
