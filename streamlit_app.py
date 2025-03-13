@@ -98,8 +98,8 @@ def train_model(data_dir, epochs, batch_size):
     val_datagen = ImageDataGenerator(rescale=1./255)
 
     # Load data with absolute paths
-    train_data_dir = os.path.join(data_dir, 'train')
-    val_data_dir = os.path.join(data_dir, 'val')
+    train_data_dir = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train'
+    val_data_dir = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\val'
     
     # Check if directories exist
     if not os.path.exists(train_data_dir):
@@ -168,12 +168,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Sidebar controls
 st.sidebar.title("Controls")
 
-# Data directory input
-data_directory = st.sidebar.text_input(
-    "Enter the data directory path", 
-    value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data'
-)
-
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
@@ -181,7 +175,7 @@ batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, va
 # Train model button
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
-        train_model(data_directory, epochs, batch_size)
+        train_model(r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data', epochs, batch_size)
     st.success("Model training complete!")
 
 # Display training history if it exists
