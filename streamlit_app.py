@@ -35,7 +35,7 @@ def preprocess_image(img_path):
 
 # Generate the Grad-CAM
 def generate_gradcam(model, img_array):
-    last_conv_layer = model.layers[7]  # Change to match your architecture
+    last_conv_layer = model.layers[4]  # Change to match your architecture
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
