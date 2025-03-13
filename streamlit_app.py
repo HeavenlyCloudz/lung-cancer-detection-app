@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 MODEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lung_cancer_detection_model.h5')
 
-# Define the dataset path
-dataset_path = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train"
 
 # Load the model
 try:
