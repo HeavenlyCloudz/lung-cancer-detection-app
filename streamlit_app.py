@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 MODEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lung_cancer_detection_model.h5')
 
-
 # Load the model
 try:
     model = load_model(MODEL_FILE)
@@ -102,12 +101,12 @@ def train_model(data_dir, epochs, batch_size):
     train_data_dir = os.path.join(data_dir, 'train')
     val_data_dir = os.path.join(data_dir, 'val')
 
-    # Check if directories exist
+    # Check if paths exist
     if not os.path.exists(train_data_dir):
-        st.error(f"Training data directory does not exist: {train_data_dir}")
+        st.error(f"Training data path does not exist: {train_data_dir}")
         return
     if not os.path.exists(val_data_dir):
-        st.error(f"Validation data directory does not exist: {val_data_dir}")
+        st.error(f"Validation data path does not exist: {val_data_dir}")
         return
 
     # Load data
@@ -177,13 +176,12 @@ epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100,
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
 dataset_path = st.text_input("Please enter the path to your dataset:", value=r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train")
 
-
-# Button to check the directory
-if st.button("Check Directory"):
+# Button to check the path
+if st.button("Check Path"):
     if os.path.exists(dataset_path):
-        st.success(f"Directory exists: {dataset_path}")
+        st.success(f"Path exists: {dataset_path}")
     else:
-        st.error(f"Directory does not exist: {dataset_path}")
+        st.error(f"Path does not exist: {dataset_path}")
 
 # Train model button
 if st.sidebar.button("Train Model"):
