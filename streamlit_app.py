@@ -180,24 +180,19 @@ expected_path = r"C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data"
 st.text("Expected Dataset Path:")
 st.code(expected_path)
 
-# Dataset path input
-dataset_path = st.text_input("Please enter the path to your dataset:", value=expected_path)
-
-# Button to check the path
-if st.button("Check Path"):
-    st.write(f"Checking path: {dataset_path}")  # Debug line
-    if os.path.exists(dataset_path):
-        st.success(f"Path exists: {dataset_path}")
+# Button to open the dataset folder
+if st.sidebar.button("Open Dataset Folder"):
+    if os.path.exists(expected_path):
+        os.startfile(expected_path)
+        st.success(f"Opening dataset folder: {expected_path}")
     else:
-        st.error(f"Path does not exist: {dataset_path}")
+        st.error("Dataset path does not exist.")
+
 # Train model button
 if st.sidebar.button("Train Model"):
-    if os.path.exists(dataset_path):
-        with st.spinner("Training the model..."):
-            train_model(dataset_path, epochs, batch_size)  # Call your training function
-        st.success("Model training complete!")  # This will display after training is done
-    else:
-        st.error("Please enter a valid path to your dataset before training.")
+    with st.spinner("Training the model..."):
+        train_model(expected_path, epochs, batch_size)  # Call your training function
+    st.success("Model training complete!")  # This will display after training is done
 
 # Display training history if it exists
 if os.path.exists('training_history.png'):
