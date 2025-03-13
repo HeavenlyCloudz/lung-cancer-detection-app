@@ -145,8 +145,8 @@ if __name__ == "__main__":
     model = load_model_file(MODEL_FILE)
 
     # Load data
-    train_data_dir = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train'
-    val_data_dir = r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\val'
+    train_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\train'
+    val_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\val'
     
     # Check if directories exist
     if not os.path.exists(train_data_dir):
