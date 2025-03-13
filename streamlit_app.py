@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
-MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')  # Model file path
 MODEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lung_cancer_detection_model.h5')
 
 # Load the model
@@ -18,6 +17,7 @@ try:
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     model.summary()
 except Exception as e:
+    model = None
     st.error(f"Error loading model: {str(e)}")
 
 # Preprocess the image
@@ -35,7 +35,7 @@ def preprocess_image(img_path):
 
 # Generate the Grad-CAM
 def generate_gradcam(model, img_array):
-    last_conv_layer = model.layers[-4]  # Adjust depending on your model architecture
+    last_conv_layer = model.layers[7]  # Change to match your architecture
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
@@ -44,7 +44,7 @@ def generate_gradcam(model, img_array):
         grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
 
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
-    last_conv_layer_output = last_conv_layer_output[-3]
+    last_conv_layer_output = last_conv_layer_output[0]  # Use the first image in the batch
 
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
@@ -98,9 +98,9 @@ def train_model(data_dir, epochs, batch_size):
     val_datagen = ImageDataGenerator(rescale=1./255)
 
     # Load data with absolute paths
-    train_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\train'
-    val_data_dir = 'C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\\streamlit_project\\data\\val'
-    
+    train_data_dir = os.path.join(data_dir, 'train')
+    val_data_dir = os.path.join(data_dir, 'val')
+
     # Check if directories exist
     if not os.path.exists(train_data_dir):
         st.error(f"Training data directory does not exist: {train_data_dir}")
@@ -108,7 +108,6 @@ def train_model(data_dir, epochs, batch_size):
     if not os.path.exists(val_data_dir):
         st.error(f"Validation data directory does not exist: {val_data_dir}")
         return
-
 
     # Load data
     try:
@@ -131,7 +130,6 @@ def train_model(data_dir, epochs, batch_size):
 
     # Save the model
     model.save(MODEL_FILE)
-    
 
     # Plot and save the training history
     plot_training_history(history)
@@ -174,6 +172,16 @@ st.sidebar.title("Controls")
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
 
+# Input for the dataset path
+dataset_path = st.text_input("Please enter the path to your dataset:", value='')
+
+# Button to check the directory
+if st.button("Check Directory"):
+    if os.path.exists(dataset_path):
+        st.success(f"Directory exists: {dataset_path}")
+    else:
+        st.error(f"Directory does not exist: {dataset_path}")
+
 # Train model button
 if st.sidebar.button("Train Model"):
     if os.path.exists(dataset_path):
@@ -182,18 +190,6 @@ if st.sidebar.button("Train Model"):
         st.success("Model training complete!")  # This will display after training is done
     else:
         st.error("Please enter a valid path to your dataset before training.")
-
-# Input for the dataset path
-dataset_path = st.text_input("Please enter the path to your dataset:", 
-                              value=r'C:\Users\Antoru Grace Inc\.vscode\CNN\streamlit_project\data\train')
-
-# Button to check the directory
-if st.button("Check Directory"):
-    # Check if the provided path exists
-    if os.path.exists(dataset_path):
-        st.success(f"Directory exists: {dataset_path}")
-    else:
-        st.error(f"Directory does not exist: {dataset_path}")
 
 # Display training history if it exists
 if os.path.exists('training_history.png'):
@@ -208,17 +204,18 @@ if uploaded_file is not None:
 
     img_array = preprocess_image("temp_image.jpg")
 
-    try:
-        prediction = model.predict(img_array)
-        result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-        st.subheader("Prediction Result:")
-        st.write(f"The model predicts the image is: **{result}**")
+    if model:  # Ensure model is loaded
+        try:
+            prediction = model.predict(img_array)
+            result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+            st.subheader("Prediction Result:")
+            st.write(f"The model predicts the image is: **{result}**")
 
-        heatmap = generate_gradcam(model, img_array)
-        st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
-        st.image(heatmap, caption='Grad-CAM', use_container_width=True)
-    except Exception as e:
-        st.error(f"Error during prediction: {str(e)}")
+            heatmap = generate_gradcam(model, img_array)
+            st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
+            st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+        except Exception as e:
+            st.error(f"Error during prediction: {str(e)}")
 
     os.remove("temp_image.jpg")
 
@@ -232,16 +229,17 @@ if photo is not None:
 
     img_array = preprocess_image("captured_image.jpg")
 
-    try:
-        prediction = model.predict(img_array)
-        result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-        st.subheader("Prediction Result for Captured Image:")
-        st.write(f"The model predicts the image is: **{result}**")
+    if model:  # Ensure model is loaded
+        try:
+            prediction = model.predict(img_array)
+            result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+            st.subheader("Prediction Result for Captured Image:")
+            st.write(f"The model predicts the image is: **{result}**")
 
-        heatmap = generate_gradcam(model, img_array)
-        st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
-        st.image(heatmap, caption='Grad-CAM', use_container_width=True)
-    except Exception as e:
-        st.error(f"Error during prediction: {str(e)}")
+            heatmap = generate_gradcam(model, img_array)
+            st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
+            st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+        except Exception as e:
+            st.error(f"Error during prediction: {str(e)}")
 
     os.remove("captured_image.jpg")
