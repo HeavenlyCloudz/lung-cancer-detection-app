@@ -173,7 +173,8 @@ epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100,
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
 
 # Input for the dataset path
-dataset_path = st.text_input("Please enter the path to your dataset:", value='')
+dataset_path = st.text_input("Please enter the path to your dataset:", value=r"C:\\Users\\Antoru Grace Inc\\.vscode\\CNN\streamlit_project\\data\\train")
+
 
 # Button to check the directory
 if st.button("Check Directory"):
