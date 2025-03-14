@@ -20,7 +20,7 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 # Load the model
 try:
     model = load_model(MODEL_FILE)
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile the model
 
     # Evaluate the model using validation data
     val_datagen = ImageDataGenerator(rescale=1./255)
