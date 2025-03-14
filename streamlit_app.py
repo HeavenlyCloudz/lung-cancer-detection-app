@@ -28,16 +28,12 @@ try:
         "Learning Rate": optimizer.learning_rate.numpy()
     }
 
-    model.summary()
+    # Display model summary
+    model_summary = []
+    model.summary(print_fn=lambda x: model_summary.append(x))
 except Exception as e:
     model = None
     st.error(f"Error loading model: {str(e)}")
-
-# Display optimizer parameters
-if model:
-    st.subheader("Optimizer Details")
-    for key, value in optimizer_details.items():
-        st.write(f"{key}: {value}")
 
 # Preprocess the image
 def preprocess_image(img_path):
@@ -186,6 +182,12 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Sidebar controls
 st.sidebar.title("Controls")
 
+# Display optimizer details in the sidebar
+if model:
+    st.sidebar.subheader("Optimizer Details")
+    for key, value in optimizer_details.items():
+        st.sidebar.write(f"{key}: {value}")
+
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
@@ -200,6 +202,11 @@ if st.sidebar.button("Train Model"):
 if os.path.exists('training_history.png'):
     st.subheader("Training History")
     st.image('training_history.png', caption='Training History', use_container_width=True)
+
+# Display model summary at the bottom of the page
+if model:
+    st.subheader("Model Summary")
+    st.text('\n'.join(model_summary))
 
 # Image upload for prediction
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
