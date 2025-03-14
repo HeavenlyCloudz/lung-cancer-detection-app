@@ -44,9 +44,9 @@ def preprocess_image(img_path):
     img_array = np.expand_dims(img, axis=0)  # Add batch dimension
     return img_array / 255.0  # Normalize the image
 
-# Generate the Grad-CAM
 def generate_gradcam(model, img_array):
-    last_conv_layer = model.layers[4]  # 'conv2d_2' corresponds to index 4
+    # Access the last convolutional layer
+    last_conv_layer = model.get_layer('conv2d_2')  # Use the correct layer name
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
