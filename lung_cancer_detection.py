@@ -100,7 +100,7 @@ def generate_gradcam_heatmap(model, img_array, class_index):
     grad_model = Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
-        conv_outputs, preds = grad_model(np.expand_dims(img_array, axis=0))
+        conv_outputs, preds = grad_model(np.expand_dims(img_array, axis=0))  # Ensure the input shape is correct
         loss = preds[:, class_index]
 
     grads = tape.gradient(loss, conv_outputs)[0]
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     test_image_array = load_image(test_image_path)
 
     if test_image_array is not None:
-        test_image_array = np.expand_dims(test_image_array, axis=0)
+        test_image_array = np.expand_dims(test_image_array, axis=0)  # Add batch dimension
         predictions = model.predict(test_image_array)
         class_index = int(predictions[0] > 0.5)
 
