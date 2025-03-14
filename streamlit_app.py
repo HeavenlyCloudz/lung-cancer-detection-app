@@ -44,6 +44,33 @@ def preprocess_image(img_path):
     img_array = np.expand_dims(img, axis=0)
     return img_array / 255.0
 
+# Gradient analysis function
+def analyze_gradients(train_generator, model):
+    gradient_magnitudes = {layer: [] for layer in range(1, 8)}  # For 7 layers
+
+    for mini_batch in train_generator:
+        with tf.GradientTape() as tape:
+            predictions = model(mini_batch[0])  # Forward pass
+            loss = tf.keras.losses.binary_crossentropy(mini_batch[1], predictions)  # Compute loss
+
+        # Compute gradients
+        grads = tape.gradient(loss, model.trainable_variables)
+        
+        # Collect norms for each layer's gradients
+        for i, grad in enumerate(grads):
+            if grad is not None:
+                norm = tf.norm(grad).numpy()  # Calculate the norm of the gradient
+                gradient_magnitudes[i+1].append(norm)  # Store the norm based on layer index
+
+    # Plotting
+    for layer in gradient_magnitudes:
+        plt.plot(gradient_magnitudes[layer], label=f'Layer {layer}')
+    plt.xlabel('Mini-batch')
+    plt.ylabel(r"$\Vert\nabla C^l_w\Vert$")
+    plt.legend()
+    plt.savefig('gradient_analysis.png')  # Save the plot
+    plt.close()
+
 # Generate the Grad-CAM
 def generate_gradcam(model, img_array):
     last_conv_layer = model.layers[4]  # Change to match your architecture
@@ -135,6 +162,9 @@ def train_model(epochs, batch_size):
                         validation_data=val_generator, validation_steps=val_generator.samples // batch_size,
                         epochs=epochs)
 
+    # Analyze gradients
+    analyze_gradients(train_generator, model)
+
     # Save the model
     model.save(MODEL_FILE)
 
@@ -208,6 +238,11 @@ if model:
 if os.path.exists('training_history.png'):
     st.subheader("Training History")
     st.image('training_history.png', caption='Training History', use_container_width=True)
+
+# Display gradient analysis if it exists
+if os.path.exists('gradient_analysis.png'):
+    st.subheader("Gradient Analysis")
+    st.image('gradient_analysis.png', caption='Gradient Analysis', use_container_width=True)
 
 # Display model summary at the bottom of the page
 if model:
