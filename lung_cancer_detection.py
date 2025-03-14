@@ -94,25 +94,23 @@ def load_data(train_dir, val_dir):
 
     return train_generator, val_generator
 
-def generate_gradcam_heatmap(model, img_array, layer_name):
-    """Generate a Grad-CAM heatmap for a given image array."""
-    grad_model = Model(inputs=model.input, outputs=[model.output, model.get_layer(layer_name).output])
+def generate_gradcam(model, img_array):
+    # Access the last convolutional layer
+    last_conv_layer = model.get_layer('conv2d_2')  # Use the correct layer name
+    grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
-        preds, conv_outputs = grad_model(np.expand_dims(img_array, axis=0))
-        loss = preds[:, 0]  # Adjust for binary classification
+        model_output, last_conv_layer_output = grad_model(img_array)  # Ensure img_array is of shape (1, 150, 150, 3)
+        class_id = tf.argmax(model_output[0])  # Get the index of the highest probability
+        grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
 
-    grads = tape.gradient(loss, conv_outputs)[0]
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
+    last_conv_layer_output = last_conv_layer_output[0]  # Use the first image in the batch
 
-    conv_output = conv_outputs[0]
-    heatmap = conv_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.squeeze(heatmap)
-
-    heatmap = tf.keras.activations.relu(heatmap)
-    heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
-
-    return heatmap.numpy()
+    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+    heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)  # Normalize the heatmap
+    heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+    return heatmap
 
 def display_gradcam(img, heatmap, alpha=0.4):
     """Display the Grad-CAM heatmap overlayed on the original image."""
