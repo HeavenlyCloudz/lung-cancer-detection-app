@@ -231,9 +231,18 @@ if uploaded_file is not None:
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
+            # Generate and display Grad-CAM heatmap
             heatmap = generate_gradcam(model, img_array)  # Pass the preprocessed image
             st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
-            st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+
+            # Display heatmap as an image
+            plt.imshow(heatmap, cmap='jet')
+            plt.axis('off')
+            plt.colorbar()
+            plt.savefig('gradcam.png', bbox_inches='tight', pad_inches=0)
+            plt.close()
+            st.image('gradcam.png', caption='Grad-CAM', use_container_width=True)
+
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
 
@@ -256,9 +265,18 @@ if photo is not None:
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
+            # Generate and display Grad-CAM heatmap
             heatmap = generate_gradcam(model, img_array)  # Pass the preprocessed image
             st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
-            st.image(heatmap, caption='Grad-CAM', use_container_width=True)
+
+            # Display heatmap as an image
+            plt.imshow(heatmap, cmap='jet')
+            plt.axis('off')
+            plt.colorbar()
+            plt.savefig('gradcam_captured.png', bbox_inches='tight', pad_inches=0)
+            plt.close()
+            st.image('gradcam_captured.png', caption='Grad-CAM for Captured Image', use_container_width=True)
+
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
 
