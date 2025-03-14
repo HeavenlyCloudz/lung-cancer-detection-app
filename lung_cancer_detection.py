@@ -1,10 +1,8 @@
 import tensorflow as tf
-from tensorflow.keras import layers, Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import cm
 import cv2
 import os
 
@@ -95,12 +93,12 @@ def load_data(train_dir, val_dir):
     return train_generator, val_generator
 
 def generate_gradcam(model, img_array):
-    # Access the last convolutional layer
+    """Generate Grad-CAM heatmap."""
     last_conv_layer = model.get_layer('conv2d_2')  # Use the correct layer name
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
-        model_output, last_conv_layer_output = grad_model(img_array)  # Ensure img_array is of shape (1, 150, 150, 3)
+        model_output, last_conv_layer_output = grad_model(img_array)
         class_id = tf.argmax(model_output[0])  # Get the index of the highest probability
         grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
 
@@ -118,11 +116,11 @@ def display_gradcam(img, heatmap, alpha=0.4):
     heatmap = np.uint8(255 * heatmap)
     
     # Use the "jet" colormap to colourize the heatmap
-    jet = cm.get_cmap("jet")
+    jet = plt.get_cmap("jet")
     jet_colors = jet(np.arange(256))[:, :3]
     jet_heatmap = jet_colors[heatmap]
     
-    # Transform the heatmap into an image.
+    # Transform the heatmap into an image
     jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
     
     # Resize the heatmap to match the image dimensions
@@ -137,17 +135,13 @@ def display_gradcam(img, heatmap, alpha=0.4):
 
 def preprocess_image(image_path):
     """Load and preprocess an image from a given path."""
-    try:
-        img_array = cv2.imread(image_path)
-        if img_array is None:
-            raise ValueError("Image not found or unable to load.")
-        
-        img_array = cv2.resize(img_array, (IMAGE_WIDTH, IMAGE_HEIGHT))
-        img_array = img_array / 255.0  # Normalize the image
-        return np.expand_dims(img_array, axis=0)  # Add batch dimension
-    except Exception as e:
-        print("Error loading image:", e)
-        return None
+    img_array = cv2.imread(image_path)
+    if img_array is None:
+        raise ValueError("Image not found or unable to load.")
+    
+    img_array = cv2.resize(img_array, (IMAGE_WIDTH, IMAGE_HEIGHT))
+    img_array = img_array / 255.0  # Normalize the image
+    return np.expand_dims(img_array, axis=0)  # Add batch dimension
 
 if __name__ == "__main__":
     # Set dataset paths using relative paths
@@ -175,10 +169,6 @@ if __name__ == "__main__":
     if model is None:
         model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         
-        # Freeze layers if necessary
-        for layer in model.layers:
-            layer.trainable = False
-
         # Compile the model
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
@@ -195,19 +185,24 @@ if __name__ == "__main__":
 
     # Test the model and show Grad-CAM heatmap
     test_image_path = input("Enter the path to the JPG/PNG test image: ")
-    test_image_array = preprocess_image(test_image_path)
+    
+    try:
+        test_image_array = preprocess_image(test_image_path)
 
-    if test_image_array is not None:
-        predictions = model.predict(test_image_array)  # Use the preprocessed image directly
-        class_index = int(predictions[0] > 0.5)  # Assuming binary classification
+        if test_image_array is not None:
+            predictions = model.predict(test_image_array)  # Use the preprocessed image directly
+            class_index = int(predictions[0] > 0.5)  # Assuming binary classification
 
-        # Generate Grad-CAM heatmap using 'conv2d_2' layer
-        heatmap = generate_gradcam(model, test_image_array)
-        
-        # Display the heatmap
-        plt.axis('off')
-        plt.matshow(heatmap)
-        plt.show()
+            # Generate Grad-CAM heatmap
+            heatmap = generate_gradcam(model, test_image_array)
+            
+            # Display the heatmap
+            plt.axis('off')
+            plt.matshow(heatmap)
+            plt.show()
 
-        # Display the Grad-CAM overlay
-        display_gradcam(test_image_array[0], heatmap)
+            # Display the Grad-CAM overlay
+            display_gradcam(test_image_array[0], heatmap)
+
+    except Exception as e:
+        print(f"Error during prediction: {str(e)}")
