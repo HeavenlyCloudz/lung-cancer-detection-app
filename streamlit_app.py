@@ -20,10 +20,24 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 try:
     model = load_model(MODEL_FILE)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    
+    # Get optimizer details
+    optimizer = model.optimizer
+    optimizer_details = {
+        "Optimizer": optimizer.__class__.__name__,
+        "Learning Rate": optimizer.learning_rate.numpy()
+    }
+
     model.summary()
 except Exception as e:
     model = None
     st.error(f"Error loading model: {str(e)}")
+
+# Display optimizer parameters
+if model:
+    st.subheader("Optimizer Details")
+    for key, value in optimizer_details.items():
+        st.write(f"{key}: {value}")
 
 # Preprocess the image
 def preprocess_image(img_path):
