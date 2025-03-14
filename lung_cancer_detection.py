@@ -100,6 +100,10 @@ def preprocess_image(image_path):
     """Load and preprocess an image from a local file path."""
     img = Image.open(image_path)
 
+    # Convert to RGB if the image has an alpha channel
+    if img.mode == 'RGBA':
+        img = img.convert('RGB')
+
     # Adjust the image dimensions to a standard size (150x150 for your model)
     new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
 
