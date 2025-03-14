@@ -21,7 +21,7 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 try:
     model = load_model(MODEL_FILE)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    
+
     # Evaluate the model using validation data
     val_datagen = ImageDataGenerator(rescale=1./255)
     val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
@@ -44,15 +44,6 @@ def preprocess_image(img_path):
     processed_image = np.asarray(new_image) / 255.0  # Normalize the image
     img_array = np.expand_dims(processed_image, axis=0)  # Add batch dimension
     return img_array
-
-def load_and_preprocess_images_from_folder(folder_path):
-    processed_images = []
-    for filename in os.listdir(folder_path):
-        if filename.endswith(('.jpg', '.jpeg', '.png')):  # Check for image file types
-            image_path = os.path.join(folder_path, filename)
-            processed_image = preprocess_image(image_path)
-            processed_images.append(processed_image)
-    return np.vstack(processed_images)  # Stack all images into a single array
 
 def generate_gradcam(model, img_array):
     # Access the last convolutional layer
