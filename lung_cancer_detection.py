@@ -135,13 +135,16 @@ def display_gradcam(img, heatmap, alpha=0.4):
     plt.axis('off')
     plt.show()
 
-def load_image(image_path):
+def preprocess_image(image_path):
     """Load and preprocess an image from a given path."""
     try:
         img_array = cv2.imread(image_path)
+        if img_array is None:
+            raise ValueError("Image not found or unable to load.")
+        
         img_array = cv2.resize(img_array, (IMAGE_WIDTH, IMAGE_HEIGHT))
-        img_array = img_array / 255.0
-        return img_array
+        img_array = img_array / 255.0  # Normalize the image
+        return np.expand_dims(img_array, axis=0)  # Add batch dimension
     except Exception as e:
         print("Error loading image:", e)
         return None
@@ -192,15 +195,14 @@ if __name__ == "__main__":
 
     # Test the model and show Grad-CAM heatmap
     test_image_path = input("Enter the path to the JPG/PNG test image: ")
-    test_image_array = load_image(test_image_path)
+    test_image_array = preprocess_image(test_image_path)
 
     if test_image_array is not None:
-        test_image_array = np.expand_dims(test_image_array, axis=0)  # Add batch dimension
-        predictions = model.predict(test_image_array)
+        predictions = model.predict(test_image_array)  # Use the preprocessed image directly
         class_index = int(predictions[0] > 0.5)  # Assuming binary classification
 
         # Generate Grad-CAM heatmap using 'conv2d_2' layer
-        heatmap = generate_gradcam_heatmap(model, test_image_array[0], 'conv2d_2')
+        heatmap = generate_gradcam(model, test_image_array)
         
         # Display the heatmap
         plt.axis('off')
