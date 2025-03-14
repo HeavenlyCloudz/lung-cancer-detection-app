@@ -174,7 +174,7 @@ if __name__ == "__main__":
     base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
     train_data_dir = os.path.join(base_data_dir, "train")
     val_data_dir = os.path.join(base_data_dir, "val")
-    
+
     # Load the model
     model = load_model_file(MODEL_FILE)
 
@@ -189,6 +189,11 @@ if __name__ == "__main__":
         print(f"Dataset path does not exist: {val_data_dir}")
         exit(1)
 
+    # Check if model was loaded successfully
+    if model is not None:
+        model.summary()  # Print the model summary for verification
+
+    # Load training data
     train_generator, val_generator = load_data(train_data_dir, val_data_dir)
 
     # Train the model if it does not exist
@@ -228,7 +233,7 @@ if __name__ == "__main__":
     try:
         test_image_array = preprocess_image(test_image_path)
 
-        if test_image_array is not None:
+        if test_image_array is not None and model:  # Ensure model is loaded
             predictions = model.predict(test_image_array)  # Use the preprocessed image directly
             class_index = int(predictions[0] > 0.5)  # Assuming binary classification
 
