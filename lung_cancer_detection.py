@@ -94,14 +94,13 @@ def load_data(train_dir, val_dir):
 
     return train_generator, val_generator
 
-def generate_gradcam_heatmap(model, img_array, class_index):
+def generate_gradcam_heatmap(model, img_array, layer_name):
     """Generate a Grad-CAM heatmap for a given image array."""
-    last_conv_layer = model.layers[4]  # Adjust to refer to the correct Conv2D layer
-    grad_model = Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
+    grad_model = Model(inputs=model.input, outputs=[model.output, model.get_layer(layer_name).output])
 
     with tf.GradientTape() as tape:
-        conv_outputs, preds = grad_model(np.expand_dims(img_array, axis=0))
-        loss = preds[:, class_index]
+        preds, conv_outputs = grad_model(np.expand_dims(img_array, axis=0))
+        loss = preds[:, 0]  # Adjust for binary classification
 
     grads = tape.gradient(loss, conv_outputs)[0]
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
@@ -175,18 +174,14 @@ if __name__ == "__main__":
     if model is None:
         model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         
-        # More Grad Cam layer
+        # Freeze layers if necessary
         for layer in model.layers:
-            layer.trainable = False  # Freeze the layers if needed
+            layer.trainable = False
 
-        # Optional: Add additional layers if required
-        flattened_layer = Flatten()(model.output)
-        output_layer = Dense(1, activation='sigmoid')(flattened_layer)  
+        # Compile the model
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-        final_model = Model(inputs=model.input, outputs=output_layer)
-        final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-        history = final_model.fit(
+        history = model.fit(
             train_generator,
             steps_per_epoch=train_generator.samples // BATCH_SIZE,
             validation_data=val_generator,
@@ -194,7 +189,7 @@ if __name__ == "__main__":
             epochs=EPOCHS
         )
 
-        final_model.save(MODEL_FILE)
+        model.save(MODEL_FILE)
         plot_training_history(history)
 
     # Test the model and show Grad-CAM heatmap
@@ -206,5 +201,13 @@ if __name__ == "__main__":
         predictions = model.predict(test_image_array)
         class_index = int(predictions[0] > 0.5)  # Assuming binary classification
 
-        heatmap = generate_gradcam_heatmap(model, test_image_array[0], class_index)
+        # Generate Grad-CAM heatmap using 'conv2d_2' layer
+        heatmap = generate_gradcam_heatmap(model, test_image_array[0], 'conv2d_2')
+        
+        # Display the heatmap
+        plt.axis('off')
+        plt.matshow(heatmap)
+        plt.show()
+
+        # Display the Grad-CAM overlay
         display_gradcam(test_image_array[0], heatmap)
