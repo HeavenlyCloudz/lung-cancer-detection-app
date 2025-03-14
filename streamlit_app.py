@@ -41,8 +41,8 @@ def preprocess_image(img_path):
     elif len(img.shape) == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
     img = cv2.resize(img, (IMAGE_WIDTH, IMAGE_HEIGHT))
-    img_array = np.expand_dims(img, axis=0)
-    return img_array / 255.0
+    img_array = np.expand_dims(img, axis=0)  # Add batch dimension
+    return img_array / 255.0  # Normalize the image
 
 # Generate the Grad-CAM
 def generate_gradcam(model, img_array):
