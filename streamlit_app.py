@@ -21,6 +21,15 @@ try:
     model = load_model(MODEL_FILE)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     
+    # Evaluate the model using validation data
+    val_datagen = ImageDataGenerator(rescale=1./255)
+    val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+                                                    batch_size=32, class_mode='binary')
+
+    val_loss, val_accuracy = model.evaluate(val_generator)
+    st.sidebar.write(f"Validation Loss: {val_loss:.4f}")
+    st.sidebar.write(f"Validation Accuracy: {val_accuracy:.4f}")
+
     # Get optimizer details
     optimizer = model.optimizer
     optimizer_details = {
