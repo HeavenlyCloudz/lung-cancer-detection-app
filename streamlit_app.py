@@ -51,7 +51,7 @@ def analyze_gradients(train_generator, model):
     for mini_batch in train_generator:
         with tf.GradientTape() as tape:
             predictions = model(mini_batch[0])  # Forward pass
-            loss = tf.keras.losses.binary_crossentropy(mini_batch[1], predictions)  # Compute loss
+            loss = tf.keras.losses.binary_crossentropy(tf.squeeze(mini_batch[1]), predictions)  # Compute loss
 
         # Compute gradients
         grads = tape.gradient(loss, model.trainable_variables)
@@ -60,7 +60,7 @@ def analyze_gradients(train_generator, model):
         for i, grad in enumerate(grads):
             if grad is not None:
                 norm = tf.norm(grad).numpy()  # Calculate the norm of the gradient
-                gradient_magnitudes[i+1].append(norm)  # Store the norm based on layer index
+                gradient_magnitudes[i + 1].append(norm)  # Store the norm based on layer index
 
     # Plotting
     for layer in gradient_magnitudes:
@@ -70,7 +70,7 @@ def analyze_gradients(train_generator, model):
     plt.legend()
     plt.savefig('gradient_analysis.png')  # Save the plot
     plt.close()
-
+    
 # Generate the Grad-CAM
 def generate_gradcam(model, img_array):
     last_conv_layer = model.layers[4]  # Change to match your architecture
