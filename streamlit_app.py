@@ -6,6 +6,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+from PIL import Image  # Importing PIL for image processing
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
@@ -33,16 +34,20 @@ except Exception as e:
 
 # Preprocess the image
 def preprocess_image(img_path):
-    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
-    if img is None:
-        raise ValueError("Image not found or unable to load.")
-    if img.shape[-1] == 4:
-        img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
-    elif len(img.shape) == 2:
-        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    img = cv2.resize(img, (IMAGE_WIDTH, IMAGE_HEIGHT))
-    img_array = np.expand_dims(img, axis=0)  # Add batch dimension
-    return img_array / 255.0  # Normalize the image
+    img = Image.open(img_path)
+    new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+    processed_image = np.asarray(new_image) / 255.0  # Normalize the image
+    img_array = np.expand_dims(processed_image, axis=0)  # Add batch dimension
+    return img_array
+
+def load_and_preprocess_images_from_folder(folder_path):
+    processed_images = []
+    for filename in os.listdir(folder_path):
+        if filename.endswith(('.jpg', '.jpeg', '.png')):  # Check for image file types
+            image_path = os.path.join(folder_path, filename)
+            processed_image = preprocess_image(image_path)
+            processed_images.append(processed_image)
+    return np.vstack(processed_images)  # Stack all images into a single array
 
 def generate_gradcam(model, img_array):
     # Access the last convolutional layer
