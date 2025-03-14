@@ -46,19 +46,19 @@ def preprocess_image(img_path):
 
 # Generate the Grad-CAM
 def generate_gradcam(model, img_array):
-    last_conv_layer = model.layers[4]  # Change to match your architecture
+    last_conv_layer = model.layers[4]  # Adjust this index to match your architecture
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
-        model_output, last_conv_layer_output = grad_model(img_array)
-        class_id = tf.argmax(model_output[0])
+        model_output, last_conv_layer_output = grad_model(img_array)  # Ensure img_array is of shape (1, 150, 150, 3)
+        class_id = tf.argmax(model_output[0])  # Get the index of the highest probability
         grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
 
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
     last_conv_layer_output = last_conv_layer_output[0]  # Use the first image in the batch
 
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
+    heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)  # Normalize the heatmap
     heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
     return heatmap
 
@@ -226,7 +226,7 @@ if uploaded_file is not None:
 
     if model:  # Ensure model is loaded
         try:
-            prediction = model.predict(img_array)
+            prediction = model.predict(img_array)  # Ensure img_array is of shape (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)
             result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
@@ -251,7 +251,7 @@ if photo is not None:
 
     if model:  # Ensure model is loaded
         try:
-            prediction = model.predict(img_array)
+            prediction = model.predict(img_array)  # Ensure img_array is of shape (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)
             result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
