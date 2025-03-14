@@ -133,15 +133,18 @@ def display_gradcam(img, heatmap, alpha=0.4):
     plt.axis('off')
     plt.show()
 
-def preprocess_image(image_path):
-    """Load and preprocess an image from a given path."""
-    img_array = cv2.imread(image_path)
-    if img_array is None:
+# Preprocess the image
+def preprocess_image(img_path):
+    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+    if img is None:
         raise ValueError("Image not found or unable to load.")
-    
-    img_array = cv2.resize(img_array, (IMAGE_WIDTH, IMAGE_HEIGHT))
-    img_array = img_array / 255.0  # Normalize the image
-    return np.expand_dims(img_array, axis=0)  # Add batch dimension
+    if img.shape[-1] == 4:
+        img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+    elif len(img.shape) == 2:
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+    img = cv2.resize(img, (IMAGE_WIDTH, IMAGE_HEIGHT))
+    img_array = np.expand_dims(img, axis=0)  # Add batch dimension
+    return img_array / 255.0  # Normalize the image
 
 if __name__ == "__main__":
     # Set dataset paths using relative paths
