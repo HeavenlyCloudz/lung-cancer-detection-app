@@ -4,6 +4,7 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import cv2
 import os
 
@@ -16,7 +17,6 @@ MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')
 def plot_training_history(history):
     """Plot the training and validation accuracy and loss."""
     plt.figure(figsize=(12, 4))
-
     plt.subplot(1, 2, 1)
     plt.plot(history.history['accuracy'], label='Train Accuracy')
     plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
@@ -96,11 +96,11 @@ def load_data(train_dir, val_dir):
 
 def generate_gradcam_heatmap(model, img_array, class_index):
     """Generate a Grad-CAM heatmap for a given image array."""
-    last_conv_layer = model.layers[4]  # Use the last Conv2D layer
+    last_conv_layer = model.layers[4]  # Adjust to refer to the correct Conv2D layer
     grad_model = Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
-        conv_outputs, preds = grad_model(np.expand_dims(img_array, axis=0))  # Ensure the input shape is correct
+        conv_outputs, preds = grad_model(np.expand_dims(img_array, axis=0))
         loss = preds[:, class_index]
 
     grads = tape.gradient(loss, conv_outputs)[0]
@@ -115,16 +115,26 @@ def generate_gradcam_heatmap(model, img_array, class_index):
 
     return heatmap.numpy()
 
-def display_gradcam_heatmap(img_array, heatmap, alpha=0.4):
+def display_gradcam(img, heatmap, alpha=0.4):
     """Display the Grad-CAM heatmap overlayed on the original image."""
+    # Rescale heatmap to a range of 0-255
     heatmap = np.uint8(255 * heatmap)
-    heatmap = cv2.resize(heatmap, (IMAGE_WIDTH, IMAGE_HEIGHT))
-    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_GRAY2RGB)
-
-    img_array = img_array * 255
-    superimposed_img = cv2.addWeighted(img_array.astype(np.uint8), alpha, heatmap, 1 - alpha, 0)
-
-    plt.imshow(superimposed_img)
+    
+    # Use the "jet" colormap to colourize the heatmap
+    jet = cm.get_cmap("jet")
+    jet_colors = jet(np.arange(256))[:, :3]
+    jet_heatmap = jet_colors[heatmap]
+    
+    # Transform the heatmap into an image.
+    jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
+    
+    # Resize the heatmap to match the image dimensions
+    jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
+    jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+    
+    # Superimpose the heatmap on the original image
+    superimposed_img = jet_heatmap * alpha + img
+    plt.imshow(superimposed_img[0])
     plt.axis('off')
     plt.show()
 
@@ -163,11 +173,20 @@ if __name__ == "__main__":
 
     # Train the model if it does not exist
     if model is None:
-        image_input_shape = (IMAGE_HEIGHT, IMAGE_WIDTH, 3)
-        model = create_cnn_model(image_input_shape)
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+        
+        # More Grad Cam layer
+        for layer in model.layers:
+            layer.trainable = False  # Freeze the layers if needed
 
-        history = model.fit(
+        # Optional: Add additional layers if required
+        flattened_layer = Flatten()(model.output)
+        output_layer = Dense(1, activation='sigmoid')(flattened_layer)  
+
+        final_model = Model(inputs=model.input, outputs=output_layer)
+        final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+        history = final_model.fit(
             train_generator,
             steps_per_epoch=train_generator.samples // BATCH_SIZE,
             validation_data=val_generator,
@@ -175,7 +194,7 @@ if __name__ == "__main__":
             epochs=EPOCHS
         )
 
-        model.save(MODEL_FILE)
+        final_model.save(MODEL_FILE)
         plot_training_history(history)
 
     # Test the model and show Grad-CAM heatmap
@@ -185,7 +204,7 @@ if __name__ == "__main__":
     if test_image_array is not None:
         test_image_array = np.expand_dims(test_image_array, axis=0)  # Add batch dimension
         predictions = model.predict(test_image_array)
-        class_index = int(predictions[0] > 0.5)
+        class_index = int(predictions[0] > 0.5)  # Assuming binary classification
 
         heatmap = generate_gradcam_heatmap(model, test_image_array[0], class_index)
-        display_gradcam_heatmap(test_image_array[0], heatmap)
+        display_gradcam(test_image_array[0], heatmap)
