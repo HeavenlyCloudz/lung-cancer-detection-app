@@ -46,7 +46,7 @@ def preprocess_image(img_path):
 
 # Generate the Grad-CAM
 def generate_gradcam(model, img_array):
-    last_conv_layer = model.layers[4]  # Adjust this index to match your architecture
+    last_conv_layer = model.layers[4]  # 'conv2d_2' corresponds to index 4
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
@@ -222,16 +222,16 @@ if uploaded_file is not None:
     with open("temp_image.jpg", "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    img_array = preprocess_image("temp_image.jpg")
+    img_array = preprocess_image("temp_image.jpg")  # Ensure shape is (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)
 
     if model:  # Ensure model is loaded
         try:
-            prediction = model.predict(img_array)  # Ensure img_array is of shape (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)
+            prediction = model.predict(img_array)  # Predict on the processed image
             result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = generate_gradcam(model, img_array)
+            heatmap = generate_gradcam(model, img_array)  # Pass the preprocessed image
             st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
             st.image(heatmap, caption='Grad-CAM', use_container_width=True)
         except Exception as e:
@@ -247,16 +247,16 @@ if photo is not None:
     with open("captured_image.jpg", "wb") as f:
         f.write(photo.getbuffer())
 
-    img_array = preprocess_image("captured_image.jpg")
+    img_array = preprocess_image("captured_image.jpg")  # Ensure shape is (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)
 
     if model:  # Ensure model is loaded
         try:
-            prediction = model.predict(img_array)  # Ensure img_array is of shape (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)
+            prediction = model.predict(img_array)  # Predict on the processed image
             result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = generate_gradcam(model, img_array)
+            heatmap = generate_gradcam(model, img_array)  # Pass the preprocessed image
             st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
             st.image(heatmap, caption='Grad-CAM', use_container_width=True)
         except Exception as e:
