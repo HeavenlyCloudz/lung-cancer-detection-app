@@ -35,6 +35,11 @@ except Exception as e:
 # Preprocess the image
 def preprocess_image(img_path):
     img = Image.open(img_path)
+
+    # Convert to RGB if the image has an alpha channel
+    if img.mode == 'RGBA':
+        img = img.convert('RGB')
+
     new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
     processed_image = np.asarray(new_image) / 255.0  # Normalize the image
     img_array = np.expand_dims(processed_image, axis=0)  # Add batch dimension
