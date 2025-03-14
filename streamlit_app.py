@@ -27,19 +27,6 @@ try:
                                                     batch_size=32, class_mode='binary')
 
     val_loss, val_accuracy = model.evaluate(val_generator)
-    st.sidebar.write(f"Validation Loss: {val_loss:.4f}")
-    st.sidebar.write(f"Validation Accuracy: {val_accuracy:.4f}")
-
-    # Get optimizer details
-    optimizer = model.optimizer
-    optimizer_details = {
-        "Optimizer": optimizer.__class__.__name__,
-        "Learning Rate": optimizer.learning_rate.numpy()
-    }
-
-    # Display model summary
-    model_summary = []
-    model.summary(print_fn=lambda x: model_summary.append(x))
 except Exception as e:
     model = None
     st.error(f"Error loading model: {str(e)}")
@@ -191,12 +178,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Sidebar controls
 st.sidebar.title("Controls")
 
-# Display optimizer details in the sidebar
-if model:
-    st.sidebar.subheader("Optimizer Details")
-    for key, value in optimizer_details.items():
-        st.sidebar.write(f"{key}: {value}")
-
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
@@ -207,6 +188,22 @@ if st.sidebar.button("Train Model"):
         train_model(epochs, batch_size)  # Call your training function
     st.success("Model training complete!")  # This will display after training is done
 
+# Display optimizer details and evaluation metrics in the sidebar
+if model:
+    st.sidebar.subheader("Optimizer Details")
+    optimizer = model.optimizer
+    optimizer_details = {
+        "Optimizer": optimizer.__class__.__name__,
+        "Learning Rate": optimizer.learning_rate.numpy()
+    }
+    for key, value in optimizer_details.items():
+        st.sidebar.write(f"{key}: {value}")
+
+    # Show validation loss and accuracy after evaluation
+    st.sidebar.subheader("Validation Metrics")
+    st.sidebar.write(f"Validation Loss: {val_loss:.4f}")
+    st.sidebar.write(f"Validation Accuracy: {val_accuracy:.4f}")
+
 # Display training history if it exists
 if os.path.exists('training_history.png'):
     st.subheader("Training History")
@@ -215,6 +212,8 @@ if os.path.exists('training_history.png'):
 # Display model summary at the bottom of the page
 if model:
     st.subheader("Model Summary")
+    model_summary = []
+    model.summary(print_fn=lambda x: model_summary.append(x))
     st.text('\n'.join(model_summary))
 
 # Image upload for prediction
