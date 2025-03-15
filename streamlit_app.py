@@ -152,9 +152,13 @@ def train_model(epochs, batch_size, use_early_stopping):
         early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         callbacks.append(early_stopping)
 
+    # Calculate steps per epoch
+    steps_per_epoch = train_generator.samples // batch_size
+    validation_steps = val_generator.samples // batch_size
+
     # Train the model
-    history = model.fit(train_generator, steps_per_epoch=train_generator.samples // batch_size,
-                        validation_data=val_generator, validation_steps=val_generator.samples // batch_size,
+    history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
+                        validation_data=val_generator, validation_steps=validation_steps,
                         epochs=epochs, callbacks=callbacks)
 
     # Save the model
