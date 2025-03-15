@@ -63,7 +63,7 @@ def load_model_file(model_file):
 
     try:
         model = tf.keras.models.load_model(model_file)
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile the model
         return model
     except Exception as e:
         print(f"Error loading model: {str(e)}")
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         model.summary()
 
         # Evaluate the model
-        val_loss, val_accuracy = model.evaluate(val_generator)
+        val_loss, val_accuracy = model.evaluate(val_generator)  # This builds the metrics
         print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
 
     # If model is not loaded, create and train a new one
