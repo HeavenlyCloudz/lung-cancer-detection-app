@@ -106,32 +106,13 @@ def preprocess_image(image_path):
     image = np.expand_dims(processed_image, axis=0)
     return image
 
-def preprocess_image_simple(image_path):
-    """Simplified preprocessing that adjusts dimensions and normalizes."""
-    img = Image.open(image_path)
-    
-    # Adjust the image dimensions to a standard size.
-    new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
-    
-    # Transform the image into a NumPy array.
-    processed_image = np.asarray(new_image)
-    
-    # Normalize pixel values if necessary
-    if processed_image.max() > 1:
-        processed_image = processed_image / 255.0  # Normalize to [0, 1]
-
-    # Add a batch dimension
-    image = np.expand_dims(processed_image, axis=0)
-    
-    return image
-
 def load_and_preprocess_images_from_folder(folder_path):
     """Load and preprocess all images from a specified folder."""
     processed_images = []
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image_path = os.path.join(folder_path, filename)
-            processed_image = preprocess_image(image_path)  # Use original preprocessing
+            processed_image = preprocess_image(image_path)
             processed_images.append(processed_image)
     return np.vstack(processed_images) if processed_images else None
 
