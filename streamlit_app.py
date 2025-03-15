@@ -19,6 +19,9 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 
 # Load the model
+model = None
+val_loss, val_accuracy = None, None
+
 try:
     model = load_model(MODEL_FILE)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile the model
@@ -210,9 +213,10 @@ if model:
         st.sidebar.write(f"{key}: {value}")
 
     # Show validation loss and accuracy after evaluation
-    st.sidebar.subheader("Validation Metrics")
-    st.sidebar.write(f"Validation Loss: {val_loss:.4f}")
-    st.sidebar.write(f"Validation Accuracy: {val_accuracy:.4f}")
+    if val_loss is not None and val_accuracy is not None:
+        st.sidebar.subheader("Validation Metrics")
+        st.sidebar.write(f"Validation Loss: {val_loss:.4f}")
+        st.sidebar.write(f"Validation Accuracy: {val_accuracy:.4f}")
 
 # Display training history if it exists
 if os.path.exists('training_history.png'):
