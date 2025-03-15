@@ -168,17 +168,16 @@ if __name__ == "__main__":
     if not check_directory(base_data_dir) or not check_directory(train_data_dir) or not check_directory(val_data_dir):
         exit(1)
 
+    # Load training data
+    train_generator, val_generator = load_data(train_data_dir, val_data_dir)
+
     # Compile and evaluate the model if it is loaded successfully
     if model is not None:
         model.summary()
 
-        # Load validation data
-        _, val_generator = load_data(train_data_dir, val_data_dir)
-        val_loss, val_accuracy = model.evaluate(val_generator)  # Evaluate the model
+        # Evaluate the model
+        val_loss, val_accuracy = model.evaluate(val_generator)
         print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
-
-    # Load training data
-    train_generator, val_generator = load_data(train_data_dir, val_data_dir)
 
     # If model is not loaded, create and train a new one
     if model is None:
@@ -192,11 +191,15 @@ if __name__ == "__main__":
             early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
             callbacks.append(early_stopping)
 
+        # Calculate steps per epoch
+        steps_per_epoch = train_generator.samples // BATCH_SIZE
+        validation_steps = val_generator.samples // BATCH_SIZE
+
         history = model.fit(
             train_generator,
-            steps_per_epoch=train_generator.samples // BATCH_SIZE,
+            steps_per_epoch=steps_per_epoch,
             validation_data=val_generator,
-            validation_steps=val_generator.samples // BATCH_SIZE,
+            validation_steps=validation_steps,
             epochs=EPOCHS,
             callbacks=callbacks
         )
@@ -214,7 +217,7 @@ if __name__ == "__main__":
                 predictions = model.predict(all_processed_images)
                 for i, prediction in enumerate(predictions):
                     result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-                    print(f"Image {i+1}: The model predicts the image is: {result}")
+                    print(f"Image {i + 1}: The model predicts the image is: {result}")
     except Exception as e:
         print(f"Error loading images: {str(e)}")
 
