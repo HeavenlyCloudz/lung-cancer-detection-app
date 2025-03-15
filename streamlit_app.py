@@ -28,10 +28,15 @@ try:
 
     # Evaluate the model using validation data
     val_datagen = ImageDataGenerator(rescale=1./255)
-    val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-                                                    batch_size=32, class_mode='binary')
+    val_generator = val_datagen.flow_from_directory(
+        val_data_dir, 
+        target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+        batch_size=32, 
+        class_mode='binary'
+    )
 
-    val_loss, val_accuracy = model.evaluate(val_generator)  # Initialize compiled metrics
+    # This step builds the compiled metrics
+    val_loss, val_accuracy = model.evaluate(val_generator)
 except Exception as e:
     model = None
     st.error(f"Error loading model: {str(e)}")
