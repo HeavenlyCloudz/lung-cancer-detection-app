@@ -3,3 +3,5 @@ tensorflow
 opencv-python-headless
 matplotlib
 numpy
+scipy
+pillow
