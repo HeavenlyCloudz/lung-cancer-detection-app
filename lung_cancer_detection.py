@@ -175,10 +175,14 @@ if __name__ == "__main__":
         print(f"Dataset path does not exist: {val_data_dir}")
         exit(1)
 
+    # Compile and evaluate the model if it is loaded successfully
     if model is not None:
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile the model
         model.summary()
+
+        # Load validation data
         val_generator = load_data(val_data_dir, val_data_dir)[1]
-        val_loss, val_accuracy = model.evaluate(val_generator)
+        val_loss, val_accuracy = model.evaluate(val_generator)  # Evaluate the model
         print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
 
     train_generator, val_generator = load_data(train_data_dir, val_data_dir)
