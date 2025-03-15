@@ -49,6 +49,16 @@ def preprocess_image(img_path):
     img_array = np.expand_dims(processed_image, axis=0)  # Add batch dimension
     return img_array
 
+def load_and_preprocess_images_from_folder(folder_path):
+    """Load and preprocess all images from a specified folder."""
+    processed_images = []
+    for filename in os.listdir(folder_path):
+        if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+            image_path = os.path.join(folder_path, filename)
+            processed_image = preprocess_image(image_path)
+            processed_images.append(processed_image)
+    return np.vstack(processed_images) if processed_images else None
+
 def generate_gradcam(model, img_array):
     # Access the last convolutional layer
     last_conv_layer = model.get_layer('conv2d_2')  # Use the correct layer name
