@@ -42,8 +42,7 @@ def plot_training_history(history):
 def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
     """Create a CNN model."""
     model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=input_shape),
-        Conv2D(32, (3, 3), activation='relu'),
+        Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
         MaxPooling2D(pool_size=(2, 2)),
         Conv2D(64, (3, 3), activation='relu'),
         MaxPooling2D(pool_size=(2, 2)),
@@ -63,7 +62,7 @@ def load_model_file(model_file):
 
     try:
         model = tf.keras.models.load_model(model_file)
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile the model
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
         return model
     except Exception as e:
         print(f"Error loading model: {str(e)}")
@@ -107,13 +106,32 @@ def preprocess_image(image_path):
     image = np.expand_dims(processed_image, axis=0)
     return image
 
+def preprocess_image_simple(image_path):
+    """Simplified preprocessing that adjusts dimensions and normalizes."""
+    img = Image.open(image_path)
+    
+    # Adjust the image dimensions to a standard size.
+    new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+    
+    # Transform the image into a NumPy array.
+    processed_image = np.asarray(new_image)
+    
+    # Normalize pixel values if necessary
+    if processed_image.max() > 1:
+        processed_image = processed_image / 255.0  # Normalize to [0, 1]
+
+    # Add a batch dimension
+    image = np.expand_dims(processed_image, axis=0)
+    
+    return image
+
 def load_and_preprocess_images_from_folder(folder_path):
     """Load and preprocess all images from a specified folder."""
     processed_images = []
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image_path = os.path.join(folder_path, filename)
-            processed_image = preprocess_image(image_path)
+            processed_image = preprocess_image(image_path)  # Use original preprocessing
             processed_images.append(processed_image)
     return np.vstack(processed_images) if processed_images else None
 
@@ -176,7 +194,7 @@ if __name__ == "__main__":
         model.summary()
 
         # Evaluate the model
-        val_loss, val_accuracy = model.evaluate(val_generator)  # This builds the metrics
+        val_loss, val_accuracy = model.evaluate(val_generator)
         print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
 
     # If model is not loaded, create and train a new one
