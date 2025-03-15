@@ -17,6 +17,7 @@ MODEL_FILE = os.path.join(os.path.dirname(__file__), 'lung_cancer_detection_mode
 base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
+test_data_dir = os.path.join(base_data_dir, 'test')
 
 # Load the model
 model = None
@@ -176,6 +177,23 @@ def train_model(epochs, batch_size, use_early_stopping):
     # Plot and save the training history
     plot_training_history(history)
 
+# Function to test the model
+def test_model():
+    """Load test data and evaluate the model."""
+    test_datagen = ImageDataGenerator(rescale=1./255)
+    test_generator = test_datagen.flow_from_directory(
+        test_data_dir, 
+        target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+        batch_size=32, 
+        class_mode='binary'
+    )
+
+    # Evaluate the model on test data
+    test_loss, test_accuracy = model.evaluate(test_generator)
+    st.sidebar.subheader("Test Metrics")
+    st.sidebar.write(f"Test Loss: {test_loss:.4f}")
+    st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
+
 # Streamlit UI
 st.title("Lung Cancer Detection")
 st.markdown(
@@ -223,6 +241,14 @@ if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
         train_model(epochs, batch_size, use_early_stopping)  # Pass early stopping choice
     st.success("Model training complete!")  # This will display after training is done
+
+# Button to test model
+if st.sidebar.button("Test Model"):
+    if model:
+        st.spinner("Testing the model...")
+        test_model()  # Call the testing function
+    else:
+        st.warning("No model found. Please train the model first.")
 
 # Display optimizer details and evaluation metrics in the sidebar
 if model:
