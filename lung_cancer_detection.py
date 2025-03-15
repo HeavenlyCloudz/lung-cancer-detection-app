@@ -16,6 +16,7 @@ MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')
 
 # Define the base data directory
 base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
+test_data_dir = os.path.join(base_data_dir, 'test')  # New test data directory
 
 def plot_training_history(history):
     """Plot the training and validation accuracy and loss."""
@@ -134,28 +135,25 @@ def generate_gradcam(model, img_array):
     heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
     return heatmap
 
-def display_gradcam(img, heatmap, alpha=0.4):
-    """Display the Grad-CAM heatmap overlayed on the original image."""
-    heatmap = np.uint8(255 * heatmap)
-    jet = plt.get_cmap("jet")
-    jet_colors = jet(np.arange(256))[:, :3]
-    jet_heatmap = jet_colors[heatmap]
-
-    jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-    jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Correct dimensions
-    jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
-
-    superimposed_img = jet_heatmap * alpha + img
-    plt.imshow(superimposed_img[0])
-    plt.axis('off')
-    plt.show()
-
 def check_directory(path):
     """Check if the directory exists."""
     if not os.path.exists(path):
         print(f"Directory does not exist: {path}")
         return False
     return True
+
+def test_model(model, test_data_dir):
+    """Load test data and evaluate the model."""
+    test_datagen = ImageDataGenerator(rescale=1./255)
+    test_generator = test_datagen.flow_from_directory(
+        test_data_dir,
+        target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+        batch_size=BATCH_SIZE,
+        class_mode='binary'
+    )
+
+    test_loss, test_accuracy = model.evaluate(test_generator)
+    print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
 
 if __name__ == "__main__":
     train_data_dir = os.path.join(base_data_dir, "train")
@@ -177,6 +175,12 @@ if __name__ == "__main__":
         # Evaluate the model
         val_loss, val_accuracy = model.evaluate(val_generator)
         print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
+
+        # Test the model
+        if check_directory(test_data_dir):
+            test_model(model, test_data_dir)
+        else:
+            print(f"Test data directory does not exist: {test_data_dir}")
 
     # If model is not loaded, create and train a new one
     if model is None:
