@@ -9,12 +9,6 @@ import cv2
 import matplotlib.pyplot as plt
 from PIL import Image  # Importing PIL for image processing
 
-# Page configurations
-st.set_page_config(
-    page_title="Lung Cancer Detection",
-    page_icon="C:\Users\Antoru Grace Inc\Downloads\logo"
-    layout="wide" # Layout is wide
-)
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
