@@ -9,7 +9,6 @@ import cv2
 import matplotlib.pyplot as plt
 from PIL import Image  # Importing PIL for image processing
 
-
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 MODEL_FILE = os.path.join(os.path.dirname(__file__), 'lung_cancer_detection_model.h5')
@@ -23,24 +22,28 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 model = None
 val_loss, val_accuracy = None, None
 
-try:
-    model = load_model(MODEL_FILE)
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile the model
+# Check if the model file exists
+if os.path.exists(MODEL_FILE):
+    try:
+        model = load_model(MODEL_FILE)
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile the model
 
-    # Evaluate the model using validation data
-    val_datagen = ImageDataGenerator(rescale=1./255)
-    val_generator = val_datagen.flow_from_directory(
-        val_data_dir, 
-        target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-        batch_size=32, 
-        class_mode='binary'
-    )
+        # Evaluate the model using validation data
+        val_datagen = ImageDataGenerator(rescale=1./255)
+        val_generator = val_datagen.flow_from_directory(
+            val_data_dir, 
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=32, 
+            class_mode='binary'
+        )
 
-    # This step builds the compiled metrics
-    val_loss, val_accuracy = model.evaluate(val_generator)
-except Exception as e:
-    model = None
-    st.error(f"Error loading model: {str(e)}")
+        # This step builds the compiled metrics
+        val_loss, val_accuracy = model.evaluate(val_generator)
+    except Exception as e:
+        model = None
+        st.error(f"Error loading model: {str(e)}")
+else:
+    st.warning("No pre-trained model found. Please train the model first.")
 
 # Preprocess the image
 def preprocess_image(img_path):
@@ -71,7 +74,7 @@ def generate_gradcam(model, img_array):
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
-        model_output, last_conv_layer_output = grad_model(img_array)  # Ensure img_array is of shape (1, 150, 150, 3)
+        model_output, last_conv_layer_output = grad_model(img_array)
         class_id = tf.argmax(model_output[0])  # Get the index of the highest probability
         grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
 
