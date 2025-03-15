@@ -40,17 +40,18 @@ def plot_training_history(history):
     plt.show()
 
 def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
+    """Create a CNN model."""
     model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=input_shape),  # Use Input layer
-        tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dense(1, activation='sigmoid')
+        tf.keras.layers.Input(shape=input_shape),
+        Conv2D(32, (3, 3), activation='relu'),
+        MaxPooling2D(pool_size=(2, 2)),
+        Conv2D(64, (3, 3), activation='relu'),
+        MaxPooling2D(pool_size=(2, 2)),
+        Conv2D(128, (3, 3), activation='relu'),
+        MaxPooling2D(pool_size=(2, 2)),
+        Flatten(),
+        Dense(128, activation='relu'),
+        Dense(1, activation='sigmoid')
     ])
     return model
 
@@ -62,7 +63,7 @@ def load_model_file(model_file):
 
     try:
         model = tf.keras.models.load_model(model_file)
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile after loading
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
         return model
     except Exception as e:
         print(f"Error loading model: {str(e)}")
@@ -70,16 +71,10 @@ def load_model_file(model_file):
 
 def load_data(train_dir, val_dir):
     """Load training and validation data from directories."""
-    train_datagen = ImageDataGenerator(
-        rescale=1./255,
-        rotation_range=20,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        shear_range=0.2,
-        zoom_range=0.2,
-        horizontal_flip=True,
-        fill_mode='nearest'
-    )
+    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
+                                       width_shift_range=0.2, height_shift_range=0.2,
+                                       shear_range=0.2, zoom_range=0.2,
+                                       horizontal_flip=True, fill_mode='nearest')
 
     val_datagen = ImageDataGenerator(rescale=1./255)
 
@@ -107,22 +102,20 @@ def preprocess_image(image_path):
         img = img.convert('RGB')
 
     new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
-    processed_image = np.asarray(new_image)
-
-    if processed_image.max() > 1:
-        processed_image = processed_image / 255.0
+    processed_image = np.asarray(new_image) / 255.0  # Normalize directly
 
     image = np.expand_dims(processed_image, axis=0)
     return image
 
 def load_and_preprocess_images_from_folder(folder_path):
+    """Load and preprocess all images from a specified folder."""
     processed_images = []
     for filename in os.listdir(folder_path):
-        if filename.endswith(('.jpg', '.jpeg', '.png')):
+        if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image_path = os.path.join(folder_path, filename)
             processed_image = preprocess_image(image_path)
             processed_images.append(processed_image)
-    return np.vstack(processed_images)
+    return np.vstack(processed_images) if processed_images else None
 
 def generate_gradcam(model, img_array):
     """Generate Grad-CAM heatmap."""
@@ -150,7 +143,7 @@ def display_gradcam(img, heatmap, alpha=0.4):
     jet_heatmap = jet_colors[heatmap]
 
     jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-    jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
+    jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Correct dimensions
     jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
 
     superimposed_img = jet_heatmap * alpha + img
@@ -158,35 +151,36 @@ def display_gradcam(img, heatmap, alpha=0.4):
     plt.axis('off')
     plt.show()
 
+def check_directory(path):
+    """Check if the directory exists."""
+    if not os.path.exists(path):
+        print(f"Directory does not exist: {path}")
+        return False
+    return True
+
 if __name__ == "__main__":
-    base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
     train_data_dir = os.path.join(base_data_dir, "train")
     val_data_dir = os.path.join(base_data_dir, "val")
 
     model = load_model_file(MODEL_FILE)
 
-    if not os.path.exists(base_data_dir):
-        print(f"Dataset path does not exist: {base_data_dir}")
-        exit(1)
-    if not os.path.exists(train_data_dir):
-        print(f"Dataset path does not exist: {train_data_dir}")
-        exit(1)
-    if not os.path.exists(val_data_dir):
-        print(f"Dataset path does not exist: {val_data_dir}")
+    # Verify dataset paths
+    if not check_directory(base_data_dir) or not check_directory(train_data_dir) or not check_directory(val_data_dir):
         exit(1)
 
     # Compile and evaluate the model if it is loaded successfully
     if model is not None:
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile the model
         model.summary()
 
         # Load validation data
-        val_generator = load_data(val_data_dir, val_data_dir)[1]
+        _, val_generator = load_data(train_data_dir, val_data_dir)
         val_loss, val_accuracy = model.evaluate(val_generator)  # Evaluate the model
         print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
 
+    # Load training data
     train_generator, val_generator = load_data(train_data_dir, val_data_dir)
 
+    # If model is not loaded, create and train a new one
     if model is None:
         model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
@@ -204,21 +198,23 @@ if __name__ == "__main__":
             validation_data=val_generator,
             validation_steps=val_generator.samples // BATCH_SIZE,
             epochs=EPOCHS,
-            callbacks=callbacks  # Add callbacks based on user choice
+            callbacks=callbacks
         )
 
         model.save(MODEL_FILE)
         plot_training_history(history)
 
+    # Load and predict on all images in the base data directory
     try:
         all_processed_images = load_and_preprocess_images_from_folder(base_data_dir)
-        print("Processed images shape:", all_processed_images.shape)
+        if all_processed_images is not None:
+            print("Processed images shape:", all_processed_images.shape)
 
-        if model:
-            predictions = model.predict(all_processed_images)
-            for i, prediction in enumerate(predictions):
-                result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-                print(f"Image {i+1}: The model predicts the image is: {result}")
+            if model:
+                predictions = model.predict(all_processed_images)
+                for i, prediction in enumerate(predictions):
+                    result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+                    print(f"Image {i+1}: The model predicts the image is: {result}")
     except Exception as e:
         print(f"Error loading images: {str(e)}")
 
