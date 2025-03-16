@@ -26,7 +26,8 @@ val_loss, val_accuracy = None, None
 if os.path.exists(MODEL_FILE):
     try:
         model = load_model(MODEL_FILE)
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Compile the model
+        # Recompile the model to ensure metrics are set up
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
         # Evaluate the model using validation data
         val_datagen = ImageDataGenerator(rescale=1./255)
