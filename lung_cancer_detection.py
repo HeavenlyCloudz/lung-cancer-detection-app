@@ -3,7 +3,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.callbacks import EarlyStopping
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
@@ -190,13 +189,6 @@ if __name__ == "__main__":
         model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-        use_early_stopping = input("Do you want to use early stopping? (yes/no): ").strip().lower() == 'yes'
-
-        callbacks = []
-        if use_early_stopping:
-            early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-            callbacks.append(early_stopping)
-
         # Calculate steps per epoch
         steps_per_epoch = train_generator.samples // BATCH_SIZE
         validation_steps = val_generator.samples // BATCH_SIZE
@@ -206,8 +198,7 @@ if __name__ == "__main__":
             steps_per_epoch=steps_per_epoch,
             validation_data=val_generator,
             validation_steps=validation_steps,
-            epochs=EPOCHS,
-            callbacks=callbacks
+            epochs=EPOCHS
         )
 
         model.save(MODEL_FILE)
@@ -240,8 +231,6 @@ if __name__ == "__main__":
             plt.axis('off')
             plt.matshow(heatmap)
             plt.show()
-
-            display_gradcam(test_image_array[0], heatmap)
 
     except Exception as e:
         print(f"Error during prediction: {str(e)}")
