@@ -6,7 +6,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from PIL import Image  # Importing PIL for image processing
+from PIL import Image
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
@@ -31,9 +31,9 @@ if os.path.exists(MODEL_FILE):
         # Evaluate the model using validation data
         val_datagen = ImageDataGenerator(rescale=1./255)
         val_generator = val_datagen.flow_from_directory(
-            val_data_dir, 
+            val_data_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=32, 
+            batch_size=32,
             class_mode='binary'
         )
 
@@ -48,8 +48,6 @@ else:
 # Preprocess the image
 def preprocess_image(img_path):
     img = Image.open(img_path)
-
-    # Convert to RGB if the image has an alpha channel
     if img.mode == 'RGBA':
         img = img.convert('RGB')
 
@@ -69,20 +67,20 @@ def load_and_preprocess_images_from_folder(folder_path):
     return np.vstack(processed_images) if processed_images else None
 
 def generate_gradcam(model, img_array):
-    # Access the last convolutional layer
-    last_conv_layer = model.get_layer('conv2d_2')  # Use the correct layer name
+    """Generate Grad-CAM heatmap."""
+    last_conv_layer = model.get_layer('conv2d_2')
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
     with tf.GradientTape() as tape:
         model_output, last_conv_layer_output = grad_model(img_array)
-        class_id = tf.argmax(model_output[0])  # Get the index of the highest probability
+        class_id = tf.argmax(model_output[0])
         grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
 
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
-    last_conv_layer_output = last_conv_layer_output[0]  # Use the first image in the batch
+    last_conv_layer_output = last_conv_layer_output[0]
 
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)  # Normalize the heatmap
+    heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
     heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
     return heatmap
 
@@ -112,7 +110,7 @@ def plot_training_history(history):
 # Creates CNN model
 def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
     model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=input_shape),  # Use Input layer
+        tf.keras.layers.Input(shape=input_shape),
         tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
         tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
         tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
@@ -147,6 +145,11 @@ def train_model(epochs, batch_size):
                                                             batch_size=batch_size, class_mode='binary')
         val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
                                                         batch_size=batch_size, class_mode='binary')
+
+        # Check if the generator has enough data
+        if train_generator.samples < batch_size or val_generator.samples < batch_size:
+            st.error("Not enough data in training or validation set for the specified batch size.")
+            return
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return
@@ -182,9 +185,9 @@ def test_model():
     """Load test data and evaluate the model."""
     test_datagen = ImageDataGenerator(rescale=1./255)
     test_generator = test_datagen.flow_from_directory(
-        test_data_dir, 
+        test_data_dir,
         target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-        batch_size=32, 
+        batch_size=32,
         class_mode='binary'
     )
 
@@ -242,14 +245,14 @@ batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, va
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
-        train_model(epochs, batch_size)  # Pass early stopping choice
-    st.success("Model training complete!")  # This will display after training is done
+        train_model(epochs, batch_size)
+    st.success("Model training complete!")
 
 # Button to test model
 if st.sidebar.button("Test Model"):
     if model:
         st.spinner("Testing the model...")
-        test_model()  # Call the testing function
+        test_model()
     else:
         st.warning("No model found. Please train the model first.")
 
@@ -264,7 +267,6 @@ if model:
     for key, value in optimizer_details.items():
         st.sidebar.write(f"{key}: {value}")
 
-    # Show validation loss and accuracy after evaluation
     if val_loss is not None and val_accuracy is not None:
         st.sidebar.subheader("Validation Metrics")
         st.sidebar.write(f"Validation Loss: {val_loss:.4f}")
@@ -288,20 +290,18 @@ if uploaded_file is not None:
     with open("temp_image.jpg", "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    img_array = preprocess_image("temp_image.jpg")  # Ensure shape is (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)
+    img_array = preprocess_image("temp_image.jpg")
 
-    if model:  # Ensure model is loaded
+    if model:
         try:
-            prediction = model.predict(img_array)  # Predict on the processed image
+            prediction = model.predict(img_array)
             result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            # Generate and display Grad-CAM heatmap
-            heatmap = generate_gradcam(model, img_array)  # Pass the preprocessed image
+            heatmap = generate_gradcam(model, img_array)
             st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
 
-            # Display heatmap as an image
             plt.imshow(heatmap, cmap='jet')
             plt.axis('off')
             plt.colorbar()
@@ -322,20 +322,18 @@ if photo is not None:
     with open("captured_image.jpg", "wb") as f:
         f.write(photo.getbuffer())
 
-    img_array = preprocess_image("captured_image.jpg")  # Ensure shape is (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)
+    img_array = preprocess_image("captured_image.jpg")
 
-    if model:  # Ensure model is loaded
+    if model:
         try:
-            prediction = model.predict(img_array)  # Predict on the processed image
+            prediction = model.predict(img_array)
             result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            # Generate and display Grad-CAM heatmap
-            heatmap = generate_gradcam(model, img_array)  # Pass the preprocessed image
+            heatmap = generate_gradcam(model, img_array)
             st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
 
-            # Display heatmap as an image
             plt.imshow(heatmap, cmap='jet')
             plt.axis('off')
             plt.colorbar()
