@@ -14,8 +14,8 @@ IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 BATCH_SIZE = 32
 EPOCHS = 10
 
-# Update path for saving the model
-MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.keras')
+# Model Path
+MODEL_FILE = os.path.join('lung-cancer-detection-app', 'lung_cancer_detection_model.keras')
 
 # Define the base data directory
 base_data_dir = os.path.join(os.getcwd(), 'data')
