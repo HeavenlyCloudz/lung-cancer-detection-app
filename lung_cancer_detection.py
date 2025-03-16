@@ -14,10 +14,12 @@ import gdown
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 BATCH_SIZE = 32
 EPOCHS = 10
-MODEL_FILE = '/content/drive/MyDrive/model_storage/lung_cancer_detection_model.h5'  # Updated path for saving the model
+
+# Update path for saving the model
+MODEL_FILE = os.path.join(os.getcwd(), 'model_storage', 'lung_cancer_detection_model.h5')
 
 # Define the base data directory
-base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
+base_data_dir = os.path.join(os.getcwd(), 'data')  # Update to use current working directory
 train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
@@ -167,26 +169,23 @@ def generate_gradcam(model, img_array):
 
 # Display Grad-CAM heatmap
 def display_gradcam(img, heatmap, alpha=0.4):
-    # Rescale heatmap to a range of 0-255
-    heatmap = np.uint8(255 * heatmap)
-    
-    # Use the "jet" colormap to colorize the heatmap
-    jet = cm.get_cmap("jet")
-    jet_colors = jet(np.arange(256))[:, :3]
-    jet_heatmap = jet_colors[heatmap]
-    
-    # Transform the heatmap into an image
-    jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-    
-    # Resize the heatmap to match the image dimensions
-    jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
-    jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
-    
-    # Superimpose the heatmap on the original image
-    superimposed_img = jet_heatmap * alpha + img
-    plt.imshow(superimposed_img / 255.0)  # Normalize for display
-    plt.axis('off')
-    plt.show()
+    try:
+        heatmap = np.uint8(255 * heatmap)
+        
+        jet = cm.get_cmap("jet")
+        jet_colors = jet(np.arange(256))[:, :3]
+        jet_heatmap = jet_colors[heatmap]
+        
+        jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
+        jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
+        jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+        
+        superimposed_img = jet_heatmap * alpha + img
+        plt.imshow(superimposed_img / 255.0)  # Normalize for display
+        plt.axis('off')
+        plt.show()
+    except Exception as e:
+        print(f"Error displaying Grad-CAM: {str(e)}")
 
 # Check if directory exists
 def check_directory(path):
