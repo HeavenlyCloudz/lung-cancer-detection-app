@@ -36,11 +36,16 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
     output_layer = layers.Dense(num_classes, activation='sigmoid')(x)
 
     final_model = tf.keras.models.Model(inputs=base_model.input, outputs=output_layer)
-
     return final_model
 
 # Function to download model if not present
 def download_model():
+    # Ensure the directory exists
+    model_dir = os.path.dirname(MODEL_FILE)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    # Download the model if it doesn't exist
     if not os.path.exists(MODEL_FILE):
         model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'  # Replace with your model's URL
         gdown.download(model_url, MODEL_FILE, quiet=False)
@@ -71,7 +76,7 @@ download_data()
 
 # Load the model or create a new one if it doesn't exist
 model = None
-val_loss, val_accuracy = None, None
+val_loss, val_accuracy = None
 
 if os.path.exists(MODEL_FILE):
     try:
