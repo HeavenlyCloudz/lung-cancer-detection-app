@@ -9,6 +9,8 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from PIL import Image
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
@@ -26,19 +28,15 @@ val_loss, val_accuracy = None, None
 
 # Function to create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
-    # Load the pre-trained DenseNet model without the top layer
     base_model = DenseNet201(include_top=False, input_shape=input_shape, weights='imagenet')
     
-    # Freeze the base model layers
     for layer in base_model.layers:
         layer.trainable = False
 
-    # Add custom layers on top of the base model
     x = layers.Flatten()(base_model.output)
     x = layers.Dense(128, activation='relu')(x)
-    output_layer = layers.Dense(num_classes, activation='sigmoid')(x)  # For binary classification
+    output_layer = layers.Dense(num_classes, activation='sigmoid')(x)
 
-    # Create the final model
     final_model = tf.keras.models.Model(inputs=base_model.input, outputs=output_layer)
 
     return final_model
@@ -47,10 +45,8 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
 if os.path.exists(MODEL_FILE):
     try:
         model = load_model(MODEL_FILE)
-        # Recompile the model to ensure metrics are set up
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-        # Evaluate the model using validation data
         val_datagen = ImageDataGenerator(rescale=1./255)
         val_generator = val_datagen.flow_from_directory(
             val_data_dir,
@@ -59,7 +55,6 @@ if os.path.exists(MODEL_FILE):
             class_mode='binary'
         )
 
-        # This step builds the compiled metrics
         val_loss, val_accuracy = model.evaluate(val_generator)
     except Exception as e:
         model = None
@@ -74,22 +69,11 @@ def preprocess_image(img_path):
         img = img.convert('RGB')
 
     new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
-    processed_image = np.asarray(new_image) / 255.0  # Normalize the image
-    img_array = np.expand_dims(processed_image, axis=0)  # Add batch dimension
+    processed_image = np.asarray(new_image) / 255.0
+    img_array = np.expand_dims(processed_image, axis=0)
     return img_array
 
-def load_and_preprocess_images_from_folder(folder_path):
-    """Load and preprocess all images from a specified folder."""
-    processed_images = []
-    for filename in os.listdir(folder_path):
-        if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-            image_path = os.path.join(folder_path, filename)
-            processed_image = preprocess_image(image_path)
-            processed_images.append(processed_image)
-    return np.vstack(processed_images) if processed_images else None
-
 def generate_gradcam(model, img_array):
-    """Generate Grad-CAM heatmap."""
     last_conv_layer = model.get_layer('conv2d_2')
     grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
@@ -100,7 +84,6 @@ def generate_gradcam(model, img_array):
 
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
     last_conv_layer_output = last_conv_layer_output[0]
-
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
     heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
@@ -131,13 +114,11 @@ def plot_training_history(history):
 
 # Function to train the model
 def train_model(epochs, batch_size):
-    # Data generators
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
                                        height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
                                        horizontal_flip=True, fill_mode='nearest')
     val_datagen = ImageDataGenerator(rescale=1./255)
 
-    # Check if paths exist
     if not os.path.exists(train_data_dir):
         st.error(f"Training data path does not exist: {train_data_dir}")
         return
@@ -145,14 +126,12 @@ def train_model(epochs, batch_size):
         st.error(f"Validation data path does not exist: {val_data_dir}")
         return
 
-    # Load data
     try:
         train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
                                                             batch_size=batch_size, class_mode='binary')
         val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
                                                         batch_size=batch_size, class_mode='binary')
 
-        # Check if the generator has enough data
         if train_generator.samples < batch_size or val_generator.samples < batch_size:
             st.error("Not enough data in training or validation set for the specified batch size.")
             return
@@ -160,35 +139,21 @@ def train_model(epochs, batch_size):
         st.error(f"Error loading data: {str(e)}")
         return
 
-    # Create and compile the model
     model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-    # Calculate steps per epoch
     steps_per_epoch = train_generator.samples // batch_size
     validation_steps = val_generator.samples // batch_size
 
-    # Train the model
     history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
                         validation_data=val_generator, validation_steps=validation_steps,
                         epochs=epochs)
 
-    # Save the model
     model.save(MODEL_FILE)
-
-    # Evaluate the model on training data for the specified number of epochs
-    for epoch in range(epochs):
-        train_loss, train_accuracy = model.evaluate(train_generator)
-        st.sidebar.subheader(f"Train Metrics - Epoch {epoch + 1}/{epochs}")
-        st.sidebar.write(f"Train Loss: {train_loss:.4f}")
-        st.sidebar.write(f"Train Accuracy: {train_accuracy:.4f}")
-
-    # Plot and save the training history
     plot_training_history(history)
 
 # Function to test the model
 def test_model():
-    """Load test data and evaluate the model."""
     test_datagen = ImageDataGenerator(rescale=1./255)
     test_generator = test_datagen.flow_from_directory(
         test_data_dir,
@@ -197,15 +162,23 @@ def test_model():
         class_mode='binary'
     )
 
-    # Ask for the number of epochs to test
-    test_epochs = st.sidebar.number_input("Number of epochs for testing", min_value=1, max_value=10, value=1)
+    test_loss, test_accuracy = model.evaluate(test_generator)
+    st.sidebar.write(f"Test Loss: {test_loss:.4f}")
+    st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
 
-    # Evaluate the model on test data for the specified number of epochs
-    for epoch in range(test_epochs):
-        test_loss, test_accuracy = model.evaluate(test_generator)
-        st.sidebar.subheader(f"Test Metrics - Epoch {epoch + 1}/{test_epochs}")
-        st.sidebar.write(f"Test Loss: {test_loss:.4f}")
-        st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
+    # Confusion matrix
+    y_pred = model.predict(test_generator)
+    y_pred_classes = np.where(y_pred > 0.5, 1, 0)
+    cm = confusion_matrix(test_generator.classes, y_pred_classes)
+
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Non-Cancerous', 'Cancerous'], 
+                 yticklabels=['Non-Cancerous', 'Cancerous'])
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
+    plt.title('Confusion Matrix')
+    plt.show()
+    st.pyplot()
 
 # Streamlit UI
 st.title("Lung Cancer Detection")
@@ -217,19 +190,19 @@ st.markdown(
     }
     .section {
         background-image: url('https://jnj-content-lab2.brightspotcdn.com/dims4/default/78c6313/2147483647/strip/false/crop/1440x666+0+0/resize/1440x666!/quality/90/?url=https%3A%2F%2Fjnj-production-jnj.s3.us-east-1.amazonaws.com%2Fbrightspot%2F1b%2F32%2F2e138abbf1792e49103c9e3516a8%2Fno-one-would-believe-me-when-i-suspected-i-had-lung-cancer-0923-new.jpg');
-        background-size: cover; /* Ensure the image covers the section */
+        background-size: cover; 
         background-repeat: no-repeat;
         background-position: center;
-        padding: 60px; /* Increased padding for a bigger section */
+        padding: 60px; 
         border-radius: 10px;
-        color: black; /* Text color */
+        color: black; 
         margin: 20px 0;
-        height: 400px; /* Increased height for the section */
+        height: 400px; 
     }
     
     .sidebar .sidebar-content {
-        background-color: #ADD8E6; /* Light blue color */
-        color: black; /* Change text color for visibility */
+        background-color: #ADD8E6; 
+        color: black; 
     }
     </style>
     """,
