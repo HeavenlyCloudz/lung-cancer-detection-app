@@ -22,24 +22,27 @@ val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
 # Download model if not present
-if not os.path.exists(MODEL_FILE):
-    model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'
-    gdown.download(model_url, MODEL_FILE, quiet=False)
+def download_model():
+    if not os.path.exists(MODEL_FILE):
+        model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'
+        gdown.download(model_url, MODEL_FILE, quiet=False)
 
 # Download data if not present (replace with actual file IDs)
-data_files = {
-    'train': 'FILE_ID_FOR_TRAIN',
-    'val': 'FILE_ID_FOR_VAL',
-    'test': 'FILE_ID_FOR_TEST'
-}
+def download_data():
+    data_files = {
+        'train': 'FILE_ID_FOR_TRAIN',
+        'val': 'FILE_ID_FOR_VAL',
+        'test': 'FILE_ID_FOR_TEST'
+    }
 
-for name, file_id in data_files.items():
-    dir_path = os.path.join(base_data_dir, name)
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-        file_url = f'https://drive.google.com/uc?id={file_id}'
-        gdown.download(file_url, os.path.join(dir_path, f'{name}.zip'), quiet=False)
+    for name, file_id in data_files.items():
+        dir_path = os.path.join(base_data_dir, name)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+            file_url = f'https://drive.google.com/uc?id={file_id}'
+            gdown.download(file_url, os.path.join(dir_path, f'{name}.zip'), quiet=False)
 
+# Plot training history
 def plot_training_history(history):
     """Plot the training and validation accuracy and loss."""
     try:
@@ -65,24 +68,21 @@ def plot_training_history(history):
     except Exception as e:
         print(f"Error plotting training history: {str(e)}")
 
+# Create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     """Create a DenseNet model."""
     base_model = DenseNet201(include_top=False, input_shape=input_shape, weights='imagenet')
     
-    # Freeze the base model layers
     for layer in base_model.layers:
         layer.trainable = False
 
-    # Add custom layers on top of the base model
     x = Flatten()(base_model.output)
     x = Dense(128, activation='relu')(x)
     output_layer = Dense(num_classes, activation='sigmoid')(x)
 
-    # Create the final model
-    final_model = tf.keras.models.Model(inputs=base_model.input, outputs=output_layer)
+    return tf.keras.models.Model(inputs=base_model.input, outputs=output_layer)
 
-    return final_model
-
+# Load model from file
 def load_model_file(model_file):
     """Load the model from the specified file and recompile it."""
     if not os.path.exists(model_file):
@@ -97,6 +97,7 @@ def load_model_file(model_file):
         print(f"Error loading model: {str(e)}")
         return None
 
+# Load training and validation data
 def load_data(train_dir, val_dir):
     """Load training and validation data from directories."""
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
@@ -121,47 +122,30 @@ def load_data(train_dir, val_dir):
             class_mode='binary'
         )
 
-        # Check if the generator has enough data
         if train_generator.samples < BATCH_SIZE or val_generator.samples < BATCH_SIZE:
             raise ValueError("Not enough data in training or validation set for the specified batch size.")
 
         return train_generator, val_generator
     except Exception as e:
         print(f"Error loading data: {str(e)}")
-        raise  # Re-raise the exception after logging
+        raise
 
+# Preprocess image for prediction
 def preprocess_image(image_path):
     """Load and preprocess an image from a local file path."""
     try:
         img = Image.open(image_path)
-
         if img.mode == 'RGBA':
             img = img.convert('RGB')
 
         new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
-        processed_image = np.asarray(new_image) / 255.0  # Normalize directly
-
-        image = np.expand_dims(processed_image, axis=0)
-        return image
+        processed_image = np.asarray(new_image) / 255.0
+        return np.expand_dims(processed_image, axis=0)
     except Exception as e:
         print(f"Error preprocessing image: {str(e)}")
         return None
 
-def load_and_preprocess_images_from_folder(folder_path):
-    """Load and preprocess all images from a specified folder."""
-    processed_images = []
-    try:
-        for filename in os.listdir(folder_path):
-            if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-                image_path = os.path.join(folder_path, filename)
-                processed_image = preprocess_image(image_path)
-                if processed_image is not None:
-                    processed_images.append(processed_image)
-        return np.vstack(processed_images) if processed_images else None
-    except Exception as e:
-        print(f"Error loading images from folder: {str(e)}")
-        return None
-
+# Generate Grad-CAM heatmap
 def generate_gradcam(model, img_array):
     """Generate Grad-CAM heatmap."""
     try:
@@ -184,6 +168,7 @@ def generate_gradcam(model, img_array):
         print(f"Error generating Grad-CAM: {str(e)}")
         return None
 
+# Check if directory exists
 def check_directory(path):
     """Check if the directory exists."""
     if not os.path.exists(path):
@@ -191,6 +176,7 @@ def check_directory(path):
         return False
     return True
 
+# Test the model
 def test_model(model, test_data_dir, epochs=1):
     """Load test data and evaluate the model over a number of epochs."""
     try:
@@ -208,7 +194,13 @@ def test_model(model, test_data_dir, epochs=1):
     except Exception as e:
         print(f"Error during testing: {str(e)}")
 
+# Main execution
 if __name__ == "__main__":
+    # Download model and data
+    download_model()
+    download_data()
+
+    # Load model
     model = load_model_file(MODEL_FILE)
 
     # Verify dataset paths
@@ -242,7 +234,6 @@ if __name__ == "__main__":
         model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-        # Calculate steps per epoch
         steps_per_epoch = train_generator.samples // BATCH_SIZE
         validation_steps = val_generator.samples // BATCH_SIZE
 
