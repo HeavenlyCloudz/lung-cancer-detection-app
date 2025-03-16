@@ -1,7 +1,8 @@
 import os
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.layers import Flatten, Dense
+from tensorflow.keras.applications import DenseNet201
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 import cv2
@@ -39,20 +40,23 @@ def plot_training_history(history):
     plt.tight_layout()
     plt.show()
 
-def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
-    """Create a CNN model."""
-    model = tf.keras.Sequential([
-        Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
-        MaxPooling2D(pool_size=(2, 2)),
-        Conv2D(64, (3, 3), activation='relu'),
-        MaxPooling2D(pool_size=(2, 2)),
-        Conv2D(128, (3, 3), activation='relu'),
-        MaxPooling2D(pool_size=(2, 2)),
-        Flatten(),
-        Dense(128, activation='relu'),
-        Dense(1, activation='sigmoid')
-    ])
-    return model
+def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+    """Create a DenseNet model."""
+    base_model = DenseNet201(include_top=False, input_shape=input_shape, weights='imagenet')
+    
+    # Freeze the base model layers
+    for layer in base_model.layers:
+        layer.trainable = False
+
+    # Add custom layers on top of the base model
+    x = Flatten()(base_model.output)
+    x = Dense(128, activation='relu')(x)
+    output_layer = Dense(num_classes, activation='sigmoid')(x)  # For binary classification
+
+    # Create the final model
+    final_model = tf.keras.models.Model(inputs=base_model.input, outputs=output_layer)
+
+    return final_model
 
 def load_model_file(model_file):
     """Load the model from the specified file and recompile it."""
@@ -195,7 +199,7 @@ if __name__ == "__main__":
 
     # If model is not loaded, create and train a new one
     if model is None:
-        model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+        model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
         # Calculate steps per epoch
