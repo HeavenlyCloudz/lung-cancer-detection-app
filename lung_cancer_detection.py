@@ -5,6 +5,7 @@ from tensorflow.keras.layers import Flatten, Dense
 from tensorflow.keras.applications import DenseNet201
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import cv2
 from PIL import Image
 import gdown
@@ -13,7 +14,7 @@ import gdown
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 BATCH_SIZE = 32
 EPOCHS = 10
-MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')
+MODEL_FILE = '/content/drive/MyDrive/model_storage/lung_cancer_detection_model.h5'  # Updated path for saving the model
 
 # Define the base data directory
 base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
@@ -67,7 +68,7 @@ def plot_training_history(history):
 # Create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     base_model = DenseNet201(include_top=False, input_shape=input_shape, weights='imagenet')
-    
+
     for layer in base_model.layers:
         layer.trainable = False
 
@@ -159,6 +160,29 @@ def generate_gradcam(model, img_array):
         print(f"Error generating Grad-CAM: {str(e)}")
         return None
 
+# Display Grad-CAM heatmap
+def display_gradcam(img, heatmap, alpha=0.4):
+    # Rescale heatmap to a range of 0-255
+    heatmap = np.uint8(255 * heatmap)
+    
+    # Use the "jet" colormap to colorize the heatmap
+    jet = cm.get_cmap("jet")
+    jet_colors = jet(np.arange(256))[:, :3]
+    jet_heatmap = jet_colors[heatmap]
+    
+    # Transform the heatmap into an image
+    jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
+    
+    # Resize the heatmap to match the image dimensions
+    jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
+    jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+    
+    # Superimpose the heatmap on the original image
+    superimposed_img = jet_heatmap * alpha + img
+    plt.imshow(superimposed_img / 255.0)  # Normalize for display
+    plt.axis('off')
+    plt.show()
+
 # Check if directory exists
 def check_directory(path):
     if not os.path.exists(path):
@@ -246,10 +270,13 @@ if __name__ == "__main__":
             predictions = model.predict(test_image_array)
             class_index = int(predictions[0] > 0.5)
 
+            # Generate Grad-CAM
             heatmap = generate_gradcam(model, test_image_array)
-            plt.axis('off')
-            plt.matshow(heatmap)
-            plt.show()
+
+            # Display Grad-CAM
+            original_image = cv2.imread(test_image_path)
+            original_image = cv2.resize(original_image, (IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to match model input
+            display_gradcam(original_image, heatmap)
 
     except Exception as e:
         print(f"Error during prediction: {str(e)}")
