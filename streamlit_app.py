@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
+import matplotlib.cm as cm  # Import for colormap
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
@@ -45,8 +46,11 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
 if os.path.exists(MODEL_FILE):
     try:
         model = load_model(MODEL_FILE)
+        
+        # Compile the model to ensure metrics are set up
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
+        # Evaluate the model using validation data
         val_datagen = ImageDataGenerator(rescale=1./255)
         val_generator = val_datagen.flow_from_directory(
             val_data_dir,
@@ -55,6 +59,7 @@ if os.path.exists(MODEL_FILE):
             class_mode='binary'
         )
 
+        # Evaluate the model to build the compiled metrics
         val_loss, val_accuracy = model.evaluate(val_generator)
     except Exception as e:
         model = None
@@ -84,10 +89,32 @@ def generate_gradcam(model, img_array):
 
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
     last_conv_layer_output = last_conv_layer_output[0]
+
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
     heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
     return heatmap
+
+def display_gradcam(img, heatmap, alpha=0.4):
+    """Display Grad-CAM by superimposing the heatmap on the original image."""
+    # Rescale heatmap to a range of 0-255
+    heatmap = np.uint8(255 * heatmap)
+    
+    # Use the "jet" colormap to colorize the heatmap
+    jet = cm.get_cmap("jet")
+    jet_colors = jet(np.arange(256))[:, :3]
+    jet_heatmap = jet_colors[heatmap]
+    
+    # Transform the heatmap into an image
+    jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
+    
+    # Resize the heatmap to match the image dimensions
+    jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
+    jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+    
+    # Superimpose the heatmap on the original image
+    superimposed_img = jet_heatmap * alpha + img
+    return superimposed_img
 
 # Function to plot training history
 def plot_training_history(history):
@@ -279,14 +306,10 @@ if uploaded_file is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             heatmap = generate_gradcam(model, img_array)
-            st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
+            superimposed_img = display_gradcam(img_array, heatmap)
 
-            plt.imshow(heatmap, cmap='jet')
-            plt.axis('off')
-            plt.colorbar()
-            plt.savefig('gradcam.png', bbox_inches='tight', pad_inches=0)
-            plt.close()
-            st.image('gradcam.png', caption='Grad-CAM', use_container_width=True)
+            st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
+            st.image(superimposed_img[0], caption='Superimposed Grad-CAM', use_container_width=True)
 
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
@@ -311,14 +334,10 @@ if photo is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             heatmap = generate_gradcam(model, img_array)
-            st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
+            superimposed_img = display_gradcam(img_array, heatmap)
 
-            plt.imshow(heatmap, cmap='jet')
-            plt.axis('off')
-            plt.colorbar()
-            plt.savefig('gradcam_captured.png', bbox_inches='tight', pad_inches=0)
-            plt.close()
-            st.image('gradcam_captured.png', caption='Grad-CAM for Captured Image', use_container_width=True)
+            st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
+            st.image(superimposed_img[0], caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
 
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
