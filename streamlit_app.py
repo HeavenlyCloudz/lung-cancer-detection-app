@@ -174,6 +174,13 @@ def train_model(epochs, batch_size, use_early_stopping):
     # Save the model
     model.save(MODEL_FILE)
 
+    # Evaluate the model on training data for the specified number of epochs
+    for epoch in range(epochs):
+        train_loss, train_accuracy = model.evaluate(train_generator)
+        st.sidebar.subheader(f"Train Metrics - Epoch {epoch + 1}/{epochs}")
+        st.sidebar.write(f"Train Loss: {train_loss:.4f}")
+        st.sidebar.write(f"Train Accuracy: {train_accuracy:.4f}")
+
     # Plot and save the training history
     plot_training_history(history)
 
