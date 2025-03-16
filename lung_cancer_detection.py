@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import layers
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ BATCH_SIZE = 32
 EPOCHS = 10
 
 # Update path for saving the model
-MODEL_FILE = os.path.join(os.getcwd(), 'model_storage', 'lung_cancer_detection_model.h5')
+MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.h5')
 
 # Define the base data directory
 base_data_dir = os.path.join(os.getcwd(), 'data')  # Current working directory
@@ -26,7 +27,7 @@ test_data_dir = os.path.join(base_data_dir, "test")
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     
-     # Input Layer
+    # Input Layer
     model.add(layers.Input(shape=input_shape))
     
     # First Convolutional Block
@@ -144,7 +145,7 @@ def display_gradcam(img, heatmap, alpha=0.4):
         jet_heatmap = jet_colors[heatmap]
         
         jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-        jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
+        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Resize to original image size
         jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
         
         superimposed_img = jet_heatmap * alpha + img
@@ -177,6 +178,29 @@ def test_model(model, test_data_dir, epochs=1):
             print(f"Epoch {epoch + 1}/{epochs} - Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
     except Exception as e:
         print(f"Error during testing: {str(e)}")
+
+# Plot training history
+def plot_training_history(history):
+    # Plot training & validation accuracy values
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Train Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(loc='upper left')
+
+    # Plot training & validation loss values
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Train Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(loc='upper left')
+
+    plt.show()
 
 # Main execution
 if __name__ == "__main__":
@@ -212,6 +236,9 @@ if __name__ == "__main__":
         )
 
         model.save(MODEL_FILE)
+
+        # Plot training history
+        plot_training_history(history)
 
     # Load and predict on all images in the base data directory
     try:
