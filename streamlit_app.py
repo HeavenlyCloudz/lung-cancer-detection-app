@@ -28,6 +28,9 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     
+    # Input Layer
+    model.add(layers.Input(shape=input_shape))
+    
     # First Convolutional Block
     model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
     model.add(layers.MaxPooling2D((2, 2)))
