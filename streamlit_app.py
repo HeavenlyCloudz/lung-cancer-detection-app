@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
-import matplotlib.cm as cm  # Import for colormap
+import matplotlib.cm as cm
+import gdown
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
@@ -23,9 +24,24 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Load the model
-model = None
-val_loss, val_accuracy = None, None
+# Download model if not present
+if not os.path.exists(MODEL_FILE):
+    model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'
+    gdown.download(model_url, MODEL_FILE, quiet=False)
+
+# Download data if not present (adjust the file IDs as necessary)
+data_files = {
+    'train': 'FILE_ID_FOR_TRAIN',
+    'val': 'FILE_ID_FOR_VAL',
+    'test': 'FILE_ID_FOR_TEST'
+}
+
+for name, file_id in data_files.items():
+    dir_path = os.path.join(base_data_dir, name)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+        file_url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(file_url, os.path.join(dir_path, f'{name}.zip'), quiet=False)
 
 # Function to create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
@@ -47,15 +63,15 @@ if st.sidebar.button('Clear Cache'):
     st.caching.clear_cache()
     st.success("Cache cleared!")
 
-# Check if the model file exists
+# Load the model
+model = None
+val_loss, val_accuracy = None, None
+
 if os.path.exists(MODEL_FILE):
     try:
         model = load_model(MODEL_FILE)
-        
-        # Compile the model to ensure metrics are set up
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-        # Evaluate the model using validation data
         val_datagen = ImageDataGenerator(rescale=1./255)
         val_generator = val_datagen.flow_from_directory(
             val_data_dir,
@@ -64,7 +80,6 @@ if os.path.exists(MODEL_FILE):
             class_mode='binary'
         )
 
-        # Evaluate the model to build the compiled metrics
         val_loss, val_accuracy = model.evaluate(val_generator)
     except Exception as e:
         model = None
@@ -107,7 +122,6 @@ def generate_gradcam(model, img_array):
         st.error(f"Error generating Grad-CAM: {str(e)}")
 
 def display_gradcam(img, heatmap, alpha=0.4):
-    """Display Grad-CAM by superimposing the heatmap on the original image."""
     try:
         heatmap = np.uint8(255 * heatmap)
         
@@ -116,7 +130,6 @@ def display_gradcam(img, heatmap, alpha=0.4):
         jet_heatmap = jet_colors[heatmap]
         
         jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-        
         jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
         jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
         
@@ -128,9 +141,8 @@ def display_gradcam(img, heatmap, alpha=0.4):
 # Function to plot training history
 def plot_training_history(history):
     try:
-        fig, ax = plt.subplots(1, 2, figsize=(12, 4))  # Create a figure and axes
+        fig, ax = plt.subplots(1, 2, figsize=(12, 4))
 
-        # Plot accuracy
         ax[0].plot(history.history['accuracy'], label='Train Accuracy')
         ax[0].plot(history.history['val_accuracy'], label='Validation Accuracy')
         ax[0].set_title('Model Accuracy')
@@ -138,7 +150,6 @@ def plot_training_history(history):
         ax[0].set_ylabel('Accuracy')
         ax[0].legend()
 
-        # Plot loss
         ax[1].plot(history.history['loss'], label='Train Loss')
         ax[1].plot(history.history['val_loss'], label='Validation Loss')
         ax[1].set_title('Model Loss')
@@ -147,7 +158,7 @@ def plot_training_history(history):
         ax[1].legend()
 
         plt.tight_layout()
-        st.pyplot(fig)  # Pass the figure to st.pyplot
+        st.pyplot(fig)
     except Exception as e:
         st.error(f"Error plotting training history: {str(e)}")
 
@@ -210,7 +221,6 @@ def test_model():
         y_pred_classes = np.where(y_pred > 0.5, 1, 0)
         cm = confusion_matrix(test_generator.classes, y_pred_classes)
 
-        # Create figure for confusion matrix
         fig, ax = plt.subplots(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                      xticklabels=['Non-Cancerous', 'Cancerous'], 
@@ -218,7 +228,7 @@ def test_model():
         ax.set_ylabel('Actual')
         ax.set_xlabel('Predicted')
         ax.set_title('Confusion Matrix')
-        st.pyplot(fig)  # Pass the figure to st.pyplot
+        st.pyplot(fig)
     except Exception as e:
         st.error(f"Error during testing: {str(e)}")
 
@@ -292,18 +302,6 @@ if model:
         st.sidebar.subheader("Validation Metrics")
         st.sidebar.write(f"Validation Loss: {val_loss:.4f}")
         st.sidebar.write(f"Validation Accuracy: {val_accuracy:.4f}")
-
-# Display training history if it exists
-if os.path.exists('training_history.png'):
-    st.subheader("Training History")
-    st.image('training_history.png', caption='Training History', use_container_width=True)
-
-# Display model summary at the bottom of the page
-if model:
-    st.subheader("Model Summary")
-    model_summary = []
-    model.summary(print_fn=lambda x: model_summary.append(x))
-    st.text('\n'.join(model_summary))
 
 # Image upload for prediction
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
