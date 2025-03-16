@@ -225,7 +225,7 @@ if __name__ == "__main__":
     else:
         print("Loaded existing model. No training necessary.")
 
-    # Load and predict on all images in the base data directory
+    # Load and predict on all images in the test directory
     try:
         test_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
             test_data_dir,
