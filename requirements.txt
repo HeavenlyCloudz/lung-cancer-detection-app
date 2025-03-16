@@ -7,4 +7,3 @@ scipy
 pillow
 scikit-learn
 seaborn
-gdown
