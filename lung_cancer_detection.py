@@ -7,6 +7,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
+import gdown
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
@@ -16,7 +17,28 @@ MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')
 
 # Define the base data directory
 base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
-test_data_dir = os.path.join(base_data_dir, 'test')
+train_data_dir = os.path.join(base_data_dir, "train")
+val_data_dir = os.path.join(base_data_dir, "val")
+test_data_dir = os.path.join(base_data_dir, "test")
+
+# Download model if not present
+if not os.path.exists(MODEL_FILE):
+    model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'
+    gdown.download(model_url, MODEL_FILE, quiet=False)
+
+# Download data if not present (replace with actual file IDs)
+data_files = {
+    'train': 'FILE_ID_FOR_TRAIN',
+    'val': 'FILE_ID_FOR_VAL',
+    'test': 'FILE_ID_FOR_TEST'
+}
+
+for name, file_id in data_files.items():
+    dir_path = os.path.join(base_data_dir, name)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+        file_url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(file_url, os.path.join(dir_path, f'{name}.zip'), quiet=False)
 
 def plot_training_history(history):
     """Plot the training and validation accuracy and loss."""
@@ -187,9 +209,6 @@ def test_model(model, test_data_dir, epochs=1):
         print(f"Error during testing: {str(e)}")
 
 if __name__ == "__main__":
-    train_data_dir = os.path.join(base_data_dir, "train")
-    val_data_dir = os.path.join(base_data_dir, "val")
-
     model = load_model_file(MODEL_FILE)
 
     # Verify dataset paths
