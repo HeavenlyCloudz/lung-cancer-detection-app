@@ -69,7 +69,7 @@ if st.sidebar.button('Clear Cache'):
 download_model()
 download_data()
 
-# Load the model
+# Load the model or create a new one if it doesn't exist
 model = None
 val_loss, val_accuracy = None, None
 
@@ -91,7 +91,36 @@ if os.path.exists(MODEL_FILE):
         model = None
         st.error(f"Error loading model: {str(e)}")
 else:
-    st.warning("No pre-trained model found. Please train the model first.")
+    st.warning("No pre-trained model found. Creating a new model...")
+
+    # Create and train the model
+    model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+    # Train the model
+    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
+                                       height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
+                                       horizontal_flip=True, fill_mode='nearest')
+    val_datagen = ImageDataGenerator(rescale=1./255)
+
+    try:
+        train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+                                                            batch_size=32, class_mode='binary')
+        val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+                                                        batch_size=32, class_mode='binary')
+
+        steps_per_epoch = train_generator.samples // 32
+        validation_steps = val_generator.samples // 32
+
+        history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
+                            validation_data=val_generator, validation_steps=validation_steps,
+                            epochs=10)  # Change epochs as needed
+
+        model.save(MODEL_FILE)
+        st.success("Model trained and saved successfully!")
+
+    except Exception as e:
+        st.error(f"Error during training: {str(e)}")
 
 # Preprocess the image
 def preprocess_image(img_path):
@@ -167,46 +196,6 @@ def plot_training_history(history):
         st.pyplot(fig)
     except Exception as e:
         st.error(f"Error plotting training history: {str(e)}")
-
-# Function to train the model
-def train_model(epochs, batch_size):
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
-                                       height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
-                                       horizontal_flip=True, fill_mode='nearest')
-    val_datagen = ImageDataGenerator(rescale=1./255)
-
-    if not os.path.exists(train_data_dir):
-        st.error(f"Training data path does not exist: {train_data_dir}")
-        return
-    if not os.path.exists(val_data_dir):
-        st.error(f"Validation data path does not exist: {val_data_dir}")
-        return
-
-    try:
-        train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-                                                            batch_size=batch_size, class_mode='binary')
-        val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-                                                        batch_size=batch_size, class_mode='binary')
-
-        if train_generator.samples < batch_size or val_generator.samples < batch_size:
-            st.error("Not enough data in training or validation set for the specified batch size.")
-            return
-        
-        model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-        steps_per_epoch = train_generator.samples // batch_size
-        validation_steps = val_generator.samples // batch_size
-
-        history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
-                            validation_data=val_generator, validation_steps=validation_steps,
-                            epochs=epochs)
-
-        model.save(MODEL_FILE)
-        plot_training_history(history)
-
-    except Exception as e:
-        st.error(f"Error during training: {str(e)}")
 
 # Function to test the model
 def test_model():
