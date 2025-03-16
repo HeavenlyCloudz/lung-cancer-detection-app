@@ -16,7 +16,7 @@ import gdown
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
-MODEL_FILE = os.path.join(os.path.dirname(__file__), 'lung_cancer_detection_model.h5')
+MODEL_FILE = '/content/drive/MyDrive/model_storage/lung_cancer_detection_model.h5'  # Path for saving the model
 
 # Set dataset paths using relative paths
 base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
@@ -42,7 +42,7 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
 # Function to download model if not present
 def download_model():
     if not os.path.exists(MODEL_FILE):
-        model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'
+        model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'  # Replace with your model's URL
         gdown.download(model_url, MODEL_FILE, quiet=False)
 
 # Function to download data if not present
