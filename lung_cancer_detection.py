@@ -23,7 +23,7 @@ val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
 # Create Custom CNN model
-def create_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     
     # First Convolutional Block
