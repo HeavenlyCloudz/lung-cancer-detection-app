@@ -123,26 +123,26 @@ def display_gradcam(img, heatmap, alpha=0.4):
 # Function to plot training history
 def plot_training_history(history):
     try:
-        plt.figure(figsize=(12, 4))
-        plt.subplot(1, 2, 1)
-        plt.plot(history.history['accuracy'], label='Train Accuracy')
-        plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-        plt.title('Model Accuracy')
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
-        plt.legend()
+        fig, ax = plt.subplots(1, 2, figsize=(12, 4))  # Create a figure and axes
 
-        plt.subplot(1, 2, 2)
-        plt.plot(history.history['loss'], label='Train Loss')
-        plt.plot(history.history['val_loss'], label='Validation Loss')
-        plt.title('Model Loss')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.legend()
+        # Plot accuracy
+        ax[0].plot(history.history['accuracy'], label='Train Accuracy')
+        ax[0].plot(history.history['val_accuracy'], label='Validation Accuracy')
+        ax[0].set_title('Model Accuracy')
+        ax[0].set_xlabel('Epoch')
+        ax[0].set_ylabel('Accuracy')
+        ax[0].legend()
+
+        # Plot loss
+        ax[1].plot(history.history['loss'], label='Train Loss')
+        ax[1].plot(history.history['val_loss'], label='Validation Loss')
+        ax[1].set_title('Model Loss')
+        ax[1].set_xlabel('Epoch')
+        ax[1].set_ylabel('Loss')
+        ax[1].legend()
 
         plt.tight_layout()
-        plt.savefig('training_history.png')
-        plt.close()
+        st.pyplot(fig)  # Pass the figure to st.pyplot
     except Exception as e:
         st.error(f"Error plotting training history: {str(e)}")
 
@@ -205,14 +205,15 @@ def test_model():
         y_pred_classes = np.where(y_pred > 0.5, 1, 0)
         cm = confusion_matrix(test_generator.classes, y_pred_classes)
 
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Non-Cancerous', 'Cancerous'], 
-                     yticklabels=['Non-Cancerous', 'Cancerous'])
-        plt.ylabel('Actual')
-        plt.xlabel('Predicted')
-        plt.title('Confusion Matrix')
-        plt.show()
-        st.pyplot()
+        # Create figure for confusion matrix
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                     xticklabels=['Non-Cancerous', 'Cancerous'], 
+                     yticklabels=['Non-Cancerous', 'Cancerous'], ax=ax)
+        ax.set_ylabel('Actual')
+        ax.set_xlabel('Predicted')
+        ax.set_title('Confusion Matrix')
+        st.pyplot(fig)  # Pass the figure to st.pyplot
     except Exception as e:
         st.error(f"Error during testing: {str(e)}")
 
