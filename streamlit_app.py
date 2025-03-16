@@ -3,6 +3,8 @@ import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.applications import DenseNet201
+from tensorflow.keras import layers
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -21,6 +23,25 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 # Load the model
 model = None
 val_loss, val_accuracy = None, None
+
+# Function to create DenseNet model
+def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+    # Load the pre-trained DenseNet model without the top layer
+    base_model = DenseNet201(include_top=False, input_shape=input_shape, weights='imagenet')
+    
+    # Freeze the base model layers
+    for layer in base_model.layers:
+        layer.trainable = False
+
+    # Add custom layers on top of the base model
+    x = layers.Flatten()(base_model.output)
+    x = layers.Dense(128, activation='relu')(x)
+    output_layer = layers.Dense(num_classes, activation='sigmoid')(x)  # For binary classification
+
+    # Create the final model
+    final_model = tf.keras.models.Model(inputs=base_model.input, outputs=output_layer)
+
+    return final_model
 
 # Check if the model file exists
 if os.path.exists(MODEL_FILE):
@@ -108,22 +129,6 @@ def plot_training_history(history):
     plt.savefig('training_history.png')
     plt.close()
 
-# Creates CNN model
-def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
-    model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=input_shape),
-        tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dense(1, activation='sigmoid')
-    ])
-    return model
-
 # Function to train the model
 def train_model(epochs, batch_size):
     # Data generators
@@ -156,7 +161,7 @@ def train_model(epochs, batch_size):
         return
 
     # Create and compile the model
-    model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+    model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
     # Calculate steps per epoch
