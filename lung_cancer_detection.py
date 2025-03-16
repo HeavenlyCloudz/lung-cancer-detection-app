@@ -24,6 +24,11 @@ test_data_dir = os.path.join(base_data_dir, "test")
 
 # Download model if not present
 def download_model():
+    # Ensure the directory exists
+    model_dir = os.path.dirname(MODEL_FILE)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
     if not os.path.exists(MODEL_FILE):
         model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'
         gdown.download(model_url, MODEL_FILE, quiet=False)
