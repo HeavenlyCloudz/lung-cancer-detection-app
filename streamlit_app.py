@@ -42,6 +42,11 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
 
     return final_model
 
+# Clear cache button
+if st.sidebar.button('Clear Cache'):
+    st.caching.clear_cache()
+    st.success("Cache cleared!")
+
 # Check if the model file exists
 if os.path.exists(MODEL_FILE):
     try:
