@@ -3,7 +3,6 @@ import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.applications import DenseNet201
 from tensorflow.keras import layers
 import numpy as np
 import cv2
@@ -25,19 +24,32 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Function to create DenseNet model
-def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
-    base_model = DenseNet201(include_top=False, input_shape=input_shape, weights='imagenet')
+# Function to create Custom CNN model
+def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+    model = tf.keras.models.Sequential()
     
-    for layer in base_model.layers:
-        layer.trainable = False
+    # First Convolutional Block
+    model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
+    model.add(layers.MaxPooling2D((2, 2)))
 
-    x = layers.Flatten()(base_model.output)
-    x = layers.Dense(128, activation='relu')(x)
-    output_layer = layers.Dense(num_classes, activation='sigmoid')(x)
+    # Second Convolutional Block
+    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
 
-    final_model = tf.keras.models.Model(inputs=base_model.input, outputs=output_layer)
-    return final_model
+    # Third Convolutional Block
+    model.add(layers.Conv2D(128, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
+
+    # Flatten the output
+    model.add(layers.Flatten())
+    
+    # Fully Connected Layer
+    model.add(layers.Dense(128, activation='relu'))
+    
+    # Output Layer
+    model.add(layers.Dense(num_classes, activation='sigmoid'))  # Use 'softmax' for multi-class
+
+    return model
 
 # Load model from file or create a new one
 def load_or_create_model():
@@ -51,7 +63,7 @@ def load_or_create_model():
             return None
     else:
         st.warning("No pre-trained model found. Creating a new model...")
-        model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+        model = create_custom_cnn((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
         return model
 
@@ -102,7 +114,7 @@ def preprocess_image(img_path):
 # Generate Grad-CAM heatmap
 def generate_gradcam(model, img_array):
     try:
-        last_conv_layer = model.get_layer('conv2d_2')
+        last_conv_layer = model.get_layer(index=-3)  # Get the last Conv2D layer
         grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
         with tf.GradientTape() as tape:
