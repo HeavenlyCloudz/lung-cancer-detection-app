@@ -69,75 +69,82 @@ else:
 
 # Preprocess the image
 def preprocess_image(img_path):
-    img = Image.open(img_path)
-    if img.mode == 'RGBA':
-        img = img.convert('RGB')
+    try:
+        img = Image.open(img_path)
+        if img.mode == 'RGBA':
+            img = img.convert('RGB')
 
-    new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
-    processed_image = np.asarray(new_image) / 255.0
-    img_array = np.expand_dims(processed_image, axis=0)
-    return img_array
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+        processed_image = np.asarray(new_image) / 255.0
+        img_array = np.expand_dims(processed_image, axis=0)
+        return img_array
+    except Exception as e:
+        st.error(f"Error processing image: {str(e)}")
 
 def generate_gradcam(model, img_array):
-    last_conv_layer = model.get_layer('conv2d_2')
-    grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
+    try:
+        last_conv_layer = model.get_layer('conv2d_2')
+        grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
-    with tf.GradientTape() as tape:
-        model_output, last_conv_layer_output = grad_model(img_array)
-        class_id = tf.argmax(model_output[0])
-        grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
+        with tf.GradientTape() as tape:
+            model_output, last_conv_layer_output = grad_model(img_array)
+            class_id = tf.argmax(model_output[0])
+            grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
 
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
-    last_conv_layer_output = last_conv_layer_output[0]
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
+        last_conv_layer_output = last_conv_layer_output[0]
 
-    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
-    heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
-    return heatmap
+        heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+        heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
+        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+        return heatmap
+    except Exception as e:
+        st.error(f"Error generating Grad-CAM: {str(e)}")
 
 def display_gradcam(img, heatmap, alpha=0.4):
     """Display Grad-CAM by superimposing the heatmap on the original image."""
-    # Rescale heatmap to a range of 0-255
-    heatmap = np.uint8(255 * heatmap)
-    
-    # Use the "jet" colormap to colorize the heatmap
-    jet = cm.get_cmap("jet")
-    jet_colors = jet(np.arange(256))[:, :3]
-    jet_heatmap = jet_colors[heatmap]
-    
-    # Transform the heatmap into an image
-    jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-    
-    # Resize the heatmap to match the image dimensions
-    jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
-    jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
-    
-    # Superimpose the heatmap on the original image
-    superimposed_img = jet_heatmap * alpha + img
-    return superimposed_img
+    try:
+        heatmap = np.uint8(255 * heatmap)
+        
+        jet = cm.get_cmap("jet")
+        jet_colors = jet(np.arange(256))[:, :3]
+        jet_heatmap = jet_colors[heatmap]
+        
+        jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
+        
+        jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
+        jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+        
+        superimposed_img = jet_heatmap * alpha + img
+        return superimposed_img
+    except Exception as e:
+        st.error(f"Error displaying Grad-CAM: {str(e)}")
 
 # Function to plot training history
 def plot_training_history(history):
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['accuracy'], label='Train Accuracy')
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-    plt.title('Model Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.legend()
+    try:
+        plt.figure(figsize=(12, 4))
+        plt.subplot(1, 2, 1)
+        plt.plot(history.history['accuracy'], label='Train Accuracy')
+        plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+        plt.title('Model Accuracy')
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy')
+        plt.legend()
 
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['loss'], label='Train Loss')
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-    plt.title('Model Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
+        plt.subplot(1, 2, 2)
+        plt.plot(history.history['loss'], label='Train Loss')
+        plt.plot(history.history['val_loss'], label='Validation Loss')
+        plt.title('Model Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
 
-    plt.tight_layout()
-    plt.savefig('training_history.png')
-    plt.close()
+        plt.tight_layout()
+        plt.savefig('training_history.png')
+        plt.close()
+    except Exception as e:
+        st.error(f"Error plotting training history: {str(e)}")
 
 # Function to train the model
 def train_model(epochs, batch_size):
@@ -162,50 +169,52 @@ def train_model(epochs, batch_size):
         if train_generator.samples < batch_size or val_generator.samples < batch_size:
             st.error("Not enough data in training or validation set for the specified batch size.")
             return
+        
+        model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+        steps_per_epoch = train_generator.samples // batch_size
+        validation_steps = val_generator.samples // batch_size
+
+        history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
+                            validation_data=val_generator, validation_steps=validation_steps,
+                            epochs=epochs)
+
+        model.save(MODEL_FILE)
+        plot_training_history(history)
+
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return
-
-    model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-    steps_per_epoch = train_generator.samples // batch_size
-    validation_steps = val_generator.samples // batch_size
-
-    history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
-                        validation_data=val_generator, validation_steps=validation_steps,
-                        epochs=epochs)
-
-    model.save(MODEL_FILE)
-    plot_training_history(history)
+        st.error(f"Error during training: {str(e)}")
 
 # Function to test the model
 def test_model():
     test_datagen = ImageDataGenerator(rescale=1./255)
-    test_generator = test_datagen.flow_from_directory(
-        test_data_dir,
-        target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-        batch_size=32,
-        class_mode='binary'
-    )
+    try:
+        test_generator = test_datagen.flow_from_directory(
+            test_data_dir,
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=32,
+            class_mode='binary'
+        )
 
-    test_loss, test_accuracy = model.evaluate(test_generator)
-    st.sidebar.write(f"Test Loss: {test_loss:.4f}")
-    st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
+        test_loss, test_accuracy = model.evaluate(test_generator)
+        st.sidebar.write(f"Test Loss: {test_loss:.4f}")
+        st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
 
-    # Confusion matrix
-    y_pred = model.predict(test_generator)
-    y_pred_classes = np.where(y_pred > 0.5, 1, 0)
-    cm = confusion_matrix(test_generator.classes, y_pred_classes)
+        y_pred = model.predict(test_generator)
+        y_pred_classes = np.where(y_pred > 0.5, 1, 0)
+        cm = confusion_matrix(test_generator.classes, y_pred_classes)
 
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Non-Cancerous', 'Cancerous'], 
-                 yticklabels=['Non-Cancerous', 'Cancerous'])
-    plt.ylabel('Actual')
-    plt.xlabel('Predicted')
-    plt.title('Confusion Matrix')
-    plt.show()
-    st.pyplot()
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Non-Cancerous', 'Cancerous'], 
+                     yticklabels=['Non-Cancerous', 'Cancerous'])
+        plt.ylabel('Actual')
+        plt.xlabel('Predicted')
+        plt.title('Confusion Matrix')
+        plt.show()
+        st.pyplot()
+    except Exception as e:
+        st.error(f"Error during testing: {str(e)}")
 
 # Streamlit UI
 st.title("Lung Cancer Detection")
