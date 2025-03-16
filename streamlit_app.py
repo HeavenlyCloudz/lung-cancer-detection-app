@@ -188,11 +188,15 @@ def test_model():
         class_mode='binary'
     )
 
-    # Evaluate the model on test data
-    test_loss, test_accuracy = model.evaluate(test_generator)
-    st.sidebar.subheader("Test Metrics")
-    st.sidebar.write(f"Test Loss: {test_loss:.4f}")
-    st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
+    # Ask for the number of epochs to test
+    test_epochs = st.sidebar.number_input("Number of epochs for testing", min_value=1, max_value=10, value=1)
+
+    # Evaluate the model on test data for the specified number of epochs
+    for epoch in range(test_epochs):
+        test_loss, test_accuracy = model.evaluate(test_generator)
+        st.sidebar.subheader(f"Test Metrics - Epoch {epoch + 1}/{test_epochs}")
+        st.sidebar.write(f"Test Loss: {test_loss:.4f}")
+        st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
 
 # Streamlit UI
 st.title("Lung Cancer Detection")
