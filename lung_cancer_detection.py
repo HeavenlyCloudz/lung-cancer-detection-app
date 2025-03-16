@@ -15,7 +15,7 @@ BATCH_SIZE = 32
 EPOCHS = 10
 
 # Update path for saving the model
-MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.h5')
+MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.keras')
 
 # Define the base data directory
 base_data_dir = os.path.join(os.getcwd(), 'data')
@@ -218,7 +218,7 @@ if __name__ == "__main__":
             epochs=EPOCHS
         )
 
-        model.save(MODEL_FILE)
+        model.save(MODEL_FILE)  # Save using the new Keras format
 
         # Plot training history
         plot_training_history(history)
