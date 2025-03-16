@@ -23,11 +23,11 @@ train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
-# Create Custom CNN model
+# Create Custom CNN model (for reference)
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     model.add(layers.Input(shape=input_shape))
-    model.add(Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
+    model.add(Conv2D(32, (3, 3), activation='relu'))
     model.add(MaxPooling2D((2, 2)))
     model.add(Conv2D(64, (3, 3), activation='relu'))
     model.add(MaxPooling2D((2, 2)))
@@ -43,7 +43,7 @@ def load_model_file(model_file):
     if not os.path.exists(model_file):
         print(f"Model file not found: {model_file}")
         return None
-
+    
     try:
         model = tf.keras.models.load_model(model_file)
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
@@ -187,7 +187,7 @@ def plot_training_history(history):
 
 # Main execution
 if __name__ == "__main__":
-    # Load model or create a new one if it doesn't exist
+    # Load model
     model = load_model_file(MODEL_FILE)
 
     # Verify dataset paths
@@ -201,9 +201,15 @@ if __name__ == "__main__":
         print(ve)
         exit(1)
 
-    # If model was not loaded, create and train a new one
+    # If model was not loaded, inform the user
     if model is None:
-        print("No existing model found. Creating a new model...")
+        print("No existing model found. You can train a new model if desired.")
+    else:
+        print("Loaded existing model.")
+
+    # Option to train the model
+    train_choice = input("Do you want to train the model? (yes/no): ").strip().lower()
+    if train_choice == 'yes':
         model = create_custom_cnn((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
@@ -218,12 +224,10 @@ if __name__ == "__main__":
             epochs=EPOCHS
         )
 
-        model.save(MODEL_FILE)  # Save using the new Keras format
+        model.save(MODEL_FILE)  # Save the trained model
 
         # Plot training history
         plot_training_history(history)
-    else:
-        print("Loaded existing model. No training necessary.")
 
     # Load and predict on all images in the test directory
     try:
