@@ -15,7 +15,7 @@ MODEL_FILE = os.path.abspath('lung_cancer_detection_model.h5')
 
 # Define the base data directory
 base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
-test_data_dir = os.path.join(base_data_dir, 'test')  # New test data directory
+test_data_dir = os.path.join(base_data_dir, 'test')
 
 def plot_training_history(history):
     """Plot the training and validation accuracy and loss."""
@@ -90,6 +90,10 @@ def load_data(train_dir, val_dir):
         batch_size=BATCH_SIZE,
         class_mode='binary'
     )
+
+    # Check if the generator has enough data
+    if train_generator.samples < BATCH_SIZE or val_generator.samples < BATCH_SIZE:
+        raise ValueError("Not enough data in training or validation set for the specified batch size.")
 
     return train_generator, val_generator
 
@@ -166,7 +170,11 @@ if __name__ == "__main__":
         exit(1)
 
     # Load training data
-    train_generator, val_generator = load_data(train_data_dir, val_data_dir)
+    try:
+        train_generator, val_generator = load_data(train_data_dir, val_data_dir)
+    except ValueError as ve:
+        print(ve)
+        exit(1)
 
     # Compile and evaluate the model if it is loaded successfully
     if model is not None:
