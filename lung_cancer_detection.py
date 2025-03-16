@@ -51,7 +51,7 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
     # Add custom layers on top of the base model
     x = Flatten()(base_model.output)
     x = Dense(128, activation='relu')(x)
-    output_layer = Dense(num_classes, activation='sigmoid')(x)  # For binary classification
+    output_layer = Dense(num_classes, activation='sigmoid')(x)
 
     # Create the final model
     final_model = tf.keras.models.Model(inputs=base_model.input, outputs=output_layer)
@@ -66,7 +66,6 @@ def load_model_file(model_file):
 
     try:
         model = tf.keras.models.load_model(model_file)
-        # Recompile the model to ensure metrics are set up
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
         return model
     except Exception as e:
@@ -191,7 +190,6 @@ if __name__ == "__main__":
 
         # Test the model
         if check_directory(test_data_dir):
-            # Ask user for the number of epochs to test
             test_epochs = int(input("Enter the number of epochs for testing (default is 1): ") or 1)
             test_model(model, test_data_dir, epochs=test_epochs)
         else:
