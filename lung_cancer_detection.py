@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import cv2
 from PIL import Image
-import gdown
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
@@ -19,58 +18,10 @@ EPOCHS = 10
 MODEL_FILE = os.path.join(os.getcwd(), 'model_storage', 'lung_cancer_detection_model.h5')
 
 # Define the base data directory
-base_data_dir = os.path.join(os.getcwd(), 'data')  # Update to use current working directory
+base_data_dir = os.path.join(os.getcwd(), 'data')  # Current working directory
 train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
-
-# Download model if not present
-def download_model():
-    # Ensure the directory exists
-    model_dir = os.path.dirname(MODEL_FILE)
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-
-    if not os.path.exists(MODEL_FILE):
-        model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'
-        gdown.download(model_url, MODEL_FILE, quiet=False)
-
-# Download data if not present (replace with actual file IDs)
-def download_data():
-    data_files = {
-        'train': 'FILE_ID_FOR_TRAIN',
-        'val': 'FILE_ID_FOR_VAL',
-        'test': 'FILE_ID_FOR_TEST'
-    }
-
-    for name, file_id in data_files.items():
-        dir_path = os.path.join(base_data_dir, name)
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-            file_url = f'https://drive.google.com/uc?id={file_id}'
-            gdown.download(file_url, os.path.join(dir_path, f'{name}.zip'), quiet=False)
-
-# Plot training history
-def plot_training_history(history):
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['accuracy'], label='Train Accuracy')
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-    plt.title('Model Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.legend()
-
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['loss'], label='Train Loss')
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-    plt.title('Model Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-
-    plt.tight_layout()
-    plt.show()
 
 # Create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
@@ -213,10 +164,6 @@ def test_model(model, test_data_dir, epochs=1):
 
 # Main execution
 if __name__ == "__main__":
-    # Download model and data
-    download_model()
-    download_data()
-
     # Load model or create a new one if it doesn't exist
     model = load_model_file(MODEL_FILE)
 
@@ -253,15 +200,19 @@ if __name__ == "__main__":
 
     # Load and predict on all images in the base data directory
     try:
-        all_processed_images = load_and_preprocess_images_from_folder(base_data_dir)
-        if all_processed_images is not None:
-            print("Processed images shape:", all_processed_images.shape)
+        # Load all images in the test directory
+        test_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
+            test_data_dir,
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=BATCH_SIZE,
+            class_mode='binary'
+        )
 
-            if model:
-                predictions = model.predict(all_processed_images)
-                for i, prediction in enumerate(predictions):
-                    result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
-                    print(f"Image {i + 1}: The model predicts the image is: {result}")
+        for i in range(test_generator.samples):
+            img_array = test_generator[i][0]  # Get the image array
+            predictions = model.predict(img_array)
+            result = 'Cancerous' if predictions[0][0] > 0.5 else 'Non-Cancerous'
+            print(f"Image {i + 1}: The model predicts the image is: {result}")
     except Exception as e:
         print(f"Error loading images: {str(e)}")
 
