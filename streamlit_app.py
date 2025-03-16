@@ -15,10 +15,9 @@ import matplotlib.cm as cm
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 BATCH_SIZE = 32
-EPOCHS = 10
 
 # Set paths for saving the model and data
-MODEL_FILE = os.path.join(os.getcwd(), 'model_storage', 'lung_cancer_detection_model.h5')
+MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.h5')
 base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
@@ -293,10 +292,10 @@ if uploaded_file is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             heatmap = generate_gradcam(model, img_array)
-            superimposed_img = display_gradcam(img_array, heatmap)
+            superimposed_img = display_gradcam(img_array[0], heatmap)
 
             st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
-            st.image(superimposed_img[0], caption='Superimposed Grad-CAM', use_container_width=True)
+            st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
 
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
@@ -321,10 +320,10 @@ if photo is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             heatmap = generate_gradcam(model, img_array)
-            superimposed_img = display_gradcam(img_array, heatmap)
+            superimposed_img = display_gradcam(img_array[0], heatmap)
 
             st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
-            st.image(superimposed_img[0], caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
+            st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
 
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
