@@ -44,33 +44,28 @@ def download_data():
 
 # Plot training history
 def plot_training_history(history):
-    """Plot the training and validation accuracy and loss."""
-    try:
-        plt.figure(figsize=(12, 4))
-        plt.subplot(1, 2, 1)
-        plt.plot(history.history['accuracy'], label='Train Accuracy')
-        plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-        plt.title('Model Accuracy')
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
-        plt.legend()
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Train Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
 
-        plt.subplot(1, 2, 2)
-        plt.plot(history.history['loss'], label='Train Loss')
-        plt.plot(history.history['val_loss'], label='Validation Loss')
-        plt.title('Model Loss')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.legend()
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Train Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
 
-        plt.tight_layout()
-        plt.show()
-    except Exception as e:
-        print(f"Error plotting training history: {str(e)}")
+    plt.tight_layout()
+    plt.show()
 
 # Create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
-    """Create a DenseNet model."""
     base_model = DenseNet201(include_top=False, input_shape=input_shape, weights='imagenet')
     
     for layer in base_model.layers:
@@ -84,7 +79,6 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
 
 # Load model from file
 def load_model_file(model_file):
-    """Load the model from the specified file and recompile it."""
     if not os.path.exists(model_file):
         print(f"Model file not found: {model_file}")
         return None
@@ -99,7 +93,6 @@ def load_model_file(model_file):
 
 # Load training and validation data
 def load_data(train_dir, val_dir):
-    """Load training and validation data from directories."""
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
                                        width_shift_range=0.2, height_shift_range=0.2,
                                        shear_range=0.2, zoom_range=0.2,
@@ -132,7 +125,6 @@ def load_data(train_dir, val_dir):
 
 # Preprocess image for prediction
 def preprocess_image(image_path):
-    """Load and preprocess an image from a local file path."""
     try:
         img = Image.open(image_path)
         if img.mode == 'RGBA':
@@ -147,7 +139,6 @@ def preprocess_image(image_path):
 
 # Generate Grad-CAM heatmap
 def generate_gradcam(model, img_array):
-    """Generate Grad-CAM heatmap."""
     try:
         last_conv_layer = model.get_layer('conv2d_2')
         grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
@@ -170,7 +161,6 @@ def generate_gradcam(model, img_array):
 
 # Check if directory exists
 def check_directory(path):
-    """Check if the directory exists."""
     if not os.path.exists(path):
         print(f"Directory does not exist: {path}")
         return False
@@ -178,7 +168,6 @@ def check_directory(path):
 
 # Test the model
 def test_model(model, test_data_dir, epochs=1):
-    """Load test data and evaluate the model over a number of epochs."""
     try:
         test_datagen = ImageDataGenerator(rescale=1./255)
         test_generator = test_datagen.flow_from_directory(
@@ -200,7 +189,7 @@ if __name__ == "__main__":
     download_model()
     download_data()
 
-    # Load model
+    # Load model or create a new one if it doesn't exist
     model = load_model_file(MODEL_FILE)
 
     # Verify dataset paths
@@ -214,23 +203,9 @@ if __name__ == "__main__":
         print(ve)
         exit(1)
 
-    # Compile and evaluate the model if it is loaded successfully
-    if model is not None:
-        model.summary()
-
-        # Evaluate the model
-        val_loss, val_accuracy = model.evaluate(val_generator)
-        print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
-
-        # Test the model
-        if check_directory(test_data_dir):
-            test_epochs = int(input("Enter the number of epochs for testing (default is 1): ") or 1)
-            test_model(model, test_data_dir, epochs=test_epochs)
-        else:
-            print(f"Test data directory does not exist: {test_data_dir}")
-
-    # If model is not loaded, create and train a new one
+    # If model was not loaded, create and train a new one
     if model is None:
+        print("No existing model found. Creating a new model...")
         model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
