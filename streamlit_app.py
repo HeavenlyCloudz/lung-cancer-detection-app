@@ -12,7 +12,6 @@ from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import matplotlib.cm as cm
-import gdown
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
@@ -20,8 +19,8 @@ BATCH_SIZE = 32
 EPOCHS = 10
 
 # Set paths for saving the model and data
-MODEL_FILE = os.path.join(os.getcwd(), 'model_storage', 'lung_cancer_detection_model.h5')  # Update path
-base_data_dir = os.path.join(os.getcwd(), 'data')  # Update path
+MODEL_FILE = os.path.join(os.getcwd(), 'model_storage', 'lung_cancer_detection_model.h5')
+base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
@@ -40,96 +39,52 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
     final_model = tf.keras.models.Model(inputs=base_model.input, outputs=output_layer)
     return final_model
 
-# Function to download model if not present
-def download_model():
-    # Ensure the directory exists
-    model_dir = os.path.dirname(MODEL_FILE)
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-
-    # Download the model if it doesn't exist
-    if not os.path.exists(MODEL_FILE):
-        model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'  # Replace with your model's URL
-        gdown.download(model_url, MODEL_FILE, quiet=False)
-
-# Function to download data if not present
-def download_data():
-    data_files = {
-        'train': 'FILE_ID_FOR_TRAIN',
-        'val': 'FILE_ID_FOR_VAL',
-        'test': 'FILE_ID_FOR_TEST'
-    }
-
-    for name, file_id in data_files.items():
-        dir_path = os.path.join(base_data_dir, name)
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-            file_url = f'https://drive.google.com/uc?id={file_id}'
-            gdown.download(file_url, os.path.join(dir_path, f'{name}.zip'), quiet=False)
-
-# Clear cache button
-if st.sidebar.button('Clear Cache'):
-    st.caching.clear_cache()
-    st.success("Cache cleared!")
-
-# Download model and data
-download_model()
-download_data()
-
-# Load the model or create a new one if it doesn't exist
-model = None
-val_loss, val_accuracy = None
-
-if os.path.exists(MODEL_FILE):
-    try:
-        model = load_model(MODEL_FILE)
+# Load model from file or create a new one
+def load_or_create_model():
+    if os.path.exists(MODEL_FILE):
+        try:
+            model = load_model(MODEL_FILE)
+            model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            return model
+        except Exception as e:
+            st.error(f"Error loading model: {str(e)}")
+            return None
+    else:
+        st.warning("No pre-trained model found. Creating a new model...")
+        model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        return model
 
-        val_datagen = ImageDataGenerator(rescale=1./255)
-        val_generator = val_datagen.flow_from_directory(
-            val_data_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=32,
-            class_mode='binary'
-        )
-
-        val_loss, val_accuracy = model.evaluate(val_generator)
-    except Exception as e:
-        model = None
-        st.error(f"Error loading model: {str(e)}")
-else:
-    st.warning("No pre-trained model found. Creating a new model...")
-
-    # Create and train the model
-    model = create_densenet_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-    # Train the model
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
-                                       height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
+# Load training and validation data
+def load_data(train_dir, val_dir):
+    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
+                                       width_shift_range=0.2, height_shift_range=0.2,
+                                       shear_range=0.2, zoom_range=0.2,
                                        horizontal_flip=True, fill_mode='nearest')
+
     val_datagen = ImageDataGenerator(rescale=1./255)
 
     try:
-        train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-                                                            batch_size=32, class_mode='binary')
-        val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-                                                        batch_size=32, class_mode='binary')
+        train_generator = train_datagen.flow_from_directory(
+            train_dir,
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=BATCH_SIZE,
+            class_mode='binary'
+        )
 
-        steps_per_epoch = train_generator.samples // 32
-        validation_steps = val_generator.samples // 32
+        val_generator = val_datagen.flow_from_directory(
+            val_dir,
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=BATCH_SIZE,
+            class_mode='binary'
+        )
 
-        history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
-                            validation_data=val_generator, validation_steps=validation_steps,
-                            epochs=10)  # Change epochs as needed
-
-        model.save(MODEL_FILE)
-        st.success("Model trained and saved successfully!")
-
+        return train_generator, val_generator
     except Exception as e:
-        st.error(f"Error during training: {str(e)}")
+        st.error(f"Error loading data: {str(e)}")
+        return None, None
 
-# Preprocess the image
+# Preprocess the image for prediction
 def preprocess_image(img_path):
     try:
         img = Image.open(img_path)
@@ -142,7 +97,9 @@ def preprocess_image(img_path):
         return img_array
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
+        return None
 
+# Generate Grad-CAM heatmap
 def generate_gradcam(model, img_array):
     try:
         last_conv_layer = model.get_layer('conv2d_2')
@@ -162,7 +119,9 @@ def generate_gradcam(model, img_array):
         return heatmap
     except Exception as e:
         st.error(f"Error generating Grad-CAM: {str(e)}")
+        return None
 
+# Display Grad-CAM heatmap
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
         heatmap = np.uint8(255 * heatmap)
@@ -179,6 +138,7 @@ def display_gradcam(img, heatmap, alpha=0.4):
         return superimposed_img
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
+        return None
 
 # Function to plot training history
 def plot_training_history(history):
@@ -205,13 +165,13 @@ def plot_training_history(history):
         st.error(f"Error plotting training history: {str(e)}")
 
 # Function to test the model
-def test_model():
+def test_model(model):
     test_datagen = ImageDataGenerator(rescale=1./255)
     try:
         test_generator = test_datagen.flow_from_directory(
             test_data_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=32,
+            batch_size=BATCH_SIZE,
             class_mode='binary'
         )
 
@@ -271,6 +231,9 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Sidebar controls
 st.sidebar.title("Controls")
 
+# Load the model or create a new one if it doesn't exist
+model = load_or_create_model()
+
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
@@ -278,32 +241,26 @@ batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, va
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
-        train_model(epochs, batch_size)
-    st.success("Model training complete!")
+        train_generator, val_generator = load_data(train_data_dir, val_data_dir)
+        if train_generator and val_generator:
+            steps_per_epoch = train_generator.samples // batch_size
+            validation_steps = val_generator.samples // batch_size
+
+            history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
+                                validation_data=val_generator, validation_steps=validation_steps,
+                                epochs=epochs)
+
+            model.save(MODEL_FILE)
+            st.success("Model trained and saved successfully!")
+            plot_training_history(history)
 
 # Button to test model
 if st.sidebar.button("Test Model"):
     if model:
         with st.spinner("Testing the model..."):
-            test_model()
+            test_model(model)
     else:
         st.warning("No model found. Please train the model first.")
-
-# Display optimizer details and evaluation metrics in the sidebar
-if model:
-    st.sidebar.subheader("Optimizer Details")
-    optimizer = model.optimizer
-    optimizer_details = {
-        "Optimizer": optimizer.__class__.__name__,
-        "Learning Rate": optimizer.learning_rate.numpy()
-    }
-    for key, value in optimizer_details.items():
-        st.sidebar.write(f"{key}: {value}")
-
-    if val_loss is not None and val_accuracy is not None:
-        st.sidebar.subheader("Validation Metrics")
-        st.sidebar.write(f"Validation Loss: {val_loss:.4f}")
-        st.sidebar.write(f"Validation Accuracy: {val_accuracy:.4f}")
 
 # Image upload for prediction
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
