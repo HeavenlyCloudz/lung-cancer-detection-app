@@ -18,7 +18,7 @@ EPOCHS = 10
 MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.h5')
 
 # Define the base data directory
-base_data_dir = os.path.join(os.getcwd(), 'data')  # Current working directory
+base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
@@ -26,31 +26,16 @@ test_data_dir = os.path.join(base_data_dir, "test")
 # Create Custom CNN model
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
-    
-    # Input Layer
     model.add(layers.Input(shape=input_shape))
-    
-    # First Convolutional Block
     model.add(Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
     model.add(MaxPooling2D((2, 2)))
-
-    # Second Convolutional Block
     model.add(Conv2D(64, (3, 3), activation='relu'))
     model.add(MaxPooling2D((2, 2)))
-
-    # Third Convolutional Block
     model.add(Conv2D(128, (3, 3), activation='relu'))
     model.add(MaxPooling2D((2, 2)))
-
-    # Flatten the output
     model.add(Flatten())
-    
-    # Fully Connected Layer
     model.add(Dense(128, activation='relu'))
-    
-    # Output Layer
     model.add(Dense(num_classes, activation='sigmoid'))  # Use 'softmax' for multi-class
-
     return model
 
 # Load model from file
@@ -181,7 +166,6 @@ def test_model(model, test_data_dir, epochs=1):
 
 # Plot training history
 def plot_training_history(history):
-    # Plot training & validation accuracy values
     plt.figure(figsize=(12, 4))
     plt.subplot(1, 2, 1)
     plt.plot(history.history['accuracy'], label='Train Accuracy')
@@ -191,7 +175,6 @@ def plot_training_history(history):
     plt.xlabel('Epoch')
     plt.legend(loc='upper left')
 
-    # Plot training & validation loss values
     plt.subplot(1, 2, 2)
     plt.plot(history.history['loss'], label='Train Loss')
     plt.plot(history.history['val_loss'], label='Validation Loss')
@@ -239,6 +222,8 @@ if __name__ == "__main__":
 
         # Plot training history
         plot_training_history(history)
+    else:
+        print("Loaded existing model. No training necessary.")
 
     # Load and predict on all images in the base data directory
     try:
