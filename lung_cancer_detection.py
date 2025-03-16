@@ -55,13 +55,14 @@ def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
     return model
 
 def load_model_file(model_file):
-    """Load the model from the specified file."""
+    """Load the model from the specified file and recompile it."""
     if not os.path.exists(model_file):
         print(f"Model file not found: {model_file}")
         return None
 
     try:
         model = tf.keras.models.load_model(model_file)
+        # Recompile the model to ensure metrics are set up
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
         return model
     except Exception as e:
