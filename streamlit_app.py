@@ -17,7 +17,7 @@ IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 BATCH_SIZE = 32
 
 # Set paths for saving the model and data
-MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.keras')
+MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.h5')
 base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
@@ -53,7 +53,7 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
 
     return model
 
-# Load the model or create a new one if it doesn't exist
+# Load model from file or create a new one
 def load_or_create_model():
     if os.path.exists(MODEL_FILE):
         try:
@@ -265,7 +265,7 @@ if st.sidebar.button("Train Model"):
                                 validation_data=val_generator, validation_steps=validation_steps,
                                 epochs=epochs)
 
-            model.save(MODEL_FILE)  # Save in the new Keras format
+            model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
 
@@ -330,8 +330,3 @@ if photo is not None:
             st.error(f"Error during prediction: {str(e)}")
 
     os.remove("captured_image.jpg")
-
-# Download model button
-if st.sidebar.button("Download Model"):
-    with open(MODEL_FILE, "rb") as f:
-        st.download_button("Download the trained model", f, file_name="lung_cancer_detection_model.keras")
