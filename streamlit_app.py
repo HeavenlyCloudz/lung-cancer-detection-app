@@ -3,7 +3,6 @@ import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -127,7 +126,7 @@ def create_cnn_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3)):
     return model
 
 # Function to train the model
-def train_model(epochs, batch_size, use_early_stopping):
+def train_model(epochs, batch_size):
     # Data generators
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2,
                                        height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
@@ -156,12 +155,6 @@ def train_model(epochs, batch_size, use_early_stopping):
     model = create_cnn_model((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-    # Prepare callbacks
-    callbacks = []
-    if use_early_stopping:
-        early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-        callbacks.append(early_stopping)
-
     # Calculate steps per epoch
     steps_per_epoch = train_generator.samples // batch_size
     validation_steps = val_generator.samples // batch_size
@@ -169,7 +162,7 @@ def train_model(epochs, batch_size, use_early_stopping):
     # Train the model
     history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
                         validation_data=val_generator, validation_steps=validation_steps,
-                        epochs=epochs, callbacks=callbacks)
+                        epochs=epochs)
 
     # Save the model
     model.save(MODEL_FILE)
@@ -245,12 +238,11 @@ st.sidebar.title("Controls")
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
-use_early_stopping = st.sidebar.checkbox("Use Early Stopping", value=True)  # Checkbox for early stopping
 
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
-        train_model(epochs, batch_size, use_early_stopping)  # Pass early stopping choice
+        train_model(epochs, batch_size)  # Pass early stopping choice
     st.success("Model training complete!")  # This will display after training is done
 
 # Button to test model
