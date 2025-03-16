@@ -53,7 +53,7 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
 
     return model
 
-# Load model from file or create a new one
+# Load the model or create a new one if it doesn't exist
 def load_or_create_model():
     if os.path.exists(MODEL_FILE):
         try:
@@ -330,3 +330,8 @@ if photo is not None:
             st.error(f"Error during prediction: {str(e)}")
 
     os.remove("captured_image.jpg")
+
+# Download model button
+if st.sidebar.button("Download Model"):
+    with open(MODEL_FILE, "rb") as f:
+        st.download_button("Download the trained model", f, file_name="lung_cancer_detection_model.keras")
