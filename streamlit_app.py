@@ -59,6 +59,7 @@ def load_or_create_model():
         try:
             model = load_model(MODEL_FILE)
             model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            st.success("Model loaded successfully!")
             return model
         except Exception as e:
             st.error(f"Error loading model: {str(e)}")
