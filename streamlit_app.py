@@ -15,16 +15,15 @@ import matplotlib.cm as cm
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 BATCH_SIZE = 32
-EPOCHS = 10
 
 # Set paths for saving the model and data
-MODEL_FILE = os.path.join(os.getcwd(), 'model_storage', 'lung_cancer_detection_model.h5')
+MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.h5')
 base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Function to create Custom CNN model
+# Function to create Custom CNN model (for reference)
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     
@@ -54,21 +53,20 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
 
     return model
 
-# Load model from file or create a new one
-def load_or_create_model():
+# Load model from file
+def load_model():
     if os.path.exists(MODEL_FILE):
         try:
             model = load_model(MODEL_FILE)
             model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            st.success("Model loaded successfully!")
             return model
         except Exception as e:
             st.error(f"Error loading model: {str(e)}")
             return None
     else:
-        st.warning("No pre-trained model found. Creating a new model...")
-        model = create_custom_cnn((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-        return model
+        st.warning("No pre-trained model found.")
+        return None
 
 # Load training and validation data
 def load_data(train_dir, val_dir):
@@ -246,8 +244,8 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Sidebar controls
 st.sidebar.title("Controls")
 
-# Load the model or create a new one if it doesn't exist
-model = load_or_create_model()
+# Load the model
+model = load_model()
 
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
@@ -293,10 +291,10 @@ if uploaded_file is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             heatmap = generate_gradcam(model, img_array)
-            superimposed_img = display_gradcam(img_array, heatmap)
+            superimposed_img = display_gradcam(img_array[0], heatmap)
 
             st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
-            st.image(superimposed_img[0], caption='Superimposed Grad-CAM', use_container_width=True)
+            st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
 
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
@@ -321,12 +319,25 @@ if photo is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             heatmap = generate_gradcam(model, img_array)
-            superimposed_img = display_gradcam(img_array, heatmap)
+            superimposed_img = display_gradcam(img_array[0], heatmap)
 
             st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
-            st.image(superimposed_img[0], caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
+            st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
 
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
 
     os.remove("captured_image.jpg")
+
+# Sample function to demonstrate caching
+@st.cache_data
+def expensive_computation(param):
+    # Simulate a time-consuming computation
+    import time
+    time.sleep(2)  # Simulate a delay
+    return param * 2
+
+# Clear cache button
+if st.button("Clear Cache"):
+    st.cache_data.clear()  # Clear the cache
+    st.success("Cache cleared successfully!")

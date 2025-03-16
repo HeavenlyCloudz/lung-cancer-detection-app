@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import layers
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
@@ -14,42 +15,27 @@ BATCH_SIZE = 32
 EPOCHS = 10
 
 # Update path for saving the model
-MODEL_FILE = os.path.join(os.getcwd(), 'model_storage', 'lung_cancer_detection_model.h5')
+MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.keras')
 
 # Define the base data directory
-base_data_dir = os.path.join(os.getcwd(), 'data')  # Current working directory
+base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
-# Create Custom CNN model
+# Create Custom CNN model (for reference)
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
-    
-     # Input Layer
     model.add(layers.Input(shape=input_shape))
-    
-    # First Convolutional Block
-    model.add(Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
+    model.add(Conv2D(32, (3, 3), activation='relu'))
     model.add(MaxPooling2D((2, 2)))
-
-    # Second Convolutional Block
     model.add(Conv2D(64, (3, 3), activation='relu'))
     model.add(MaxPooling2D((2, 2)))
-
-    # Third Convolutional Block
     model.add(Conv2D(128, (3, 3), activation='relu'))
     model.add(MaxPooling2D((2, 2)))
-
-    # Flatten the output
     model.add(Flatten())
-    
-    # Fully Connected Layer
     model.add(Dense(128, activation='relu'))
-    
-    # Output Layer
     model.add(Dense(num_classes, activation='sigmoid'))  # Use 'softmax' for multi-class
-
     return model
 
 # Load model from file
@@ -57,7 +43,7 @@ def load_model_file(model_file):
     if not os.path.exists(model_file):
         print(f"Model file not found: {model_file}")
         return None
-
+    
     try:
         model = tf.keras.models.load_model(model_file)
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
@@ -144,7 +130,7 @@ def display_gradcam(img, heatmap, alpha=0.4):
         jet_heatmap = jet_colors[heatmap]
         
         jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-        jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
+        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Resize to original image size
         jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
         
         superimposed_img = jet_heatmap * alpha + img
@@ -178,9 +164,30 @@ def test_model(model, test_data_dir, epochs=1):
     except Exception as e:
         print(f"Error during testing: {str(e)}")
 
+# Plot training history
+def plot_training_history(history):
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Train Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(loc='upper left')
+
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Train Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(loc='upper left')
+
+    plt.show()
+
 # Main execution
 if __name__ == "__main__":
-    # Load model or create a new one if it doesn't exist
+    # Load model
     model = load_model_file(MODEL_FILE)
 
     # Verify dataset paths
@@ -194,9 +201,15 @@ if __name__ == "__main__":
         print(ve)
         exit(1)
 
-    # If model was not loaded, create and train a new one
+    # If model was not loaded, inform the user
     if model is None:
-        print("No existing model found. Creating a new model...")
+        print("No existing model found. You can train a new model if desired.")
+    else:
+        print("Loaded existing model.")
+
+    # Option to train the model
+    train_choice = input("Do you want to train the model? (yes/no): ").strip().lower()
+    if train_choice == 'yes':
         model = create_custom_cnn((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
@@ -211,9 +224,12 @@ if __name__ == "__main__":
             epochs=EPOCHS
         )
 
-        model.save(MODEL_FILE)
+        model.save(MODEL_FILE)  # Save the trained model
 
-    # Load and predict on all images in the base data directory
+        # Plot training history
+        plot_training_history(history)
+
+    # Load and predict on all images in the test directory
     try:
         test_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
             test_data_dir,
