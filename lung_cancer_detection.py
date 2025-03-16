@@ -142,8 +142,8 @@ def check_directory(path):
         return False
     return True
 
-def test_model(model, test_data_dir):
-    """Load test data and evaluate the model."""
+def test_model(model, test_data_dir, epochs=1):
+    """Load test data and evaluate the model over a number of epochs."""
     test_datagen = ImageDataGenerator(rescale=1./255)
     test_generator = test_datagen.flow_from_directory(
         test_data_dir,
@@ -151,9 +151,10 @@ def test_model(model, test_data_dir):
         batch_size=BATCH_SIZE,
         class_mode='binary'
     )
-
-    test_loss, test_accuracy = model.evaluate(test_generator)
-    print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+    
+    for epoch in range(epochs):
+        test_loss, test_accuracy = model.evaluate(test_generator)
+        print(f"Epoch {epoch + 1}/{epochs} - Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
 
 if __name__ == "__main__":
     train_data_dir = os.path.join(base_data_dir, "train")
@@ -178,7 +179,9 @@ if __name__ == "__main__":
 
         # Test the model
         if check_directory(test_data_dir):
-            test_model(model, test_data_dir)
+            # Ask user for the number of epochs to test
+            test_epochs = int(input("Enter the number of epochs for testing (default is 1): ") or 1)
+            test_model(model, test_data_dir, epochs=test_epochs)
         else:
             print(f"Test data directory does not exist: {test_data_dir}")
 
