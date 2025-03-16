@@ -24,25 +24,6 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Download model if not present
-if not os.path.exists(MODEL_FILE):
-    model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'
-    gdown.download(model_url, MODEL_FILE, quiet=False)
-
-# Download data if not present (adjust the file IDs as necessary)
-data_files = {
-    'train': 'FILE_ID_FOR_TRAIN',
-    'val': 'FILE_ID_FOR_VAL',
-    'test': 'FILE_ID_FOR_TEST'
-}
-
-for name, file_id in data_files.items():
-    dir_path = os.path.join(base_data_dir, name)
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-        file_url = f'https://drive.google.com/uc?id={file_id}'
-        gdown.download(file_url, os.path.join(dir_path, f'{name}.zip'), quiet=False)
-
 # Function to create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     base_model = DenseNet201(include_top=False, input_shape=input_shape, weights='imagenet')
@@ -58,10 +39,35 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
 
     return final_model
 
+# Function to download model if not present
+def download_model():
+    if not os.path.exists(MODEL_FILE):
+        model_url = 'https://drive.google.com/uc?id=1lmzGa2wlcFfl8iU5sBgupKRbaIpKg_lL'
+        gdown.download(model_url, MODEL_FILE, quiet=False)
+
+# Function to download data if not present
+def download_data():
+    data_files = {
+        'train': 'FILE_ID_FOR_TRAIN',
+        'val': 'FILE_ID_FOR_VAL',
+        'test': 'FILE_ID_FOR_TEST'
+    }
+
+    for name, file_id in data_files.items():
+        dir_path = os.path.join(base_data_dir, name)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+            file_url = f'https://drive.google.com/uc?id={file_id}'
+            gdown.download(file_url, os.path.join(dir_path, f'{name}.zip'), quiet=False)
+
 # Clear cache button
 if st.sidebar.button('Clear Cache'):
     st.caching.clear_cache()
     st.success("Cache cleared!")
+
+# Download model and data
+download_model()
+download_data()
 
 # Load the model
 model = None
@@ -282,8 +288,8 @@ if st.sidebar.button("Train Model"):
 # Button to test model
 if st.sidebar.button("Test Model"):
     if model:
-        st.spinner("Testing the model...")
-        test_model()
+        with st.spinner("Testing the model..."):
+            test_model()
     else:
         st.warning("No model found. Please train the model first.")
 
