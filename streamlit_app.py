@@ -16,10 +16,12 @@ import gdown
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
-MODEL_FILE = '/content/drive/MyDrive/model_storage/lung_cancer_detection_model.h5'  # Path for saving the model
+BATCH_SIZE = 32
+EPOCHS = 10
 
-# Set dataset paths using relative paths
-base_data_dir = os.path.join(os.path.dirname(__file__), 'data')
+# Set paths for saving the model and data
+MODEL_FILE = os.path.join(os.getcwd(), 'model_storage', 'lung_cancer_detection_model.h5')  # Update path
+base_data_dir = os.path.join(os.getcwd(), 'data')  # Update path
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
