@@ -17,7 +17,7 @@ IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
 BATCH_SIZE = 32
 
 # Set paths for saving the model and data
-MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.h5')
+MODEL_FILE = os.path.join(os.getcwd(), 'lung_cancer_detection_model.keras')
 base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
@@ -265,7 +265,7 @@ if st.sidebar.button("Train Model"):
                                 validation_data=val_generator, validation_steps=validation_steps,
                                 epochs=epochs)
 
-            model.save(MODEL_FILE)
+            model.save(MODEL_FILE)  # Save in the new Keras format
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
 
