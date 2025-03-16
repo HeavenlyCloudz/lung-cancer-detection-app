@@ -23,7 +23,7 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Function to create Custom CNN model
+# Function to create Custom CNN model (for reference)
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     
@@ -53,8 +53,8 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
 
     return model
 
-# Load model from file or create a new one
-def load_or_create_model():
+# Load model from file
+def load_model():
     if os.path.exists(MODEL_FILE):
         try:
             model = load_model(MODEL_FILE)
@@ -65,10 +65,8 @@ def load_or_create_model():
             st.error(f"Error loading model: {str(e)}")
             return None
     else:
-        st.warning("No pre-trained model found. Creating a new model...")
-        model = create_custom_cnn((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-        return model
+        st.warning("No pre-trained model found.")
+        return None
 
 # Load training and validation data
 def load_data(train_dir, val_dir):
@@ -246,8 +244,8 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Sidebar controls
 st.sidebar.title("Controls")
 
-# Load the model or create a new one if it doesn't exist
-model = load_or_create_model()
+# Load the model
+model = load_model()
 
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
@@ -343,4 +341,3 @@ def expensive_computation(param):
 if st.button("Clear Cache"):
     st.cache_data.clear()  # Clear the cache
     st.success("Cache cleared successfully!")
-
