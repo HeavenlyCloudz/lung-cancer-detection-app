@@ -330,3 +330,17 @@ if photo is not None:
             st.error(f"Error during prediction: {str(e)}")
 
     os.remove("captured_image.jpg")
+
+# Sample function to demonstrate caching
+@st.cache_data
+def expensive_computation(param):
+    # Simulate a time-consuming computation
+    import time
+    time.sleep(2)  # Simulate a delay
+    return param * 2
+
+# Clear cache button
+if st.button("Clear Cache"):
+    st.cache_data.clear()  # Clear the cache
+    st.success("Cache cleared successfully!")
+
