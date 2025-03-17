@@ -23,7 +23,7 @@ train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
-# Create Custom CNN model (for reference)
+# Create Custom CNN model
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     model.add(layers.Input(shape=input_shape))
@@ -105,22 +105,50 @@ def check_directory(path):
         return False
     return True
 
-# Test the model
-def test_model(model, test_data_dir, epochs=1):
+# Generate Grad-CAM heatmap
+def generate_gradcam(model, img_array):
     try:
-        test_datagen = ImageDataGenerator(rescale=1./255)
-        test_generator = test_datagen.flow_from_directory(
-            test_data_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=BATCH_SIZE,
-            class_mode='binary'
-        )
-        
-        for epoch in range(epochs):
-            test_loss, test_accuracy = model.evaluate(test_generator)
-            print(f"Epoch {epoch + 1}/{epochs} - Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+        last_conv_layer = model.get_layer(index=5)  # Update index based on your model's layers
+        grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
+
+        with tf.GradientTape() as tape:
+            model_output, last_conv_layer_output = grad_model(img_array)
+            class_id = tf.argmax(model_output[0])
+            grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
+
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
+        last_conv_layer_output = last_conv_layer_output[0]
+
+        # Calculate the heatmap
+        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
+        heatmap = tf.maximum(heatmap, 0)  # ReLU
+        heatmap /= tf.reduce_max(heatmap)  # Normalize
+
+        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+        return heatmap
     except Exception as e:
-        print(f"Error during testing: {str(e)}")
+        print(f"Error generating Grad-CAM: {str(e)}")
+        return None
+
+# Display Grad-CAM heatmap
+def display_gradcam(img, heatmap, alpha=0.4):
+    try:
+        heatmap = np.uint8(255 * heatmap)
+        jet = cm.get_cmap("jet")
+        jet_colors = jet(np.arange(256))[:, :3]
+        jet_heatmap = jet_colors[heatmap]
+
+        jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
+        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Resize to match original image dimensions
+        jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+
+        # Overlay the heatmap on the original image
+        superimposed_img = jet_heatmap * alpha + img
+        superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)  # Clip values to valid range
+        return superimposed_img
+    except Exception as e:
+        print(f"Error displaying Grad-CAM: {str(e)}")
+        return None
 
 # Plot training history
 def plot_training_history(history):
@@ -143,6 +171,23 @@ def plot_training_history(history):
 
     plt.show()
 
+# Test the model
+def test_model(model, test_data_dir, epochs=1):
+    try:
+        test_datagen = ImageDataGenerator(rescale=1./255)
+        test_generator = test_datagen.flow_from_directory(
+            test_data_dir,
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=BATCH_SIZE,
+            class_mode='binary'
+        )
+        
+        for epoch in range(epochs):
+            test_loss, test_accuracy = model.evaluate(test_generator)
+            print(f"Epoch {epoch + 1}/{epochs} - Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+    except Exception as e:
+        print(f"Error during testing: {str(e)}")
+
 # Main execution
 if __name__ == "__main__":
     # Load model
@@ -164,28 +209,6 @@ if __name__ == "__main__":
         print("No existing model found. You can train a new model if desired.")
     else:
         print("Loaded existing model.")
-
-    # Option to train the model
-    train_choice = input("Do you want to train the model? (yes/no): ").strip().lower()
-    if train_choice == 'yes':
-        model = create_custom_cnn((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-        steps_per_epoch = train_generator.samples // BATCH_SIZE
-        validation_steps = val_generator.samples // BATCH_SIZE
-
-        history = model.fit(
-            train_generator,
-            steps_per_epoch=steps_per_epoch,
-            validation_data=val_generator,
-            validation_steps=validation_steps,
-            epochs=EPOCHS
-        )
-
-        model.save(MODEL_FILE)  # Save the trained model
-
-        # Plot training history
-        plot_training_history(history)
 
     # Load and predict on all images in the test directory
     try:
@@ -219,52 +242,12 @@ if __name__ == "__main__":
             # Display Grad-CAM
             original_image = cv2.imread(test_image_path)
             original_image = cv2.resize(original_image, (IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to match model input
-            display_gradcam(original_image, heatmap)
+            superimposed_img = display_gradcam(original_image, heatmap)
+
+            # Show the result
+            cv2.imshow("Grad-CAM", superimposed_img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
     except Exception as e:
         print(f"Error during prediction: {str(e)}")
-        # Generate Grad-CAM heatmap
-def generate_gradcam(model, img_array):
-    try:
-        # Get the last Conv2D layer
-        last_conv_layer = model.get_layer(index=5)  # Update index based on your model's layers
-        grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
-
-        with tf.GradientTape() as tape:
-            model_output, last_conv_layer_output = grad_model(img_array)
-            class_id = tf.argmax(model_output[0])
-            grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
-
-        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
-        last_conv_layer_output = last_conv_layer_output[0]
-
-        # Calculate the heatmap
-        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
-        heatmap = tf.maximum(heatmap, 0)  # ReLU
-        heatmap /= tf.reduce_max(heatmap)  # Normalize
-
-        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
-        return heatmap
-    except Exception as e:
-        st.error(f"Error generating Grad-CAM: {str(e)}")
-        return None
-
-# Display Grad-CAM heatmap
-def display_gradcam(img, heatmap, alpha=0.4):
-    try:
-        heatmap = np.uint8(255 * heatmap)
-        jet = cm.get_cmap("jet")
-        jet_colors = jet(np.arange(256))[:, :3]
-        jet_heatmap = jet_colors[heatmap]
-
-        jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Resize to match original image dimensions
-        jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
-
-        # Overlay the heatmap on the original image
-        superimposed_img = jet_heatmap * alpha + img
-        superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)  # Clip values to valid range
-        return superimposed_img
-    except Exception as e:
-        st.error(f"Error displaying Grad-CAM: {str(e)}")
-        return None
