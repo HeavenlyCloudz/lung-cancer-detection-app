@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
+from keras_tuner import RandomSearch  # Import Keras Tuner
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -23,12 +24,12 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Function to create Custom CNN model
-def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+# Function to create Custom CNN model with hyperparameters
+def create_custom_cnn(hp, input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     model.add(layers.Input(shape=input_shape))
 
-    # Convolutional Blocks
+    # Fixed Convolutional Blocks
     model.add(layers.Conv2D(32, (3, 3), activation='relu'))
     model.add(layers.MaxPooling2D((2, 2)))
     model.add(layers.Conv2D(64, (3, 3), activation='relu'))
@@ -39,10 +40,12 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
     # Global Average Pooling
     model.add(layers.GlobalAveragePooling2D())
     
-    # Fully Connected Layers
-    model.add(layers.Dense(128, activation='relu'))
+    # Hyperparameters for Dense Layers
+    model.add(layers.Dense(hp.Int('dense_units', 64, 256, step=64), activation='relu'))
     model.add(layers.Dense(num_classes, activation='sigmoid'))  # Use 'softmax' for multi-class
 
+    model.compile(optimizer=tf.keras.optimizers.Adam(hp.Choice('learning_rate', [1e-2, 1e-3, 1e-4])),
+                  loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
 # Load model from file
@@ -246,21 +249,26 @@ model = load_model_file()
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=16)
 
-# Button to train model
-if st.sidebar.button("Train Model"):
-    with st.spinner("Training the model..."):
+# Button to tune hyperparameters and train model
+if st.sidebar.button("Tune Hyperparameters and Train Model"):
+    with st.spinner("Tuning hyperparameters and training the model..."):
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
         if train_generator is not None and val_generator is not None:
-            steps_per_epoch = train_generator.samples // batch_size
-            validation_steps = val_generator.samples // batch_size
+            tuner = RandomSearch(
+                create_custom_cnn,
+                objective='val_accuracy',
+                max_trials=10,
+                executions_per_trial=1,
+                directory='my_dir',
+                project_name='lung_cancer_detection'
+            )
 
-            history = model.fit(train_generator, steps_per_epoch=steps_per_epoch,
-                                validation_data=val_generator, validation_steps=validation_steps,
-                                epochs=epochs)
+            tuner.search(train_generator, epochs=epochs, validation_data=val_generator)
+            best_model = tuner.get_best_models(num_models=1)[0]
+            best_model.save(MODEL_FILE)
 
-            model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
-            plot_training_history(history)
+            plot_training_history(tuner.oracle.get_best_trials()[0].metrics)
 
 # Button to test model
 if st.sidebar.button("Test Model"):
