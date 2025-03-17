@@ -159,7 +159,7 @@ def test_model(model):
 # Generate Grad-CAM heatmap
 def generate_gradcam(model, img_array):
     try:
-        last_conv_layer = model.get_layer(index=5)  # Update index based on your model's layers
+        last_conv_layer = model.get_layer(index=4)  # Update index based on your model's layers
         grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
         with tf.GradientTape() as tape:
