@@ -93,7 +93,7 @@ def preprocess_image(image_path):
 
         new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
         processed_image = np.asarray(new_image) / 255.0
-        return np.expand_dims(processed_image, axis=0)
+        return np.expand_dims(processed_image, axis=0)  # Add batch dimension
     except Exception as e:
         print(f"Error preprocessing image: {str(e)}")
         return None
@@ -105,10 +105,14 @@ def check_directory(path):
         return False
     return True
 
-# Generate Grad-CAM heatmap
 def generate_gradcam(model, img_array):
     try:
-        last_conv_layer = model.get_layer(index=4)  # Update index based on your model's layers
+        # Ensure the model is built by calling it with a dummy input
+        model.predict(img_array)
+
+        # Directly access the last Conv2D layer
+        last_conv_layer = model.layers[4]  # Accessing Conv2D(128)
+
         grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
         with tf.GradientTape() as tape:
