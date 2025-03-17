@@ -13,7 +13,7 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.cm as cm
 
 # Constants
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150  # Set consistent input size to 150x150
 
 # Set paths for saving the model and data
@@ -244,7 +244,7 @@ model = load_model_file()
 
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
-batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
+batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=16)
 
 # Button to train model
 if st.sidebar.button("Train Model"):
