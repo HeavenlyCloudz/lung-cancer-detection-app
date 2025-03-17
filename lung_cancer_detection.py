@@ -21,19 +21,18 @@ train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
-# Create CNN model
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
-        Conv2D(64, (3, 3), activation='relu'),
-        MaxPooling2D((2, 2)),
-        Conv2D(128, (3, 3), activation='relu'),
-        MaxPooling2D((2, 2)),
-        Conv2D(256, (3, 3), activation='relu'),
-        MaxPooling2D((2, 2)),
-        layers.GlobalAveragePooling2D(),
-        Dense(128, activation='relu'),
-        Dense(num_classes, activation='sigmoid')
+        Conv2D(64, (3, 3), activation='relu', name='conv_layer_1'),
+        MaxPooling2D((2, 2), name='maxpool_layer_1'),
+        Conv2D(128, (3, 3), activation='relu', name='conv_layer_2'),
+        MaxPooling2D((2, 2), name='maxpool_layer_2'),
+        Conv2D(256, (3, 3), activation='relu', name='conv_layer_3'),
+        MaxPooling2D((2, 2), name='maxpool_layer_3'),
+        layers.GlobalAveragePooling2D(name='global_avg_pool'),
+        Dense(128, activation='relu', name='dense_layer_1'),
+        Dense(num_classes, activation='sigmoid', name='output_layer')
     ])
     
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
