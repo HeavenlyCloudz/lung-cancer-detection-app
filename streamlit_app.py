@@ -5,6 +5,7 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
 from sklearn.utils import class_weight
+from tensorflow.keras.callbacks import EarlyStopping  # Import EarlyStopping
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -271,7 +272,12 @@ if st.sidebar.button("Train Model"):
             weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
             class_weights = {i: weights[i] for i in range(len(class_labels))}
             
-            history = model.fit(train_generator, validation_data=val_generator, epochs=epochs, class_weight=class_weights)  # Use chosen epochs
+            # Early stopping callback
+            early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+
+            history = model.fit(train_generator, validation_data=val_generator, 
+                                epochs=epochs, class_weight=class_weights, 
+                                callbacks=[early_stopping])  # Use early stopping
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
