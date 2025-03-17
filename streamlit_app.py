@@ -27,7 +27,7 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     model.add(layers.Input(shape=input_shape))
-    
+
     # Convolutional Blocks
     model.add(layers.Conv2D(32, (3, 3), activation='relu'))
     model.add(layers.MaxPooling2D((2, 2)))
@@ -35,7 +35,7 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
     model.add(layers.MaxPooling2D((2, 2)))
     model.add(layers.Conv2D(128, (3, 3), activation='relu'))
     model.add(layers.MaxPooling2D((2, 2)))
-    
+
     # Flatten and Fully Connected Layers
     model.add(layers.Flatten())
     model.add(layers.Dense(128, activation='relu'))
@@ -285,7 +285,8 @@ if uploaded_file is not None:
 
             heatmap = generate_gradcam(model, img_array)
             if heatmap is not None:
-                superimposed_img = display_gradcam(img_array[0], heatmap)
+                original_image = cv2.imread("temp_image.jpg")
+                superimposed_img = display_gradcam(original_image, heatmap)
                 st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
 
@@ -313,7 +314,8 @@ if photo is not None:
 
             heatmap = generate_gradcam(model, img_array)
             if heatmap is not None:
-                superimposed_img = display_gradcam(img_array[0], heatmap)
+                original_image = cv2.imread("captured_image.jpg")
+                superimposed_img = display_gradcam(original_image, heatmap)
                 st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
 
