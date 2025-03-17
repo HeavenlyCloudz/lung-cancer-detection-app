@@ -21,24 +21,28 @@ train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
-# Create CNN model with explicit layer names
+# Create CNN model with four convolutional layers
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
-        Conv2D(64, (3, 3), activation='relu', name='conv2d'),
-        MaxPooling2D((2, 2), name='max_pooling2d'),
-        Conv2D(128, (3, 3), activation='relu', name='conv2d_1'),
+        Conv2D(64, (3, 3), activation='relu', name='conv2d_1'),
         MaxPooling2D((2, 2), name='max_pooling2d_1'),
-        Conv2D(256, (3, 3), activation='relu', name='conv2d_2'),
+        
+        Conv2D(128, (3, 3), activation='relu', name='conv2d_2'),
         MaxPooling2D((2, 2), name='max_pooling2d_2'),
+        
+        Conv2D(256, (3, 3), activation='relu', name='conv2d_3'),
+        MaxPooling2D((2, 2), name='max_pooling2d_3'),
+        
+        Conv2D(512, (3, 3), activation='relu', name='conv2d_4'),
+        MaxPooling2D((2, 2), name='max_pooling2d_4'),
+        
         layers.GlobalAveragePooling2D(name='global_avg_pool'),
         Dense(128, activation='relu', name='dense_layer_1'),
         Dense(num_classes, activation='sigmoid', name='output_layer')
     ])
     
-    model.compile(optimizer='adam',  # Using default learning rate of 0.001
-                  loss='binary_crossentropy', metrics=['accuracy'])
-    
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
 # Load model from file
@@ -195,7 +199,7 @@ if __name__ == "__main__":
         print(f"Prediction: {result}")
 
         # Generate Grad-CAM heatmap
-        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='conv2d_2')  # Adjust layer name as needed
+        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='conv2d_4')  # Adjust layer name as needed
         if heatmap is not None:
             original_image = cv2.imread(test_image_path)
             if original_image is not None:
