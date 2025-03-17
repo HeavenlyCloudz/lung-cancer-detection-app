@@ -10,7 +10,7 @@ from PIL import Image
 from keras_tuner import RandomSearch  # Import Keras Tuner
 
 # Constants
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150  # Set image dimensions to 150x150
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 EPOCHS = 10  # Default number of epochs for training
