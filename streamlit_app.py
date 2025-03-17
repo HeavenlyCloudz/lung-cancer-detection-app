@@ -31,7 +31,7 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
     model.add(layers.Input(shape=input_shape))
     
     # First Convolutional Block
-    model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
+    model.add(layers.Conv2D(32, (3, 3), activation='relu'))
     model.add(layers.MaxPooling2D((2, 2)))
 
     # Second Convolutional Block
@@ -54,7 +54,7 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
     return model
 
 # Load model from file
-def load_model():
+def load_model_file():
     if os.path.exists(MODEL_FILE):
         try:
             model = load_model(MODEL_FILE)
@@ -245,7 +245,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.sidebar.title("Controls")
 
 # Load the model
-model = load_model()
+model = load_model_file()
 
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
@@ -255,7 +255,7 @@ batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, va
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        if train_generator and val_generator:
+        if train_generator is not None and val_generator is not None:
             steps_per_epoch = train_generator.samples // batch_size
             validation_steps = val_generator.samples // batch_size
 
@@ -328,14 +328,6 @@ if photo is not None:
             st.error(f"Error during prediction: {str(e)}")
 
     os.remove("captured_image.jpg")
-
-# Sample function to demonstrate caching
-@st.cache_data
-def expensive_computation(param):
-    # Simulate a time-consuming computation
-    import time
-    time.sleep(2)  # Simulate a delay
-    return param * 2
 
 # Clear cache button
 if st.button("Clear Cache"):
