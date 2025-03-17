@@ -5,13 +5,14 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
 from sklearn.utils import class_weight
-from tensorflow.keras.callbacks import EarlyStopping  # Import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
+from skimage import feature
 import matplotlib.cm as cm
 
 # Constants
@@ -22,6 +23,13 @@ base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
+
+# HOG Feature Extraction
+def extract_hog_features(image):
+    resized_image = cv2.resize(image, (IMAGE_WIDTH, IMAGE_HEIGHT))
+    gray_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
+    hog_features = feature.hog(gray_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=False)
+    return hog_features
 
 # Create CNN model with explicit layer names
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
@@ -38,9 +46,7 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
         layers.Dense(num_classes, activation='sigmoid', name='output_layer')
     ])
     
-    model.compile(optimizer='adam',
-                  loss='binary_crossentropy', metrics=['accuracy'])
-    
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
 # Load model from file
@@ -300,20 +306,22 @@ if uploaded_file is not None:
     with open("temp_image.jpg", "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    img_array = preprocess_image("temp_image.jpg")
+    # Load the image for HOG extraction
+    uploaded_image = cv2.imread("temp_image.jpg")
+    hog_features = extract_hog_features(uploaded_image)
+    hog_features = np.expand_dims(hog_features, axis=0)  # Add batch dimension
 
-    if img_array is not None and model:  # Check if img_array is valid before prediction
+    if hog_features is not None and model:  # Check if hog_features is valid before prediction
         try:
-            st.write("Shape of img_array:", img_array.shape)  # Debugging line
-            prediction = model.predict(img_array)
+            prediction = model.predict(hog_features)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')
+            # Optionally generate Grad-CAM heatmap (if desired)
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_2')
             if heatmap is not None:
-                original_image = cv2.imread("temp_image.jpg")
-                superimposed_img = display_gradcam(original_image, heatmap)
+                superimposed_img = display_gradcam(uploaded_image, heatmap)
                 st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
         except Exception as e:
@@ -329,19 +337,22 @@ if photo is not None:
     with open("captured_image.jpg", "wb") as f:
         f.write(photo.getbuffer())
 
-    img_array = preprocess_image("captured_image.jpg")
+    # Load the image for HOG extraction
+    captured_image = cv2.imread("captured_image.jpg")
+    hog_features = extract_hog_features(captured_image)
+    hog_features = np.expand_dims(hog_features, axis=0)  # Add batch dimension
 
-    if img_array is not None and model:  # Check if img_array is valid before prediction
+    if hog_features is not None and model:  # Check if hog_features is valid before prediction
         try:
-            prediction = model.predict(img_array)
+            prediction = model.predict(hog_features)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')  # Updated layer name
+            # Optionally generate Grad-CAM heatmap (if desired)
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_2')
             if heatmap is not None:
-                original_image = cv2.imread("captured_image.jpg")
-                superimposed_img = display_gradcam(original_image, heatmap)
+                superimposed_img = display_gradcam(captured_image, heatmap)
                 st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
         except Exception as e:
