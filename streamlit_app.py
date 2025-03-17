@@ -115,7 +115,8 @@ def preprocess_image(img_path):
 # Generate Grad-CAM heatmap
 def generate_gradcam(model, img_array):
     try:
-        last_conv_layer = model.get_layer(index=-3)  # Get the last Conv2D layer
+        # Get the last Conv2D layer
+        last_conv_layer = model.get_layer(index=5)  # Update index based on your model's layers
         grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
         with tf.GradientTape() as tape:
@@ -126,8 +127,11 @@ def generate_gradcam(model, img_array):
         pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
         last_conv_layer_output = last_conv_layer_output[0]
 
-        heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-        heatmap = tf.maximum(heatmap, 0) / tf.reduce_max(heatmap)
+        # Calculate the heatmap
+        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
+        heatmap = tf.maximum(heatmap, 0)  # ReLU
+        heatmap /= tf.reduce_max(heatmap)  # Normalize
+
         heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
         return heatmap
     except Exception as e:
@@ -138,16 +142,17 @@ def generate_gradcam(model, img_array):
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
         heatmap = np.uint8(255 * heatmap)
-        
         jet = cm.get_cmap("jet")
         jet_colors = jet(np.arange(256))[:, :3]
         jet_heatmap = jet_colors[heatmap]
-        
+
         jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-        jet_heatmap = jet_heatmap.resize((img.shape[2], img.shape[1]))
+        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Resize to match original image dimensions
         jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
-        
+
+        # Overlay the heatmap on the original image
         superimposed_img = jet_heatmap * alpha + img
+        superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)  # Clip values to valid range
         return superimposed_img
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
