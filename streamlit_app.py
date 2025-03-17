@@ -4,12 +4,15 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
+from sklearn.utils import class_weight
+from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
+from skimage import feature
 import matplotlib.cm as cm
 
 # Constants
@@ -20,6 +23,13 @@ base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
+
+# HOG Feature Extraction
+def extract_hog_features(image):
+    resized_image = cv2.resize(image, (IMAGE_WIDTH, IMAGE_HEIGHT))
+    gray_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
+    hog_features = feature.hog(gray_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=False)
+    return hog_features
 
 # Create CNN model with explicit layer names
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
@@ -36,9 +46,7 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
         layers.Dense(num_classes, activation='sigmoid', name='output_layer')
     ])
     
-    model.compile(optimizer='adam',
-                  loss='binary_crossentropy', metrics=['accuracy'])
-    
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
 # Load model from file
@@ -145,6 +153,22 @@ def test_model(model):
         y_pred_classes = np.where(y_pred > 0.5, 1, 0)
         cm = confusion_matrix(test_generator.classes, y_pred_classes)
 
+        # Calculate precision and recall
+        tp = cm[1, 1]  # True Positives
+        fp = cm[0, 1]  # False Positives
+        fn = cm[1, 0]  # False Negatives
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+
+        # Calculate F1 Score
+        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+        st.sidebar.write(f"Precision: {precision:.4f}")
+        st.sidebar.write(f"Recall: {recall:.4f}")
+        st.sidebar.write(f"F1 Score: {f1_score:.4f}")
+
+        # Plot confusion matrix
         fig, ax = plt.subplots(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                      xticklabels=['Non-Cancerous', 'Cancerous'], 
@@ -238,16 +262,31 @@ st.sidebar.title("Controls")
 model = load_model_file()
 
 # Hyperparameter inputs
-epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
+epochs = st.sidebar.number_input("Number of epochs for training", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=BATCH_SIZE)
+
+# Add input for number of evaluations during testing
+eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_value=1, max_value=10, value=1)
 
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
         model = create_custom_cnn()  # Create a new model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
+        
+        # Calculate class weights
         if train_generator is not None and val_generator is not None:
-            history = model.fit(train_generator, validation_data=val_generator, epochs=epochs)  # Use chosen epochs
+            y_train = train_generator.classes
+            class_labels = np.unique(y_train)
+            weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
+            class_weights = {i: weights[i] for i in range(len(class_labels))}
+            
+            # Early stopping callback
+            early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+
+            history = model.fit(train_generator, validation_data=val_generator, 
+                                epochs=epochs, class_weight=class_weights, 
+                                callbacks=[early_stopping])  # Use early stopping
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
@@ -256,7 +295,8 @@ if st.sidebar.button("Train Model"):
 if st.sidebar.button("Test Model"):
     if model:
         with st.spinner("Testing the model..."):
-            test_model(model)
+            for _ in range(eval_epochs):  # Repeat testing as per user input
+                test_model(model)
     else:
         st.warning("No model found. Please train the model first.")
 
@@ -266,20 +306,22 @@ if uploaded_file is not None:
     with open("temp_image.jpg", "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    img_array = preprocess_image("temp_image.jpg")
+    # Load the image for HOG extraction
+    uploaded_image = cv2.imread("temp_image.jpg")
+    hog_features = extract_hog_features(uploaded_image)
+    hog_features = np.expand_dims(hog_features, axis=0)  # Add batch dimension
 
-    if img_array is not None and model:  # Check if img_array is valid before prediction
+    if hog_features is not None and model:  # Check if hog_features is valid before prediction
         try:
-            st.write("Shape of img_array:", img_array.shape)  # Debugging line
-            prediction = model.predict(img_array)
+            prediction = model.predict(hog_features)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')
+            # Optionally generate Grad-CAM heatmap (if desired)
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_2')
             if heatmap is not None:
-                original_image = cv2.imread("temp_image.jpg")
-                superimposed_img = display_gradcam(original_image, heatmap)
+                superimposed_img = display_gradcam(uploaded_image, heatmap)
                 st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
         except Exception as e:
@@ -295,19 +337,22 @@ if photo is not None:
     with open("captured_image.jpg", "wb") as f:
         f.write(photo.getbuffer())
 
-    img_array = preprocess_image("captured_image.jpg")
+    # Load the image for HOG extraction
+    captured_image = cv2.imread("captured_image.jpg")
+    hog_features = extract_hog_features(captured_image)
+    hog_features = np.expand_dims(hog_features, axis=0)  # Add batch dimension
 
-    if img_array is not None and model:  # Check if img_array is valid before prediction
+    if hog_features is not None and model:  # Check if hog_features is valid before prediction
         try:
-            prediction = model.predict(img_array)
+            prediction = model.predict(hog_features)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')  # Updated layer name
+            # Optionally generate Grad-CAM heatmap (if desired)
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_2')
             if heatmap is not None:
-                original_image = cv2.imread("captured_image.jpg")
-                superimposed_img = display_gradcam(original_image, heatmap)
+                superimposed_img = display_gradcam(captured_image, heatmap)
                 st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
         except Exception as e:
