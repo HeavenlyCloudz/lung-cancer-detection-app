@@ -7,6 +7,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
+from sklearn.utils import class_weight
 
 # Constants
 BATCH_SIZE = 32
@@ -147,7 +148,13 @@ def display_gradcam(img, heatmap, alpha=0.4):
 
 # Train the model
 def train_model(model, train_generator, val_generator):
-    history = model.fit(train_generator, validation_data=val_generator, epochs=EPOCHS)
+    # Calculate class weights
+    y_train = train_generator.classes
+    class_labels = np.unique(y_train)
+    weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
+    class_weights = {i: weights[i] for i in range(len(class_labels))}
+    
+    history = model.fit(train_generator, validation_data=val_generator, epochs=EPOCHS, class_weight=class_weights)
     model.save(MODEL_FILE)
     plot_training_history(history)
 
