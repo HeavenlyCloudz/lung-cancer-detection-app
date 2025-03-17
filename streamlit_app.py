@@ -257,7 +257,7 @@ st.markdown(
 )
 
 st.markdown('<div class="section">', unsafe_allow_html=True)
-st.header("Thank you for using ONCOSCAN")
+st.header("Thank you for using PULMOSCAN")
 st.write("CNNs are the preferred network for detecting lung cancer due to their ability to process image data. They can perform tasks such as classification, segmentation, and object recognition. In the case of lung cancer detection, CNNs have surpassed radiologists.")
 st.markdown('</div>', unsafe_allow_html=True)
 
