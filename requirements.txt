@@ -7,3 +7,4 @@ scipy
 pillow
 scikit-learn
 seaborn
+keras-tuner
