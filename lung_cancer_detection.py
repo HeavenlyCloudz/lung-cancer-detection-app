@@ -10,7 +10,7 @@ import cv2
 from PIL import Image
 
 # Constants
-IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Updated to 224
 BATCH_SIZE = 32
 EPOCHS = 10
 
@@ -91,7 +91,7 @@ def preprocess_image(image_path):
         if img.mode == 'RGBA':
             img = img.convert('RGB')
 
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
         processed_image = np.asarray(new_image) / 255.0
         return np.expand_dims(processed_image, axis=0)
     except Exception as e:
@@ -108,7 +108,7 @@ def check_directory(path):
 # Generate Grad-CAM heatmap
 def generate_gradcam(model, img_array):
     try:
-        last_conv_layer = model.get_layer(index=5)  # Update index based on your model's layers
+        last_conv_layer = model.get_layer(index=4)  # Update index based on your model's layers
         grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
         with tf.GradientTape() as tape:
