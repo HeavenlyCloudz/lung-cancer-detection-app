@@ -103,46 +103,47 @@ def preprocess_image(img_path):
         new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 150x150 for consistency
         processed_image = np.asarray(new_image) / 255.0  # Normalize pixel values to [0, 1]
 
-        # Check the shape of processed_image
+        # Convert grayscale to RGB if necessary
         if processed_image.ndim == 2:  # If it's a grayscale image
-            processed_image = np.stack((processed_image,) * 3, axis=-1)  # Convert to RGB
-        elif processed_image.shape[2] == 1:  # If it has only one channel 
-            processed_image = np.concatenate([processed_image] * 3, axis=-1)  # Convert to RGB
+            processed_image = np.stack((processed_image,) * 3, axis=-1)
 
-        # Ensure the image has the shape (150, 150, 3)
-        
         # Add the batch dimension
         img_array = np.expand_dims(processed_image, axis=0)  # Shape becomes (1, 150, 150, 3)
         
         return img_array
     except Exception as e:
-        st.error(f"Error processing image: {str(e)}")
+        print(f"Error processing image: {str(e)}")
         return None
 
-# Generate Grad-CAM
-def generate_gradcam(model, img_array):
-    try:
-        last_conv_layer = next(layer for layer in reversed(model.layers) if isinstance(layer, Conv2D))
+# Generate Grad-CAM heatmap
+def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
+    # Create a sub-model that outputs the feature maps and final prediction
+    grad_model = tf.keras.models.Model(
+        [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
+    )
 
-        grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
+    # Use GradientTape to record gradients
+    with tf.GradientTape() as tape:
+        last_conv_layer_output, preds = grad_model(img_array)
+        
+        # If pred_index is not specified, use the predicted class index
+        if pred_index is None:
+            pred_index = tf.argmax(preds[0])
+        class_channel = preds[:, pred_index]
 
-        with tf.GradientTape() as tape:
-            model_output, conv_output = grad_model(img_array)
-            class_id = tf.argmax(model_output[0])
-            tape.watch(conv_output)
-            grads = tape.gradient(model_output[:, class_id], conv_output)
+    # Calculate gradients
+    grads = tape.gradient(class_channel, last_conv_layer_output)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
 
-        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-        conv_output = conv_output[0]
+    # Compute the heatmap
+    last_conv_layer_output = last_conv_layer_output[0]
+    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+    heatmap = tf.squeeze(heatmap)
 
-        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output), axis=-1)
-        heatmap = np.maximum(heatmap, 0)  # ReLU
-        heatmap /= np.max(heatmap)  # Normalize
-
-        return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
-    except Exception as e:
-        print(f"Error generating Grad-CAM: {str(e)}")
-        return None
+    # Normalize the heatmap
+    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+    
+    return heatmap.numpy()
 
 # Display Grad-CAM heatmap
 def display_gradcam(img, heatmap, alpha=0.4):
@@ -215,8 +216,8 @@ if __name__ == "__main__":
         result = 'Cancerous' if predictions[0][0] > 0.5 else 'Non-Cancerous'
         print(f"Prediction: {result}")
 
-        # Generate Grad-CAM
-        heatmap = generate_gradcam(model, test_image_array)
+        # Generate Grad-CAM heatmap
+        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='conv2d_2')  # Adjust layer name as needed
         if heatmap is not None:
             original_image = cv2.imread(test_image_path)
             if original_image is not None:
