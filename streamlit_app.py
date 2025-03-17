@@ -158,50 +158,49 @@ def test_model(model):
     except Exception as e:
         st.error(f"Error during testing: {str(e)}")
 
-# Generate Grad-CAM heatmap
-def generate_gradcam(model, img_array):
+# Grad-CAM Function
+def generate_gradcam(model, img_array, layer_name=None):
     try:
-        last_conv_layer = model.get_layer(index=4)  # Update index based on your model's layers
-        grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
+        # Automatically select last Conv2D layer if not specified
+        if layer_name is None:
+            layer_name = next(layer.name for layer in reversed(model.layers) if isinstance(layer, layers.Conv2D))
+
+        grad_model = tf.keras.models.Model(
+            inputs=[model.input],
+            outputs=[model.get_layer(layer_name).output, model.output]
+        )
 
         with tf.GradientTape() as tape:
-            model_output, last_conv_layer_output = grad_model(img_array)
-            class_id = tf.argmax(model_output[0])
-            grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
+            conv_outputs, predictions = grad_model(img_array)
+            class_id = tf.argmax(predictions[0])
+            loss = predictions[:, class_id]
 
-        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
-        last_conv_layer_output = last_conv_layer_output[0]
+        grads = tape.gradient(loss, conv_outputs)
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+        conv_outputs = conv_outputs[0] * pooled_grads
+        heatmap = tf.reduce_mean(conv_outputs, axis=-1)
+        heatmap = np.maximum(heatmap, 0) / np.max(heatmap)
 
-        # Calculate the heatmap
-        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
-        heatmap = tf.maximum(heatmap, 0)  # ReLU
-        heatmap /= tf.reduce_max(heatmap)  # Normalize
-
-        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize for overlay
-        return heatmap
+        return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
     except Exception as e:
-        st.error(f"Error generating Grad-CAM: {str(e)}")
+        st.error(f"Grad-CAM error: {str(e)}")
         return None
 
-# Display Grad-CAM heatmap
-def display_gradcam(img, heatmap, alpha=0.4):
+# Display Grad-CAM on Image
+def display_gradcam(img_path, heatmap, alpha=0.4):
     try:
+        img = cv2.imread(img_path)
+        img = cv2.resize(img, (IMAGE_WIDTH, IMAGE_HEIGHT))
         heatmap = np.uint8(255 * heatmap)
-        jet = cm.get_cmap("jet")
-        jet_colors = jet(np.arange(256))[:, :3]
-        jet_heatmap = jet_colors[heatmap]
+        jet_heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+        superimposed_img = cv2.addWeighted(img, 1 - alpha, jet_heatmap, alpha, 0)
+        
+        # Convert color format from BGR to RGB for Streamlit
+        superimposed_img = cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
 
-        jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Resize to match original image dimensions
-        jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
-
-        # Overlay the heatmap on the original image
-        superimposed_img = jet_heatmap * alpha + img
-        superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)  # Clip values to valid range
-        return superimposed_img
+        st.image(superimposed_img, caption="Grad-CAM Visualization", use_column_width=True)
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
-        return None
 
 # Streamlit UI
 st.title("Lung Cancer Detection")
