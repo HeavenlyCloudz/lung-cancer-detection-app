@@ -10,8 +10,9 @@ from PIL import Image
 
 # Constants
 BATCH_SIZE = 32
-IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
+IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150  # Set image dimensions to 150x150
 MODEL_FILE = 'lung_cancer_detection_model.keras'
+EPOCHS = 10  # Default number of epochs for training
 
 # Define dataset paths
 base_data_dir = os.path.join(os.getcwd(), 'data')
@@ -20,7 +21,7 @@ val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
 # Create CNN model
-def create_custom_cnn(input_shape=(224, 224, 3), num_classes=1):
+def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
         Conv2D(32, (3, 3), activation='relu'),
@@ -114,7 +115,8 @@ def generate_gradcam(model, img_array):
         conv_output = conv_output[0]
 
         heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output), axis=-1)
-        heatmap = np.maximum(heatmap, 0) / np.max(heatmap)  # Normalize
+        heatmap = np.maximum(heatmap, 0)  # ReLU
+        heatmap /= np.max(heatmap)  # Normalize
 
         return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
     except Exception as e:
