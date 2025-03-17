@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
+from sklearn.utils import class_weight
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -262,8 +263,15 @@ if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
         model = create_custom_cnn()  # Create a new model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
+        
+        # Calculate class weights
         if train_generator is not None and val_generator is not None:
-            history = model.fit(train_generator, validation_data=val_generator, epochs=epochs)  # Use chosen epochs
+            y_train = train_generator.classes
+            class_labels = np.unique(y_train)
+            weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
+            class_weights = {i: weights[i] for i in range(len(class_labels))}
+            
+            history = model.fit(train_generator, validation_data=val_generator, epochs=epochs, class_weight=class_weights)  # Use chosen epochs
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
