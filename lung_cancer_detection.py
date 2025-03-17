@@ -25,18 +25,17 @@ test_data_dir = os.path.join(base_data_dir, "test")
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
-        Conv2D(64, (3, 3), activation='relu'),  # Fixed number of filters for the first conv layer
+        Conv2D(64, (3, 3), activation='relu'),
         MaxPooling2D((2, 2)),
-        Conv2D(128, (3, 3), activation='relu'),  # Fixed number of filters for the second conv layer
+        Conv2D(128, (3, 3), activation='relu'),
         MaxPooling2D((2, 2)),
-        Conv2D(256, (3, 3), activation='relu'),  # Fixed number of filters for the third conv layer
+        Conv2D(256, (3, 3), activation='relu'),
         MaxPooling2D((2, 2)),
         layers.GlobalAveragePooling2D(),
-        Dense(128, activation='relu'),  # Fixed number of units for the dense layer
+        Dense(128, activation='relu'),
         Dense(num_classes, activation='sigmoid')
     ])
     
-    # Use a fixed learning rate
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                   loss='binary_crossentropy', metrics=['accuracy'])
     
@@ -96,19 +95,16 @@ def preprocess_image(img_path):
     try:
         img = Image.open(img_path)
         
-        # Ensure the image is in RGB format
         if img.mode != 'RGB':
             img = img.convert('RGB')  
 
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 150x150 for consistency
-        processed_image = np.asarray(new_image) / 255.0  # Normalize pixel values to [0, 1]
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  
+        processed_image = np.asarray(new_image) / 255.0  
 
-        # Convert grayscale to RGB if necessary
-        if processed_image.ndim == 2:  # If it's a grayscale image
+        if processed_image.ndim == 2:  
             processed_image = np.stack((processed_image,) * 3, axis=-1)
 
-        # Add the batch dimension
-        img_array = np.expand_dims(processed_image, axis=0)  # Shape becomes (1, 150, 150, 3)
+        img_array = np.expand_dims(processed_image, axis=0)  
         
         return img_array
     except Exception as e:
@@ -117,30 +113,24 @@ def preprocess_image(img_path):
 
 # Generate Grad-CAM heatmap
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
-    # Create a sub-model that outputs the feature maps and final prediction
     grad_model = tf.keras.models.Model(
         [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
     )
 
-    # Use GradientTape to record gradients
     with tf.GradientTape() as tape:
         last_conv_layer_output, preds = grad_model(img_array)
         
-        # If pred_index is not specified, use the predicted class index
         if pred_index is None:
             pred_index = tf.argmax(preds[0])
         class_channel = preds[:, pred_index]
 
-    # Calculate gradients
     grads = tape.gradient(class_channel, last_conv_layer_output)
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
 
-    # Compute the heatmap
     last_conv_layer_output = last_conv_layer_output[0]
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.squeeze(heatmap)
 
-    # Normalize the heatmap
     heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
     
     return heatmap.numpy()
@@ -175,7 +165,6 @@ def tune_hyperparameters(train_generator, val_generator):
     
     tuner.search(train_generator, epochs=EPOCHS, validation_data=val_generator)
     
-    # Get the best model and parameters
     best_model = tuner.get_best_models(num_models=1)[0]
     best_hyperparameters = tuner.get_best_hyperparameters(num_trials=1)[0]
     
@@ -200,10 +189,15 @@ if __name__ == "__main__":
     if not model:
         print("No saved model found. Tuning hyperparameters and training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
+        model = create_custom_cnn()  # Ensure model is created
         model, best_hyperparams = tune_hyperparameters(train_generator, val_generator)
         model.save(MODEL_FILE)  # Save the best model
     else:
         print("Model loaded successfully.")
+
+    # Test with a dummy input to verify model output
+    dummy_input = np.random.rand(1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)  # Shape (1, 150, 150, 3)
+    model(dummy_input)  # Check if this raises an error
 
     test_model(model, test_data_dir)
 
