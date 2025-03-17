@@ -137,6 +137,14 @@ def test_model(model):
             class_mode='binary'
         )
 
+        # Check the model's input shape
+        print(f"Model input shape: {model.input_shape}")
+
+        # Check the shape of the batches
+        for x_batch, y_batch in test_generator:
+            print(f"Batch shape: {x_batch.shape}")
+            break  # Just check the first batch
+
         test_loss, test_accuracy = model.evaluate(test_generator)
         st.sidebar.write(f"Test Loss: {test_loss:.4f}")
         st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
