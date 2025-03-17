@@ -9,7 +9,7 @@ import cv2
 from PIL import Image
 
 # Constants
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150  # Set image dimensions to 150x150
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 EPOCHS = 10  # Default number of epochs for training
