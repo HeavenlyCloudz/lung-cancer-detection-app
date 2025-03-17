@@ -270,12 +270,13 @@ if uploaded_file is not None:
 
     if img_array is not None and model:  # Check if img_array is valid before prediction
         try:
+            st.write("Shape of img_array:", img_array.shape)  # Debugging line
             prediction = model.predict(img_array)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')  # Updated layer name
+            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')
             if heatmap is not None:
                 original_image = cv2.imread("temp_image.jpg")
                 superimposed_img = display_gradcam(original_image, heatmap)
@@ -283,7 +284,7 @@ if uploaded_file is not None:
                 st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
-
+   
     os.remove("temp_image.jpg")
 
 # Mobile Upload Option
