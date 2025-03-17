@@ -15,7 +15,7 @@ BATCH_SIZE = 32
 EPOCHS = 10
 
 # Model Path
-MODEL_FILE = os.path.join('lung-cancer-detection-app', 'lung_cancer_detection_model.keras')
+MODEL_FILE = 'lung_cancer_detection_model.keras'
 
 # Define the base data directory
 base_data_dir = os.path.join(os.getcwd(), 'data')
