@@ -16,8 +16,6 @@ import matplotlib.cm as cm
 # Constants
 BATCH_SIZE = 32
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150  # Set consistent input size to 150x150
-
-# Set paths for saving the model and data
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
@@ -28,15 +26,15 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
-        Conv2D(64, (3, 3), activation='relu'),  # Fixed number of filters for the first conv layer
-        MaxPooling2D((2, 2)),
-        Conv2D(128, (3, 3), activation='relu'),  # Fixed number of filters for the second conv layer
-        MaxPooling2D((2, 2)),
-        Conv2D(256, (3, 3), activation='relu'),  # Fixed number of filters for the third conv layer
-        MaxPooling2D((2, 2)),
+        layers.Conv2D(64, (3, 3), activation='relu'),  # Fixed number of filters for the first conv layer
+        layers.MaxPooling2D((2, 2)),
+        layers.Conv2D(128, (3, 3), activation='relu'),  # Fixed number of filters for the second conv layer
+        layers.MaxPooling2D((2, 2)),
+        layers.Conv2D(256, (3, 3), activation='relu'),  # Fixed number of filters for the third conv layer
+        layers.MaxPooling2D((2, 2)),
         layers.GlobalAveragePooling2D(),
-        Dense(128, activation='relu'),  # Fixed number of units for the dense layer
-        Dense(num_classes, activation='sigmoid')
+        layers.Dense(128, activation='relu'),  # Fixed number of units for the dense layer
+        layers.Dense(num_classes, activation='sigmoid')
     ])
     
     # Use a fixed learning rate
@@ -94,22 +92,15 @@ def preprocess_image(img_path):
     try:
         img = Image.open(img_path)
         
-        # Ensure the image is in RGB format
         if img.mode != 'RGB':
             img = img.convert('RGB')  
 
         new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 150x150 for consistency
         processed_image = np.asarray(new_image) / 255.0  # Normalize pixel values to [0, 1]
 
-        # Check the shape of processed_image
         if processed_image.ndim == 2:  # If it's a grayscale image
-            processed_image = np.stack((processed_image,) * 3, axis=-1)  # Convert to RGB
-        elif processed_image.shape[2] == 1:  # If it has only one channel 
-            processed_image = np.concatenate([processed_image] * 3, axis=-1)  # Convert to RGB
+            processed_image = np.stack((processed_image,) * 3, axis=-1)
 
-        # Ensure the image has the shape (150, 150, 3)
-        
-        # Add the batch dimension
         img_array = np.expand_dims(processed_image, axis=0)  # Shape becomes (1, 150, 150, 3)
         
         return img_array
@@ -172,29 +163,27 @@ def test_model(model):
         st.error(f"Error during testing: {str(e)}")
 
 # Generate Grad-CAM heatmap
-def generate_gradcam(model, img_array):
-    try:
-        last_conv_layer = model.get_layer(index=4)  # Update index based on your model's layers
-        grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
+def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
+    grad_model = tf.keras.models.Model(
+        [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
+    )
 
-        with tf.GradientTape() as tape:
-            model_output, last_conv_layer_output = grad_model(img_array)
-            class_id = tf.argmax(model_output[0])
-            grads = tape.gradient(model_output[:, class_id], last_conv_layer_output)
+    with tf.GradientTape() as tape:
+        last_conv_layer_output, preds = grad_model(img_array)
+        
+        if pred_index is None:
+            pred_index = tf.argmax(preds[0])
+        class_channel = preds[:, pred_index]
 
-        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
-        last_conv_layer_output = last_conv_layer_output[0]
+    grads = tape.gradient(class_channel, last_conv_layer_output)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
 
-        # Calculate the heatmap
-        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
-        heatmap = tf.maximum(heatmap, 0)  # ReLU
-        heatmap /= tf.reduce_max(heatmap)  # Normalize
+    last_conv_layer_output = last_conv_layer_output[0]
+    heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
+    heatmap = tf.maximum(heatmap, 0)  # ReLU
+    heatmap /= tf.reduce_max(heatmap)  # Normalize
 
-        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize for overlay
-        return heatmap
-    except Exception as e:
-        st.error(f"Error generating Grad-CAM: {str(e)}")
-        return None
+    return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
 
 # Display Grad-CAM heatmap
 def display_gradcam(img, heatmap, alpha=0.4):
@@ -208,7 +197,6 @@ def display_gradcam(img, heatmap, alpha=0.4):
         jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Resize to match original image dimensions
         jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
 
-        # Overlay the heatmap on the original image
         superimposed_img = jet_heatmap * alpha + img
         superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)  # Clip values to valid range
         return superimposed_img
@@ -303,7 +291,7 @@ if uploaded_file is not None:
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = generate_gradcam(model, img_array)
+            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')  # Adjust layer name as needed
             if heatmap is not None:
                 original_image = cv2.imread("temp_image.jpg")
                 superimposed_img = display_gradcam(original_image, heatmap)
@@ -332,7 +320,7 @@ if photo is not None:
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = generate_gradcam(model, img_array)
+            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')  # Adjust layer name as needed
             if heatmap is not None:
                 original_image = cv2.imread("captured_image.jpg")
                 superimposed_img = display_gradcam(original_image, heatmap)
