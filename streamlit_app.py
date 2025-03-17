@@ -4,7 +4,6 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
-from keras_tuner import RandomSearch  # Import Keras Tuner
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -37,8 +36,8 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
         layers.Dense(num_classes, activation='sigmoid', name='output_layer')
     ])
     
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-                  loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam',  # Uses default learning rate of 0.001
+              loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
 
@@ -238,30 +237,16 @@ st.sidebar.title("Controls")
 # Load the model
 model = load_model_file()
 
-# Hyperparameter inputs
-epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
-batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
-
-# Button to tune hyperparameters and train model
-if st.sidebar.button("Tune Hyperparameters and Train Model"):
-    with st.spinner("Tuning hyperparameters and training the model..."):
+# Button to train model
+if st.sidebar.button("Train Model"):
+    with st.spinner("Training the model..."):
+        model = create_custom_cnn()  # Create a new model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
         if train_generator is not None and val_generator is not None:
-            tuner = RandomSearch(
-                create_custom_cnn,
-                objective='val_accuracy',
-                max_trials=10,
-                executions_per_trial=1,
-                directory='my_dir',
-                project_name='lung_cancer_detection'
-            )
-
-            tuner.search(train_generator, epochs=epochs, validation_data=val_generator)
-            best_model = tuner.get_best_models(num_models=1)[0]
-            best_model.save(MODEL_FILE)
-
+            history = model.fit(train_generator, validation_data=val_generator, epochs=10)  # Set epochs as needed
+            model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
-            plot_training_history(tuner.oracle.get_best_trials()[0].metrics)
+            plot_training_history(history)
 
 # Button to test model
 if st.sidebar.button("Test Model"):
