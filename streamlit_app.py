@@ -37,7 +37,6 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
         layers.Dense(num_classes, activation='sigmoid', name='output_layer')
     ])
     
-    # Use a fixed learning rate
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                   loss='binary_crossentropy', metrics=['accuracy'])
     
@@ -90,11 +89,7 @@ def load_data(train_dir, val_dir):
 # Preprocess the image for prediction
 def preprocess_image(img_path):
     try:
-        img = Image.open(img_path)
-        
-        if img.mode != 'RGB':
-            img = img.convert('RGB')  
-
+        img = Image.open(img_path).convert('RGB')
         new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
         processed_image = np.asarray(new_image) / 255.0
 
