@@ -316,6 +316,8 @@ if photo is not None:
 
     os.remove("captured_image.jpg")
 
+st.write("Shape of img_array:", img_array.shape)
+
 # Clear cache button
 if st.button("Clear Cache"):
     st.cache_data.clear()  # Clear the cache
