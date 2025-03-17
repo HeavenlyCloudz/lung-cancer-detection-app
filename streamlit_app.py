@@ -24,7 +24,7 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
 # Function to create Custom CNN model
-def create_custom_cnn(input_shape=(None, None, 3), num_classes=1):
+def create_custom_cnn(input_shape=(224, 224, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     model.add(layers.Input(shape=input_shape))
 
