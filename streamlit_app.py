@@ -256,8 +256,11 @@ st.sidebar.title("Controls")
 model = load_model_file()
 
 # Hyperparameter inputs
-epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
+epochs = st.sidebar.number_input("Number of epochs for training", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=BATCH_SIZE)
+
+# Add input for number of evaluations during testing
+eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_value=1, max_value=10, value=1)
 
 # Button to train model
 if st.sidebar.button("Train Model"):
@@ -286,7 +289,8 @@ if st.sidebar.button("Train Model"):
 if st.sidebar.button("Test Model"):
     if model:
         with st.spinner("Testing the model..."):
-            test_model(model)
+            for _ in range(eval_epochs):  # Repeat testing as per user input
+                test_model(model)
     else:
         st.warning("No model found. Please train the model first.")
 
