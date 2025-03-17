@@ -13,7 +13,6 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.cm as cm
 
 # Constants
-IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Changed to 224
 BATCH_SIZE = 32
 
 # Set paths for saving the model and data
@@ -23,8 +22,8 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Function to create Custom CNN model (for reference)
-def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+# Function to create Custom CNN model
+def create_custom_cnn(input_shape=(None, None, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     model.add(layers.Input(shape=input_shape))
 
@@ -36,8 +35,10 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
     model.add(layers.Conv2D(128, (3, 3), activation='relu'))
     model.add(layers.MaxPooling2D((2, 2)))
 
-    # Flatten and Fully Connected Layers
-    model.add(layers.Flatten())
+    # Global Average Pooling
+    model.add(layers.GlobalAveragePooling2D())
+    
+    # Fully Connected Layers
     model.add(layers.Dense(128, activation='relu'))
     model.add(layers.Dense(num_classes, activation='sigmoid'))  # Use 'softmax' for multi-class
 
@@ -70,14 +71,14 @@ def load_data(train_dir, val_dir):
     try:
         train_generator = train_datagen.flow_from_directory(
             train_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            target_size=(224, 224),  # Resize for consistency in training
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
 
         val_generator = val_datagen.flow_from_directory(
             val_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            target_size=(224, 224),  # Resize for consistency in validation
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -94,7 +95,7 @@ def preprocess_image(img_path):
         if img.mode == 'RGBA':
             img = img.convert('RGB')
 
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
+        new_image = img.resize((224, 224))  # Resize to 224x224 for consistency
         processed_image = np.asarray(new_image) / 255.0
         img_array = np.expand_dims(processed_image, axis=0)
         return img_array
@@ -132,18 +133,10 @@ def test_model(model):
     try:
         test_generator = test_datagen.flow_from_directory(
             test_data_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            target_size=(224, 224),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
-
-        # Check the model's input shape
-        print(f"Model input shape: {model.input_shape}")
-
-        # Check the shape of the batches
-        for x_batch, y_batch in test_generator:
-            print(f"Batch shape: {x_batch.shape}")
-            break  # Just check the first batch
 
         test_loss, test_accuracy = model.evaluate(test_generator)
         st.sidebar.write(f"Test Loss: {test_loss:.4f}")
@@ -183,7 +176,7 @@ def generate_gradcam(model, img_array):
         heatmap = tf.maximum(heatmap, 0)  # ReLU
         heatmap /= tf.reduce_max(heatmap)  # Normalize
 
-        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+        heatmap = cv2.resize(heatmap.numpy(), (224, 224))
         return heatmap
     except Exception as e:
         st.error(f"Error generating Grad-CAM: {str(e)}")
