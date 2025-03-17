@@ -7,6 +7,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
+from keras_tuner import RandomSearch  # Import Keras Tuner
 
 # Constants
 BATCH_SIZE = 16
@@ -21,20 +22,21 @@ val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
 # Create CNN model
-def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1, hp=None):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
-        Conv2D(32, (3, 3), activation='relu'),
+        Conv2D(hp.Int('conv1_filters', 32, 128, step=32), (3, 3), activation='relu'),
         MaxPooling2D((2, 2)),
-        Conv2D(64, (3, 3), activation='relu'),
+        Conv2D(hp.Int('conv2_filters', 64, 256, step=64), (3, 3), activation='relu'),
         MaxPooling2D((2, 2)),
-        Conv2D(128, (3, 3), activation='relu'),
+        Conv2D(hp.Int('conv3_filters', 128, 512, step=128), (3, 3), activation='relu'),
         MaxPooling2D((2, 2)),
         layers.GlobalAveragePooling2D(),
-        Dense(128, activation='relu'),
+        Dense(hp.Int('dense_units', 64, 256, step=64), activation='relu'),
         Dense(num_classes, activation='sigmoid')
     ])
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=tf.keras.optimizers.Adam(hp.Choice('learning_rate', [1e-2, 1e-3, 1e-4])),
+                  loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
 # Load model from file
@@ -98,7 +100,7 @@ def preprocess_image(img_path):
         img_array = np.expand_dims(processed_image, axis=0)
         return img_array
     except Exception as e:
-        st.error(f"Error processing image: {str(e)}")
+        print(f"Error processing image: {str(e)}")
         return None
 
 # Generate Grad-CAM
@@ -106,8 +108,7 @@ def generate_gradcam(model, img_array):
     try:
         last_conv_layer = next(layer for layer in reversed(model.layers) if isinstance(layer, Conv2D))
 
-        grad_model = tf.keras.models.Model(
-            inputs=model.input, outputs=[model.output, last_conv_layer.output])
+        grad_model = tf.keras.models.Model(inputs=model.input, outputs=[model.output, last_conv_layer.output])
 
         with tf.GradientTape() as tape:
             model_output, conv_output = grad_model(img_array)
@@ -144,6 +145,25 @@ def train_model(model, train_generator, val_generator):
     model.save(MODEL_FILE)
     plot_training_history(history)
 
+# Hyperparameter tuning
+def tune_hyperparameters(train_generator, val_generator):
+    tuner = RandomSearch(
+        create_custom_cnn,
+        objective='val_accuracy',
+        max_trials=10,
+        executions_per_trial=1,
+        directory='my_dir',
+        project_name='lung_cancer_detection'
+    )
+    
+    tuner.search(train_generator, epochs=EPOCHS, validation_data=val_generator)
+    
+    # Get the best model and parameters
+    best_model = tuner.get_best_models(num_models=1)[0]
+    best_hyperparameters = tuner.get_best_hyperparameters(num_trials=1)[0]
+    
+    return best_model, best_hyperparameters
+
 # Test the model
 def test_model(model, test_data_dir):
     try:
@@ -161,10 +181,10 @@ if __name__ == "__main__":
     model = load_model_file(MODEL_FILE)
 
     if not model:
-        print("No saved model found. Training a new model...")
+        print("No saved model found. Tuning hyperparameters and training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        model = create_custom_cnn()
-        train_model(model, train_generator, val_generator)
+        model, best_hyperparams = tune_hyperparameters(train_generator, val_generator)
+        model.save(MODEL_FILE)  # Save the best model
     else:
         print("Model loaded successfully.")
 
