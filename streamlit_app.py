@@ -14,6 +14,7 @@ import matplotlib.cm as cm
 
 # Constants
 BATCH_SIZE = 32
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set consistent input size
 
 # Set paths for saving the model and data
 MODEL_FILE = 'lung_cancer_detection_model.keras'
@@ -71,14 +72,14 @@ def load_data(train_dir, val_dir):
     try:
         train_generator = train_datagen.flow_from_directory(
             train_dir,
-            target_size=(224, 224),  # Resize for consistency in training
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency in training
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
 
         val_generator = val_datagen.flow_from_directory(
             val_dir,
-            target_size=(224, 224),  # Resize for consistency in validation
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency in validation
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -95,7 +96,7 @@ def preprocess_image(img_path):
         if img.mode == 'RGBA':
             img = img.convert('RGB')
 
-        new_image = img.resize((224, 224))  # Resize to 224x224 for consistency
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224 for consistency
         processed_image = np.asarray(new_image) / 255.0
         img_array = np.expand_dims(processed_image, axis=0)
         return img_array
@@ -133,7 +134,7 @@ def test_model(model):
     try:
         test_generator = test_datagen.flow_from_directory(
             test_data_dir,
-            target_size=(224, 224),  # Resize for consistency
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -176,7 +177,7 @@ def generate_gradcam(model, img_array):
         heatmap = tf.maximum(heatmap, 0)  # ReLU
         heatmap /= tf.reduce_max(heatmap)  # Normalize
 
-        heatmap = cv2.resize(heatmap.numpy(), (224, 224))
+        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize for overlay
         return heatmap
     except Exception as e:
         st.error(f"Error generating Grad-CAM: {str(e)}")
