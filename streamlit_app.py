@@ -24,28 +24,25 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Function to create Custom CNN model with hyperparameters
-def create_custom_cnn(hp, input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
-    model = tf.keras.models.Sequential()
-    model.add(layers.Input(shape=input_shape))
-
-    # Fixed Convolutional Blocks
-    model.add(layers.Conv2D(32, (3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D((2, 2)))
-    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D((2, 2)))
-    model.add(layers.Conv2D(128, (3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D((2, 2)))
-
-    # Global Average Pooling
-    model.add(layers.GlobalAveragePooling2D())
+# Create CNN model
+def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+    model = tf.keras.models.Sequential([
+        layers.Input(shape=input_shape),
+        Conv2D(64, (3, 3), activation='relu'),  # Fixed number of filters for the first conv layer
+        MaxPooling2D((2, 2)),
+        Conv2D(128, (3, 3), activation='relu'),  # Fixed number of filters for the second conv layer
+        MaxPooling2D((2, 2)),
+        Conv2D(256, (3, 3), activation='relu'),  # Fixed number of filters for the third conv layer
+        MaxPooling2D((2, 2)),
+        layers.GlobalAveragePooling2D(),
+        Dense(128, activation='relu'),  # Fixed number of units for the dense layer
+        Dense(num_classes, activation='sigmoid')
+    ])
     
-    # Hyperparameters for Dense Layers
-    model.add(layers.Dense(hp.Int('dense_units', 64, 256, step=64), activation='relu'))
-    model.add(layers.Dense(num_classes, activation='sigmoid'))  # Use 'softmax' for multi-class
-
-    model.compile(optimizer=tf.keras.optimizers.Adam(hp.Choice('learning_rate', [1e-2, 1e-3, 1e-4])),
+    # Use a fixed learning rate
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                   loss='binary_crossentropy', metrics=['accuracy'])
+    
     return model
 
 # Load model from file
