@@ -26,12 +26,12 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
-        layers.Conv2D(64, (3, 3), activation='relu', name='conv_layer_1'),
-        layers.MaxPooling2D((2, 2), name='maxpool_layer_1'),
-        layers.Conv2D(128, (3, 3), activation='relu', name='conv_layer_2'),
-        layers.MaxPooling2D((2, 2), name='maxpool_layer_2'),
-        layers.Conv2D(256, (3, 3), activation='relu', name='conv_layer_3'),
-        layers.MaxPooling2D((2, 2), name='maxpool_layer_3'),
+        layers.Conv2D(64, (3, 3), activation='relu', name='conv2d'),
+        layers.MaxPooling2D((2, 2), name='max_pooling2d'),
+        layers.Conv2D(128, (3, 3), activation='relu', name='conv2d_1'),
+        layers.MaxPooling2D((2, 2), name='max_pooling2d_1'),
+        layers.Conv2D(256, (3, 3), activation='relu', name='conv2d_2'),
+        layers.MaxPooling2D((2, 2), name='max_pooling2d_2'),
         layers.GlobalAveragePooling2D(name='global_avg_pool'),
         layers.Dense(128, activation='relu', name='dense_layer_1'),
         layers.Dense(num_classes, activation='sigmoid', name='output_layer')
@@ -320,7 +320,7 @@ if photo is not None:
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv_layer_3')  # Updated layer name
+            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')  # Updated layer name
             if heatmap is not None:
                 original_image = cv2.imread("captured_image.jpg")
                 superimposed_img = display_gradcam(original_image, heatmap)
