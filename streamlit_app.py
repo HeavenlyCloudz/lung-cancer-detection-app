@@ -145,6 +145,22 @@ def test_model(model):
         y_pred_classes = np.where(y_pred > 0.5, 1, 0)
         cm = confusion_matrix(test_generator.classes, y_pred_classes)
 
+        # Calculate precision and recall
+        tp = cm[1, 1]  # True Positives
+        fp = cm[0, 1]  # False Positives
+        fn = cm[1, 0]  # False Negatives
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+
+        # Calculate F1 Score
+        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+        st.sidebar.write(f"Precision: {precision:.4f}")
+        st.sidebar.write(f"Recall: {recall:.4f}")
+        st.sidebar.write(f"F1 Score: {f1_score:.4f}")
+
+        # Plot confusion matrix
         fig, ax = plt.subplots(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                      xticklabels=['Non-Cancerous', 'Cancerous'], 
