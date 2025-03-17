@@ -10,9 +10,7 @@ import cv2
 from PIL import Image
 
 # Constants
-IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Updated to 224
 BATCH_SIZE = 32
-EPOCHS = 10
 
 # Model Path
 MODEL_FILE = 'lung_cancer_detection_model.keras'
@@ -23,8 +21,8 @@ train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
-# Create Custom CNN model
-def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+# Create Custom CNN model with global average pooling
+def create_custom_cnn(input_shape=(None, None, 3), num_classes=1):
     model = tf.keras.models.Sequential()
     model.add(layers.Input(shape=input_shape))
     model.add(Conv2D(32, (3, 3), activation='relu'))
@@ -33,7 +31,9 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
     model.add(MaxPooling2D((2, 2)))
     model.add(Conv2D(128, (3, 3), activation='relu'))
     model.add(MaxPooling2D((2, 2)))
-    model.add(Flatten())
+
+    # Global Average Pooling
+    model.add(layers.GlobalAveragePooling2D())
     model.add(Dense(128, activation='relu'))
     model.add(Dense(num_classes, activation='sigmoid'))  # Use 'softmax' for multi-class
     return model
@@ -64,14 +64,14 @@ def load_data(train_dir, val_dir):
     try:
         train_generator = train_datagen.flow_from_directory(
             train_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            target_size=(224, 224),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
 
         val_generator = val_datagen.flow_from_directory(
             val_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            target_size=(224, 224),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -91,7 +91,7 @@ def preprocess_image(image_path):
         if img.mode == 'RGBA':
             img = img.convert('RGB')
 
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
+        new_image = img.resize((224, 224))  # Resize to 224x224 for consistency
         processed_image = np.asarray(new_image) / 255.0
         return np.expand_dims(processed_image, axis=0)  # Add batch dimension
     except Exception as e:
@@ -128,7 +128,7 @@ def generate_gradcam(model, img_array):
         heatmap = tf.maximum(heatmap, 0)  # ReLU
         heatmap /= tf.reduce_max(heatmap)  # Normalize
 
-        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+        heatmap = cv2.resize(heatmap.numpy(), (224, 224))
         return heatmap
     except Exception as e:
         print(f"Error generating Grad-CAM: {str(e)}")
@@ -181,7 +181,7 @@ def test_model(model, test_data_dir, epochs=1):
         test_datagen = ImageDataGenerator(rescale=1./255)
         test_generator = test_datagen.flow_from_directory(
             test_data_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            target_size=(224, 224),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -218,7 +218,7 @@ if __name__ == "__main__":
     try:
         test_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
             test_data_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            target_size=(224, 224),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
             # Display Grad-CAM
             original_image = cv2.imread(test_image_path)
-            original_image = cv2.resize(original_image, (IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to match model input
+            original_image = cv2.resize(original_image, (224, 224))  # Resize to match model input
             superimposed_img = display_gradcam(original_image, heatmap)
 
             # Show the result
