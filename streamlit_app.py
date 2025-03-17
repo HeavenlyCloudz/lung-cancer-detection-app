@@ -15,6 +15,7 @@ import matplotlib.cm as cm
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150  # Set consistent input size to 150x150
 MODEL_FILE = 'lung_cancer_detection_model.keras'
+BATCH_SIZE = 32
 base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
@@ -56,7 +57,7 @@ def load_model_file():
         return None
 
 # Load training and validation data
-def load_data(train_dir, val_dir):
+def load_data(train_dir, val_dir, batch_size):
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
                                        width_shift_range=0.2, height_shift_range=0.2,
                                        shear_range=0.2, zoom_range=0.2,
@@ -68,14 +69,14 @@ def load_data(train_dir, val_dir):
         train_generator = train_datagen.flow_from_directory(
             train_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=BATCH_SIZE,
+            batch_size=batch_size,
             class_mode='binary'
         )
 
         val_generator = val_datagen.flow_from_directory(
             val_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=BATCH_SIZE,
+            batch_size=batch_size,
             class_mode='binary'
         )
 
@@ -238,13 +239,13 @@ model = load_model_file()
 
 # Hyperparameter inputs
 epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
-batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
+batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=BATCH_SIZE)
 
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
         model = create_custom_cnn()  # Create a new model
-        train_generator, val_generator = load_data(train_data_dir, val_data_dir)
+        train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
         if train_generator is not None and val_generator is not None:
             history = model.fit(train_generator, validation_data=val_generator, epochs=epochs)  # Use chosen epochs
             model.save(MODEL_FILE)
