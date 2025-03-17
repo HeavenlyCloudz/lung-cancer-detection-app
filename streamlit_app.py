@@ -22,19 +22,19 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Create CNN model
+# Create CNN model with explicit layer names
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
-        layers.Conv2D(64, (3, 3), activation='relu'),  # Fixed number of filters for the first conv layer
-        layers.MaxPooling2D((2, 2)),
-        layers.Conv2D(128, (3, 3), activation='relu'),  # Fixed number of filters for the second conv layer
-        layers.MaxPooling2D((2, 2)),
-        layers.Conv2D(256, (3, 3), activation='relu'),  # Fixed number of filters for the third conv layer
-        layers.MaxPooling2D((2, 2)),
-        layers.GlobalAveragePooling2D(),
-        layers.Dense(128, activation='relu'),  # Fixed number of units for the dense layer
-        layers.Dense(num_classes, activation='sigmoid')
+        layers.Conv2D(64, (3, 3), activation='relu', name='conv_layer_1'),
+        layers.MaxPooling2D((2, 2), name='maxpool_layer_1'),
+        layers.Conv2D(128, (3, 3), activation='relu', name='conv_layer_2'),
+        layers.MaxPooling2D((2, 2), name='maxpool_layer_2'),
+        layers.Conv2D(256, (3, 3), activation='relu', name='conv_layer_3'),
+        layers.MaxPooling2D((2, 2), name='maxpool_layer_3'),
+        layers.GlobalAveragePooling2D(name='global_avg_pool'),
+        layers.Dense(128, activation='relu', name='dense_layer_1'),
+        layers.Dense(num_classes, activation='sigmoid', name='output_layer')
     ])
     
     # Use a fixed learning rate
@@ -70,14 +70,14 @@ def load_data(train_dir, val_dir):
     try:
         train_generator = train_datagen.flow_from_directory(
             train_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency in training
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
 
         val_generator = val_datagen.flow_from_directory(
             val_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency in validation
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -95,13 +95,13 @@ def preprocess_image(img_path):
         if img.mode != 'RGB':
             img = img.convert('RGB')  
 
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 150x150 for consistency
-        processed_image = np.asarray(new_image) / 255.0  # Normalize pixel values to [0, 1]
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+        processed_image = np.asarray(new_image) / 255.0
 
-        if processed_image.ndim == 2:  # If it's a grayscale image
+        if processed_image.ndim == 2:  
             processed_image = np.stack((processed_image,) * 3, axis=-1)
 
-        img_array = np.expand_dims(processed_image, axis=0)  # Shape becomes (1, 150, 150, 3)
+        img_array = np.expand_dims(processed_image, axis=0)
         
         return img_array
     except Exception as e:
@@ -138,7 +138,7 @@ def test_model(model):
     try:
         test_generator = test_datagen.flow_from_directory(
             test_data_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -194,11 +194,11 @@ def display_gradcam(img, heatmap, alpha=0.4):
         jet_heatmap = jet_colors[heatmap]
 
         jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))  # Resize to match original image dimensions
+        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))
         jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
 
         superimposed_img = jet_heatmap * alpha + img
-        superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)  # Clip values to valid range
+        superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)
         return superimposed_img
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
@@ -291,7 +291,7 @@ if uploaded_file is not None:
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')  # Adjust layer name as needed
+            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv_layer_3')  # Updated layer name
             if heatmap is not None:
                 original_image = cv2.imread("temp_image.jpg")
                 superimposed_img = display_gradcam(original_image, heatmap)
@@ -320,7 +320,7 @@ if photo is not None:
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')  # Adjust layer name as needed
+            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv_layer_3')  # Updated layer name
             if heatmap is not None:
                 original_image = cv2.imread("captured_image.jpg")
                 superimposed_img = display_gradcam(original_image, heatmap)
