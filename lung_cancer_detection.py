@@ -86,15 +86,19 @@ def plot_training_history(history):
 
     plt.show()
 
-# Preprocess image for prediction
-def preprocess_image(image_path):
+# Preprocess the image for prediction
+def preprocess_image(img_path):
     try:
-        img = Image.open(image_path).convert('RGB')
-        img_resized = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
-        img_array = np.asarray(img_resized) / 255.0
-        return np.expand_dims(img_array, axis=0)  # Add batch dimension
+        img = Image.open(img_path)
+        if img.mode == 'RGBA':
+            img = img.convert('RGB')
+
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 150x150 for consistency
+        processed_image = np.asarray(new_image) / 255.0
+        img_array = np.expand_dims(processed_image, axis=0)
+        return img_array
     except Exception as e:
-        print(f"Error preprocessing image: {str(e)}")
+        st.error(f"Error processing image: {str(e)}")
         return None
 
 # Generate Grad-CAM
