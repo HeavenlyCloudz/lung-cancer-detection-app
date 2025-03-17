@@ -36,7 +36,7 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
         layers.Dense(num_classes, activation='sigmoid', name='output_layer')
     ])
     
-    model.compile(optimizer='adam',  # Uses default learning rate of 0.001
+    model.compile(optimizer='adam',
                   loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
@@ -268,10 +268,10 @@ if uploaded_file is not None:
 
     img_array = preprocess_image("temp_image.jpg")
 
-    if model:
+    if img_array is not None and model:  # Check if img_array is valid before prediction
         try:
             prediction = model.predict(img_array)
-            result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+            result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
@@ -281,7 +281,6 @@ if uploaded_file is not None:
                 superimposed_img = display_gradcam(original_image, heatmap)
                 st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
-
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
 
@@ -297,10 +296,10 @@ if photo is not None:
 
     img_array = preprocess_image("captured_image.jpg")
 
-    if model:
+    if img_array is not None and model:  # Check if img_array is valid before prediction
         try:
             prediction = model.predict(img_array)
-            result = 'Cancerous' if prediction[0] > 0.5 else 'Non-Cancerous'
+            result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
@@ -310,13 +309,10 @@ if photo is not None:
                 superimposed_img = display_gradcam(original_image, heatmap)
                 st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
-
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
 
     os.remove("captured_image.jpg")
-
-st.write("Shape of img_array:", img_array.shape)
 
 # Clear cache button
 if st.button("Clear Cache"):
