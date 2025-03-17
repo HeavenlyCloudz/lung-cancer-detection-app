@@ -31,16 +31,22 @@ def extract_hog_features(image):
     hog_features = feature.hog(gray_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=False)
     return hog_features
 
-# Create CNN model with explicit layer names
+# Create CNN model with four convolutional layers
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
-        layers.Conv2D(64, (3, 3), activation='relu', name='conv2d'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d'),
-        layers.Conv2D(128, (3, 3), activation='relu', name='conv2d_1'),
+        layers.Conv2D(64, (3, 3), activation='relu', name='conv2d_1'),
         layers.MaxPooling2D((2, 2), name='max_pooling2d_1'),
-        layers.Conv2D(256, (3, 3), activation='relu', name='conv2d_2'),
+        
+        layers.Conv2D(128, (3, 3), activation='relu', name='conv2d_2'),
         layers.MaxPooling2D((2, 2), name='max_pooling2d_2'),
+
+        layers.Conv2D(256, (3, 3), activation='relu', name='conv2d_3'),
+        layers.MaxPooling2D((2, 2), name='max_pooling2d_3'),
+
+        layers.Conv2D(512, (3, 3), activation='relu', name='conv2d_4'),
+        layers.MaxPooling2D((2, 2), name='max_pooling2d_4'),
+        
         layers.GlobalAveragePooling2D(name='global_avg_pool'),
         layers.Dense(128, activation='relu', name='dense_layer_1'),
         layers.Dense(num_classes, activation='sigmoid', name='output_layer')
@@ -319,7 +325,7 @@ if uploaded_file is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_2')
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_4')
             if heatmap is not None:
                 superimposed_img = display_gradcam(uploaded_image, heatmap)
                 st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
@@ -350,7 +356,7 @@ if photo is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_2')
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_4')
             if heatmap is not None:
                 superimposed_img = display_gradcam(captured_image, heatmap)
                 st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
