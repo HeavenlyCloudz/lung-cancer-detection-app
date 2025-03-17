@@ -21,6 +21,7 @@ base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
+last_conv_layer_name='conv2d_2')
 
 # Create CNN model with explicit layer names
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
@@ -291,7 +292,7 @@ if uploaded_file is not None:
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv_layer_3')  # Updated layer name
+            heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name='conv2d_2')  # Updated layer name
             if heatmap is not None:
                 original_image = cv2.imread("temp_image.jpg")
                 superimposed_img = display_gradcam(original_image, heatmap)
