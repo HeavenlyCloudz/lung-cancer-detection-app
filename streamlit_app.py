@@ -13,7 +13,6 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.cm as cm
 
 # Constants
-BATCH_SIZE = 32
 IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150  # Set consistent input size to 150x150
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 base_data_dir = os.path.join(os.getcwd(), 'data')
@@ -37,7 +36,7 @@ def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1)
     ])
     
     model.compile(optimizer='adam',  # Uses default learning rate of 0.001
-              loss='binary_crossentropy', metrics=['accuracy'])
+                  loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
 
@@ -237,13 +236,17 @@ st.sidebar.title("Controls")
 # Load the model
 model = load_model_file()
 
+# Hyperparameter inputs
+epochs = st.sidebar.number_input("Number of epochs", min_value=1, max_value=100, value=10)
+batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=32)
+
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
         model = create_custom_cnn()  # Create a new model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
         if train_generator is not None and val_generator is not None:
-            history = model.fit(train_generator, validation_data=val_generator, epochs=10)  # Set epochs as needed
+            history = model.fit(train_generator, validation_data=val_generator, epochs=epochs)  # Use chosen epochs
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
