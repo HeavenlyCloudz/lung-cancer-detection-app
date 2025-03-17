@@ -7,7 +7,6 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
-from keras_tuner import RandomSearch  # Import Keras Tuner
 
 # Constants
 BATCH_SIZE = 32
@@ -25,18 +24,18 @@ test_data_dir = os.path.join(base_data_dir, "test")
 def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     model = tf.keras.models.Sequential([
         layers.Input(shape=input_shape),
-        layers.Conv2D(64, (3, 3), activation='relu', name='conv2d'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d'),
-        layers.Conv2D(128, (3, 3), activation='relu', name='conv2d_1'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d_1'),
-        layers.Conv2D(256, (3, 3), activation='relu', name='conv2d_2'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d_2'),
+        Conv2D(64, (3, 3), activation='relu', name='conv2d'),
+        MaxPooling2D((2, 2), name='max_pooling2d'),
+        Conv2D(128, (3, 3), activation='relu', name='conv2d_1'),
+        MaxPooling2D((2, 2), name='max_pooling2d_1'),
+        Conv2D(256, (3, 3), activation='relu', name='conv2d_2'),
+        MaxPooling2D((2, 2), name='max_pooling2d_2'),
         layers.GlobalAveragePooling2D(name='global_avg_pool'),
-        layers.Dense(128, activation='relu', name='dense_layer_1'),
-        layers.Dense(num_classes, activation='sigmoid', name='output_layer')
+        Dense(128, activation='relu', name='dense_layer_1'),
+        Dense(num_classes, activation='sigmoid', name='output_layer')
     ])
     
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+    model.compile(optimizer='adam',  # Using default learning rate of 0.001
                   loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
@@ -152,24 +151,6 @@ def train_model(model, train_generator, val_generator):
     model.save(MODEL_FILE)
     plot_training_history(history)
 
-# Hyperparameter tuning
-def tune_hyperparameters(train_generator, val_generator):
-    tuner = RandomSearch(
-        create_custom_cnn,
-        objective='val_accuracy',
-        max_trials=10,
-        executions_per_trial=1,
-        directory='my_dir',
-        project_name='lung_cancer_detection'
-    )
-    
-    tuner.search(train_generator, epochs=EPOCHS, validation_data=val_generator)
-    
-    best_model = tuner.get_best_models(num_models=1)[0]
-    best_hyperparameters = tuner.get_best_hyperparameters(num_trials=1)[0]
-    
-    return best_model, best_hyperparameters
-
 # Test the model
 def test_model(model, test_data_dir):
     try:
@@ -187,18 +168,14 @@ if __name__ == "__main__":
     model = load_model_file(MODEL_FILE)
 
     if not model:
-        print("No saved model found. Tuning hyperparameters and training a new model...")
+        print("No saved model found. Training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        model = create_custom_cnn()  # Ensure model is created
-        model, best_hyperparams = tune_hyperparameters(train_generator, val_generator)
-        model.save(MODEL_FILE)  # Save the best model
+        model = create_custom_cnn()  # Create model
+        train_model(model, train_generator, val_generator)  # Train the model
     else:
         print("Model loaded successfully.")
 
-    # Test with a dummy input to verify model output
-    dummy_input = np.random.rand(1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)  # Shape (1, 150, 150, 3)
-    model(dummy_input)  # Check if this raises an error
-
+    # Test the model
     test_model(model, test_data_dir)
 
     # Predict a single image with Grad-CAM
