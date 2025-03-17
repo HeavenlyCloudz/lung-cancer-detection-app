@@ -95,20 +95,25 @@ def plot_training_history(history):
 def preprocess_image(img_path):
     try:
         img = Image.open(img_path)
-        if img.mode == 'RGBA':
-            img = img.convert('RGB')
-        elif img.mode != 'RGB':
-            img = img.convert('RGB')  # Ensure image is in RGB format
+        
+        # Ensure the image is in RGB format
+        if img.mode != 'RGB':
+            img = img.convert('RGB')  
 
         new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 150x150 for consistency
-        processed_image = np.asarray(new_image) / 255.0
+        processed_image = np.asarray(new_image) / 255.0  # Normalize pixel values to [0, 1]
+
+        # Check the shape of processed_image
+        if processed_image.ndim == 2:  # If it's a grayscale image
+            processed_image = np.stack((processed_image,) * 3, axis=-1)  # Convert to RGB
+        elif processed_image.shape[2] == 1:  # If it has only one channel 
+            processed_image = np.concatenate([processed_image] * 3, axis=-1)  # Convert to RGB
+
+        # Ensure the image has the shape (150, 150, 3)
         
-        # Add the channel dimension
-        if processed_image.ndim == 2:  # If grayscale image, add channel dimension
-            processed_image = np.expand_dims(processed_image, axis=-1)
-        processed_image = np.stack((processed_image,) * 3, axis=-1)  # Convert grayscale to RGB
+        # Add the batch dimension
+        img_array = np.expand_dims(processed_image, axis=0)  # Shape becomes (1, 150, 150, 3)
         
-        img_array = np.expand_dims(processed_image, axis=0)  # Add batch dimension
         return img_array
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
