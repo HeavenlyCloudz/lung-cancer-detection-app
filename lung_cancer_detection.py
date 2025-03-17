@@ -2,7 +2,7 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dense
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -11,6 +11,7 @@ from PIL import Image
 
 # Constants
 BATCH_SIZE = 32
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set consistent input size
 
 # Model Path
 MODEL_FILE = 'lung_cancer_detection_model.keras'
@@ -64,14 +65,14 @@ def load_data(train_dir, val_dir):
     try:
         train_generator = train_datagen.flow_from_directory(
             train_dir,
-            target_size=(224, 224),  # Resize for consistency
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
 
         val_generator = val_datagen.flow_from_directory(
             val_dir,
-            target_size=(224, 224),  # Resize for consistency
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -91,7 +92,7 @@ def preprocess_image(image_path):
         if img.mode == 'RGBA':
             img = img.convert('RGB')
 
-        new_image = img.resize((224, 224))  # Resize to 224x224 for consistency
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
         processed_image = np.asarray(new_image) / 255.0
         return np.expand_dims(processed_image, axis=0)  # Add batch dimension
     except Exception as e:
@@ -128,7 +129,7 @@ def generate_gradcam(model, img_array):
         heatmap = tf.maximum(heatmap, 0)  # ReLU
         heatmap /= tf.reduce_max(heatmap)  # Normalize
 
-        heatmap = cv2.resize(heatmap.numpy(), (224, 224))
+        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to match model input
         return heatmap
     except Exception as e:
         print(f"Error generating Grad-CAM: {str(e)}")
@@ -181,7 +182,7 @@ def test_model(model, test_data_dir, epochs=1):
         test_datagen = ImageDataGenerator(rescale=1./255)
         test_generator = test_datagen.flow_from_directory(
             test_data_dir,
-            target_size=(224, 224),  # Resize for consistency
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
@@ -218,13 +219,15 @@ if __name__ == "__main__":
     try:
         test_generator = ImageDataGenerator(rescale=1./255).flow_from_directory(
             test_data_dir,
-            target_size=(224, 224),  # Resize for consistency
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),  # Resize for consistency
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
 
         for i in range(test_generator.samples):
             img_array = test_generator[i][0]  # Get the image array
+            img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+
             predictions = model.predict(img_array)
             result = 'Cancerous' if predictions[0][0] > 0.5 else 'Non-Cancerous'
             print(f"Image {i + 1}: The model predicts the image is: {result}")
@@ -245,8 +248,8 @@ if __name__ == "__main__":
 
             # Display Grad-CAM
             original_image = cv2.imread(test_image_path)
-            original_image = cv2.resize(original_image, (224, 224))  # Resize to match model input
-            superimposed_img = display_gradcam(original_image, heatmap)
+            original_image_resized = cv2.resize(original_image, (IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to match model input
+            superimposed_img = display_gradcam(original_image_resized, heatmap)
 
             # Show the result
             cv2.imshow("Grad-CAM", superimposed_img)
