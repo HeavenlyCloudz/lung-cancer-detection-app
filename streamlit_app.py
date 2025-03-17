@@ -13,7 +13,7 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.cm as cm
 
 # Constants
-IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Changed to 224
 BATCH_SIZE = 32
 
 # Set paths for saving the model and data
@@ -94,7 +94,7 @@ def preprocess_image(img_path):
         if img.mode == 'RGBA':
             img = img.convert('RGB')
 
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
         processed_image = np.asarray(new_image) / 255.0
         img_array = np.expand_dims(processed_image, axis=0)
         return img_array
