@@ -41,6 +41,7 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
     final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return final_model
 
+
 # Load model from file
 def load_model_file():
     if os.path.exists(MODEL_FILE):
@@ -54,6 +55,20 @@ def load_model_file():
             return None
     else:
         st.warning("No pre-trained model found.")
+        return None
+
+# Preprocess the image for prediction
+def preprocess_image(img_path):
+    try:
+        img = load_img(img_path, target_size=(224, 224))  # Load and resize image
+        image_array = img_to_array(img)                                     # Convert to array
+        image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
+        image_array = preprocess_input(image_array)                         # Preprocess
+
+        print(f"Processed image shape: {image_array.shape}")  # Debug output
+        return image_array
+    except Exception as e:
+        st.error(f"Error processing image: {str(e)}")
         return None
 
 # Load training and validation data
@@ -85,19 +100,6 @@ def load_data(train_dir, val_dir, batch_size):
         st.error(f"Error loading data: {str(e)}")
         return None, None
 
-# Preprocess the image for prediction
-def preprocess_image(img_path):
-    try:
-        img = load_img(img_path, target_size=(224, 224))  # Load and resize image
-        image_array = img_to_array(img)                                     # Convert to array
-        image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
-        image_array = preprocess_input(image_array)                         # Preprocess
-
-        print(f"Processed image shape: {image_array.shape}")  # Debug output
-        return image_array
-    except Exception as e:
-        st.error(f"Error processing image: {str(e)}")
-        return None
 
 # Function to plot training history
 def plot_training_history(history):
