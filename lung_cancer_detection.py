@@ -43,7 +43,7 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
 def load_model_file(model_file):
     if os.path.exists(model_file):
         try:
-            model = tf.keras.models.load_model(model_file)
+            model = load_model(model_file)
             model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
             return model
         except Exception as e:
@@ -108,6 +108,13 @@ def preprocess_image(img_path):
         print(f"Error processing image: {str(e)}")
         return None
 
+# Find the last convolutional layer name
+def get_last_conv_layer_name(model):
+    for layer in reversed(model.layers):
+        if 'conv' in layer.name:  # Check if the layer is a convolutional layer
+            return layer.name
+    return None
+
 # Generate Grad-CAM heatmap
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
     grad_model = tf.keras.models.Model(
@@ -164,6 +171,23 @@ def test_model(model, test_data_dir):
 
         test_loss, test_accuracy = model.evaluate(test_generator)
         print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+
+        # Additional metrics
+        y_pred = model.predict(test_generator)
+        y_pred_classes = np.where(y_pred > 0.5, 1, 0)
+        cm = confusion_matrix(test_generator.classes, y_pred_classes)
+
+        # Calculate and print precision and recall
+        tp = cm[1, 1]  # True Positives
+        fp = cm[0, 1]  # False Positives
+        fn = cm[1, 0]  # False Negatives
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall: {recall:.4f}")
+
     except Exception as e:
         print(f"Error during testing: {str(e)}")
 
@@ -179,8 +203,8 @@ if __name__ == "__main__":
     else:
         print("Model loaded successfully.")
 
-    # Print model summary to find the correct layer name
-    model.summary()
+    # Get the last convolutional layer name
+    last_conv_layer_name = get_last_conv_layer_name(model)
 
     # Test the model
     test_model(model, test_data_dir)
@@ -195,7 +219,7 @@ if __name__ == "__main__":
         print(f"Prediction: {result}")
 
         # Generate Grad-CAM heatmap
-        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='conv5_block32_concat')  # Update with the correct layer name
+        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name)  # Use the last conv layer
         if heatmap is not None:
             original_image = cv2.imread(test_image_path)
             if original_image is not None:
