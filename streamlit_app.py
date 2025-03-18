@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
-from tensorflow.keras.applications import DenseNet121  # Use DenseNet121
+from tensorflow.keras.applications import DenseNet121
 from sklearn.utils import class_weight
 from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
@@ -16,7 +16,7 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.cm as cm
 
 # Constants
-IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set consistent input size to 224x224 for DenseNet
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 BATCH_SIZE = 32
 base_data_dir = os.path.join(os.getcwd(), 'data')
@@ -28,16 +28,14 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     densenet_model = DenseNet121(include_top=False, weights='imagenet', input_shape=input_shape)
 
-    # Freeze the base model layers
     for layer in densenet_model.layers:
         layer.trainable = False
 
-    # Add custom layers
     x = densenet_model.output
-    x = layers.GlobalAveragePooling2D()(x)  # Use Global Average Pooling
+    x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(128, activation='relu')(x)
-    x = layers.Dropout(0.5)(x)  # Regularization
-    predictions = layers.Dense(num_classes, activation='sigmoid')(x)  # Adjust for binary classification
+    x = layers.Dropout(0.5)(x)
+    predictions = layers.Dense(num_classes, activation='sigmoid')(x)
 
     final_model = tf.keras.models.Model(inputs=densenet_model.input, outputs=predictions)
 
@@ -58,6 +56,28 @@ def load_model_file():
     else:
         st.warning("No pre-trained model found.")
         return None
+
+# Function to display the model summary
+def display_model_summary(model):
+    if model is not None:
+        model.summary()  # This will print the summary in the console
+    else:
+        st.error("No model available.")
+
+# Sidebar controls
+st.sidebar.title("Controls")
+
+# Load the model
+model = load_model_file()
+
+# Show model summary button
+if st.sidebar.button("Show Model Summary"):
+    if model:
+        with st.spinner("Generating model summary..."):
+            st.text(display_model_summary(model))
+    else:
+        st.warning("No model found. Please train or load a model first.")
+
 
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
