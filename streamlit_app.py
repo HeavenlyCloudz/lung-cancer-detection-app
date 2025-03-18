@@ -243,6 +243,7 @@ st.markdown('<div class="section">', unsafe_allow_html=True)
 st.header("Thank you for using ONCO AI")
 st.write("CNNs are the preferred network for detecting lung cancer due to their ability to process image data. They can perform tasks such as classification, segmentation, and object recognition. In the case of lung cancer detection, CNNs have surpassed radiologists.")
 st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("Visit [OpenAI](https://readymag.website/u4174625345/5256774/) for more information.")
 
 # Sidebar controls
 st.sidebar.title("Controls")
