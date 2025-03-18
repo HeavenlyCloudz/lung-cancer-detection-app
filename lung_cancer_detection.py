@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications import DenseNet121  # Use DenseNet121
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
@@ -13,7 +13,7 @@ from sklearn.utils import class_weight
 BATCH_SIZE = 32
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 EPOCHS = 10  # Default number of epochs for training
-IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set image dimensions to 224x224 for VGG16
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set image dimensions to 224x224 for DenseNet
 
 # Define dataset paths
 base_data_dir = os.path.join(os.getcwd(), 'data')
@@ -21,22 +21,22 @@ train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
-# Create VGG16 model
-def create_vgg16_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
-    base_model = VGG16(weights='imagenet', include_top=False, input_shape=input_shape)
+# Create DenseNet model
+def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+    densenet_model = DenseNet121(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze the base model layers
-    for layer in base_model.layers:
+    for layer in densenet_model.layers:
         layer.trainable = False
 
     # Add custom layers
-    x = base_model.output
+    x = densenet_model.output
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(128, activation='relu')(x)
     x = layers.Dropout(0.5)(x)  # Regularization
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
 
-    model = tf.keras.models.Model(inputs=base_model.input, outputs=predictions)
+    model = tf.keras.models.Model(inputs=densenet_model.input, outputs=predictions)
 
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return model
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     if not model:
         print("No saved model found. Training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        model = create_vgg16_model()  # Create VGG16 model
+        model = create_densenet_model()  # Create DenseNet model
         train_model(model, train_generator, val_generator)  # Train the model
     else:
         print("Model loaded successfully.")
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         print(f"Prediction: {result}")
 
         # Generate Grad-CAM heatmap
-        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='block5_conv3')  # Adjust layer name as needed
+        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name as needed
         if heatmap is not None:
             original_image = cv2.imread(test_image_path)
             if original_image is not None:
