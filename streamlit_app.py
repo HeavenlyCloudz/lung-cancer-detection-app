@@ -78,7 +78,6 @@ if st.sidebar.button("Show Model Summary"):
     else:
         st.warning("No model found. Please train or load a model first.")
 
-
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
@@ -325,6 +324,9 @@ if uploaded_file is not None:
     processed_image = preprocess_image("temp_image.jpg")
     if processed_image is not None and model:  # Check if processed_image is valid before prediction
         try:
+            # Print the shape of the input tensor
+            print(f"Input tensor shape: {processed_image.shape}")
+
             prediction = model.predict(processed_image)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
