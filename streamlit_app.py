@@ -43,6 +43,8 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
 
     final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return final_model
+    
+    model.sumarry()
 
 # Load model from file
 def load_model_file():
