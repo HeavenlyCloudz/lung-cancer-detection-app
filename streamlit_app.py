@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
-from tensorflow.keras.applications import DenseNet121
+from tensorflow.keras.applications import DenseNet121, preprocess_input  # Import preprocess_input
 from sklearn.utils import class_weight
 from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
@@ -27,9 +27,6 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 # Create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     densenet_model = DenseNet121(include_top=False, weights='imagenet', input_shape=input_shape)
-    
-    # Check the output shape from DenseNet
-    print("Output shape from DenseNet:", densenet_model.output_shape)
 
     for layer in densenet_model.layers:
         layer.trainable = False
@@ -58,13 +55,6 @@ def load_model_file():
     else:
         st.warning("No pre-trained model found.")
         return None
-
-# Function to find the last convolutional layer
-def get_last_conv_layer_name(model):
-    for layer in reversed(model.layers):
-        if 'conv' in layer.name:  # Check if the layer is a convolutional layer
-            return layer.name
-    return None
 
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
@@ -313,24 +303,29 @@ if uploaded_file is not None:
     processed_image = preprocess_image("temp_image.jpg")
     if processed_image is not None and model:  # Check if processed_image is valid before prediction
         try:
-            # Get the last convolutional layer name
-            last_conv_layer_name = get_last_conv_layer_name(model)
+            # Example of reshaping a single image for testing
+            test_image = processed_image.reshape((1, IMAGE_HEIGHT, IMAGE_WIDTH, 3))  # Add batch dimension
 
-            # Print the shape of the input tensor
-            print(f"Input tensor shape: {processed_image.shape}")
+            # Normalize the input
+            test_image = preprocess_input(test_image)  # Ensure test_image is shaped (1, 224, 224, 3)
 
-            prediction = model.predict(processed_image)
+            # Make prediction
+            prediction = model.predict(test_image)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
+            # Get the last convolutional layer name for Grad-CAM
+            last_conv_layer_name = 'conv5_block32_concat'  # Change this if using a different layer
+
             # Generate Grad-CAM heatmap
-            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)  # Use the last conv layer
+            heatmap = make_gradcam_heatmap(test_image, model, last_conv_layer_name)
             if heatmap is not None:
                 uploaded_image = cv2.imread("temp_image.jpg")
                 superimposed_img = display_gradcam(uploaded_image, heatmap)
                 st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
    
@@ -348,18 +343,26 @@ if photo is not None:
     processed_image = preprocess_image("captured_image.jpg")
     if processed_image is not None and model:  # Check if processed_image is valid before prediction
         try:
-            prediction = model.predict(processed_image)
+            # Example of reshaping a single image for testing
+            test_image = processed_image.reshape((1, IMAGE_HEIGHT, IMAGE_WIDTH, 3))  # Add batch dimension
+
+            # Normalize the input
+            test_image = preprocess_input(test_image)  # Ensure test_image is shaped (1, 224, 224, 3)
+
+            # Make prediction
+            prediction = model.predict(test_image)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
             # Generate Grad-CAM heatmap
-            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)  # Use the last conv layer
+            heatmap = make_gradcam_heatmap(test_image, model, last_conv_layer_name)
             if heatmap is not None:
                 captured_image = cv2.imread("captured_image.jpg")
                 superimposed_img = display_gradcam(captured_image, heatmap)
                 st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
+
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
 
