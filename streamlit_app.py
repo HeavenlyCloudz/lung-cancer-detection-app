@@ -57,26 +57,12 @@ def load_model_file():
         st.warning("No pre-trained model found.")
         return None
 
-# Function to display the model summary
-def display_model_summary(model):
-    if model is not None:
-        model.summary()  # This will print the summary in the console
-    else:
-        st.error("No model available.")
-
-# Sidebar controls
-st.sidebar.title("Controls")
-
-# Load the model
-model = load_model_file()
-
-# Show model summary button
-if st.sidebar.button("Show Model Summary"):
-    if model:
-        with st.spinner("Generating model summary..."):
-            st.text(display_model_summary(model))
-    else:
-        st.warning("No model found. Please train or load a model first.")
+# Function to find the last convolutional layer
+def get_last_conv_layer_name(model):
+    for layer in reversed(model.layers):
+        if 'conv' in layer.name:  # Check if the layer is a convolutional layer
+            return layer.name
+    return None
 
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
@@ -324,6 +310,9 @@ if uploaded_file is not None:
     processed_image = preprocess_image("temp_image.jpg")
     if processed_image is not None and model:  # Check if processed_image is valid before prediction
         try:
+            # Get the last convolutional layer name
+            last_conv_layer_name = get_last_conv_layer_name(model)
+
             # Print the shape of the input tensor
             print(f"Input tensor shape: {processed_image.shape}")
 
@@ -332,8 +321,8 @@ if uploaded_file is not None:
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name for DenseNet
+            # Generate Grad-CAM heatmap
+            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)  # Use the last conv layer
             if heatmap is not None:
                 uploaded_image = cv2.imread("temp_image.jpg")
                 superimposed_img = display_gradcam(uploaded_image, heatmap)
@@ -361,8 +350,8 @@ if photo is not None:
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name for DenseNet
+            # Generate Grad-CAM heatmap
+            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)  # Use the last conv layer
             if heatmap is not None:
                 captured_image = cv2.imread("captured_image.jpg")
                 superimposed_img = display_gradcam(captured_image, heatmap)
