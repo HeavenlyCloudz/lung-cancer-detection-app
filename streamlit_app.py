@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
+from tensorflow.keras.applications import VGG16
 from sklearn.utils import class_weight
 from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
@@ -31,27 +32,23 @@ def extract_hog_features(image):
     hog_features = feature.hog(gray_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=False)
     return hog_features
 
-# Create CNN model with four convolutional layers
-def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
-    model = tf.keras.models.Sequential([
-        layers.Input(shape=input_shape),
-        layers.Conv2D(64, (3, 3), activation='relu', name='conv2d_1'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d_1'),
-        
-        layers.Conv2D(128, (3, 3), activation='relu', name='conv2d_2'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d_2'),
+# Create VGG16 model
+def create_vgg16_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+    base_model = VGG16(weights='imagenet', include_top=False, input_shape=input_shape)
 
-        layers.Conv2D(256, (3, 3), activation='relu', name='conv2d_3'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d_3'),
+    # Freeze the base model layers
+    for layer in base_model.layers:
+        layer.trainable = False
 
-        layers.Conv2D(512, (3, 3), activation='relu', name='conv2d_4'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d_4'),
-        
-        layers.GlobalAveragePooling2D(name='global_avg_pool'),
-        layers.Dense(128, activation='relu', name='dense_layer_1'),
-        layers.Dense(num_classes, activation='sigmoid', name='output_layer')
-    ])
-    
+    # Add custom layers
+    x = base_model.output
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dropout(0.5)(x)  # Regularization
+    predictions = layers.Dense(num_classes, activation='sigmoid')(x)
+
+    model = tf.keras.models.Model(inputs=base_model.input, outputs=predictions)
+
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
@@ -277,7 +274,7 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
-        model = create_custom_cnn()  # Create a new model
+        model = create_vgg16_model()  # Create a new VGG16 model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
         
         # Calculate class weights
@@ -325,7 +322,7 @@ if uploaded_file is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_4')
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='block5_conv3')
             if heatmap is not None:
                 superimposed_img = display_gradcam(uploaded_image, heatmap)
                 st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
@@ -356,7 +353,7 @@ if photo is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_4')
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='block5_conv3')
             if heatmap is not None:
                 superimposed_img = display_gradcam(captured_image, heatmap)
                 st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
