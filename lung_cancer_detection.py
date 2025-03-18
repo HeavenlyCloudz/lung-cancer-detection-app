@@ -1,19 +1,23 @@
+import streamlit as st
 import os
-import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers
+from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import layers
 from tensorflow.keras.applications import DenseNet121  # Use DenseNet121
-import matplotlib.pyplot as plt
-import cv2
-from PIL import Image
 from sklearn.utils import class_weight
+from tensorflow.keras.callbacks import EarlyStopping
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+import matplotlib.cm as cm
 
 # Constants
-BATCH_SIZE = 32
-MODEL_FILE = 'lung_cancer_detection_model.keras'
-EPOCHS = 10  # Default number of epochs for training
 IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set image dimensions to 224x224 for DenseNet
+MODEL_FILE = 'lung_cancer_detection_model.keras'
+BATCH_SIZE = 32
 
 # Define dataset paths
 base_data_dir = os.path.join(os.getcwd(), 'data')
@@ -54,17 +58,20 @@ def load_model_file(model_file):
 
 # Load data
 def load_data(train_dir, val_dir):
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, width_shift_range=0.2, 
-                                       height_shift_range=0.2, shear_range=0.2, zoom_range=0.2, 
+    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, 
+                                       width_shift_range=0.2, height_shift_range=0.2, 
+                                       shear_range=0.2, zoom_range=0.2, 
                                        horizontal_flip=True, fill_mode='nearest')
 
     val_datagen = ImageDataGenerator(rescale=1./255)
 
     train_generator = train_datagen.flow_from_directory(
-        train_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH), batch_size=BATCH_SIZE, class_mode='binary')
+        train_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH), 
+        batch_size=BATCH_SIZE, class_mode='binary')
 
     val_generator = val_datagen.flow_from_directory(
-        val_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH), batch_size=BATCH_SIZE, class_mode='binary')
+        val_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH), 
+        batch_size=BATCH_SIZE, class_mode='binary')
 
     return train_generator, val_generator
 
@@ -149,7 +156,7 @@ def train_model(model, train_generator, val_generator):
     weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
     class_weights = {i: weights[i] for i in range(len(class_labels))}
     
-    history = model.fit(train_generator, validation_data=val_generator, epochs=EPOCHS, class_weight=class_weights)
+    history = model.fit(train_generator, validation_data=val_generator, epochs=10, class_weight=class_weights)
     model.save(MODEL_FILE)
     plot_training_history(history)
 
@@ -158,7 +165,8 @@ def test_model(model, test_data_dir):
     try:
         test_datagen = ImageDataGenerator(rescale=1./255)
         test_generator = test_datagen.flow_from_directory(
-            test_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH), batch_size=BATCH_SIZE, class_mode='binary')
+            test_data_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH), 
+            batch_size=BATCH_SIZE, class_mode='binary')
 
         test_loss, test_accuracy = model.evaluate(test_generator)
         print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
