@@ -38,7 +38,6 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
 
     final_model = tf.keras.models.Model(inputs=densenet_model.input, outputs=predictions)
-
     final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return final_model
 
@@ -103,8 +102,9 @@ def preprocess_image(img_path):
         if processed_image.ndim == 2:  
             processed_image = np.stack((processed_image,) * 3, axis=-1)
 
-        img_array = np.expand_dims(processed_image, axis=0)
-        
+        img_array = np.expand_dims(processed_image, axis=0)  # Shape becomes (1, 224, 224, 3)
+
+        print(f"Processed image shape: {img_array.shape}")  # Debug output
         return img_array
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
