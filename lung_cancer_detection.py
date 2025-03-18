@@ -53,6 +53,22 @@ def load_model_file(model_file):
         print("No saved model found.")
     return None
 
+# Preprocess the image for prediction
+def preprocess_image(img_path):
+    try:
+        # Load and preprocess the image
+        img = load_img(img_path, target_size=(IMAGE_WIDTH, IMAGE_HEIGHT))  # Load and resize image
+        image_array = img_to_array(img)                                     # Convert to array
+        image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
+        image_array = preprocess_input(image_array)                         # Preprocess
+
+        print(f"Processed image shape: {image_array.shape}")  # Debug output
+        
+        return image_array
+    except Exception as e:
+        print(f"Error processing image: {str(e)}")
+        return None
+
 # Load data
 def load_data(train_dir, val_dir):
     try:
@@ -98,21 +114,6 @@ def plot_training_history(history):
 
     plt.show()
 
-# Preprocess the image for prediction
-def preprocess_image(img_path):
-    try:
-        # Load and preprocess the image
-        img = load_img(img_path, target_size=(IMAGE_WIDTH, IMAGE_HEIGHT))  # Load and resize image
-        image_array = img_to_array(img)                                     # Convert to array
-        image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
-        image_array = preprocess_input(image_array)                         # Preprocess
-
-        print(f"Processed image shape: {image_array.shape}")  # Debug output
-        
-        return image_array
-    except Exception as e:
-        print(f"Error processing image: {str(e)}")
-        return None
 
 # Find the last convolutional layer name
 def get_last_conv_layer_name(model):
