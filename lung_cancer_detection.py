@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
 from tensorflow.keras.applications.densenet import DenseNet121, preprocess_input
 from sklearn.utils import class_weight
@@ -101,17 +101,15 @@ def plot_training_history(history):
 # Preprocess the image for prediction
 def preprocess_image(img_path):
     try:
-        img = Image.open(img_path).convert('RGB')
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
-        processed_image = np.asarray(new_image) / 255.0
-        
-        if processed_image.ndim == 2:
-            processed_image = np.stack((processed_image,) * 3, axis=-1)
+        # Load and preprocess the image
+        img = load_img(img_path, target_size=(IMAGE_WIDTH, IMAGE_HEIGHT))  # Load and resize image
+        image_array = img_to_array(img)                                     # Convert to array
+        image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
+        image_array = preprocess_input(image_array)                         # Preprocess
 
-        img_array = np.expand_dims(processed_image, axis=0)  # Shape becomes (1, 224, 224, 3)
-        print(f"Processed image shape: {img_array.shape}")  # Debug output
+        print(f"Processed image shape: {image_array.shape}")  # Debug output
         
-        return img_array
+        return image_array
     except Exception as e:
         print(f"Error processing image: {str(e)}")
         return None
