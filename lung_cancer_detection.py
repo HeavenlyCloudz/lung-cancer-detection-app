@@ -2,8 +2,8 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dense
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.applications import VGG16
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
@@ -11,9 +11,9 @@ from sklearn.utils import class_weight
 
 # Constants
 BATCH_SIZE = 32
-IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150  # Set image dimensions to 150x150
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 EPOCHS = 10  # Default number of epochs for training
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set image dimensions to 224x224 for VGG16
 
 # Define dataset paths
 base_data_dir = os.path.join(os.getcwd(), 'data')
@@ -21,27 +21,23 @@ train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
-# Create CNN model with four convolutional layers
-def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
-    model = tf.keras.models.Sequential([
-        layers.Input(shape=input_shape),
-        Conv2D(64, (3, 3), activation='relu', name='conv2d_1'),
-        MaxPooling2D((2, 2), name='max_pooling2d_1'),
-        
-        Conv2D(128, (3, 3), activation='relu', name='conv2d_2'),
-        MaxPooling2D((2, 2), name='max_pooling2d_2'),
-        
-        Conv2D(256, (3, 3), activation='relu', name='conv2d_3'),
-        MaxPooling2D((2, 2), name='max_pooling2d_3'),
-        
-        Conv2D(512, (3, 3), activation='relu', name='conv2d_4'),
-        MaxPooling2D((2, 2), name='max_pooling2d_4'),
-        
-        layers.GlobalAveragePooling2D(name='global_avg_pool'),
-        Dense(128, activation='relu', name='dense_layer_1'),
-        Dense(num_classes, activation='sigmoid', name='output_layer')
-    ])
-    
+# Create VGG16 model
+def create_vgg16_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+    base_model = VGG16(weights='imagenet', include_top=False, input_shape=input_shape)
+
+    # Freeze the base model layers
+    for layer in base_model.layers:
+        layer.trainable = False
+
+    # Add custom layers
+    x = base_model.output
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dropout(0.5)(x)  # Regularization
+    predictions = layers.Dense(num_classes, activation='sigmoid')(x)
+
+    model = tf.keras.models.Model(inputs=base_model.input, outputs=predictions)
+
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
@@ -97,12 +93,8 @@ def plot_training_history(history):
 # Preprocess the image for prediction
 def preprocess_image(img_path):
     try:
-        img = Image.open(img_path)
-        
-        if img.mode != 'RGB':
-            img = img.convert('RGB')  
-
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  
+        img = Image.open(img_path).convert('RGB')  
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
         processed_image = np.asarray(new_image) / 255.0  
 
         if processed_image.ndim == 2:  
@@ -129,13 +121,12 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         class_channel = preds[:, pred_index]
 
     grads = tape.gradient(class_channel, last_conv_layer_output)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
 
     last_conv_layer_output = last_conv_layer_output[0]
-    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.squeeze(heatmap)
-
-    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+    heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
+    heatmap = tf.maximum(heatmap, 0)  # ReLU
+    heatmap /= tf.reduce_max(heatmap)  # Normalize
     
     return heatmap.numpy()
 
@@ -181,7 +172,7 @@ if __name__ == "__main__":
     if not model:
         print("No saved model found. Training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        model = create_custom_cnn()  # Create model
+        model = create_vgg16_model()  # Create VGG16 model
         train_model(model, train_generator, val_generator)  # Train the model
     else:
         print("Model loaded successfully.")
@@ -199,7 +190,7 @@ if __name__ == "__main__":
         print(f"Prediction: {result}")
 
         # Generate Grad-CAM heatmap
-        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='conv2d_4')  # Adjust layer name as needed
+        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='block5_conv3')  # Adjust layer name as needed
         if heatmap is not None:
             original_image = cv2.imread(test_image_path)
             if original_image is not None:
