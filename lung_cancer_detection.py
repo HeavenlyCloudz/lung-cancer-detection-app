@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
-from tensorflow.keras.applications import DenseNet121
+from tensorflow.keras.applications import DenseNet121, preprocess_input  # Import preprocess_input
 from sklearn.utils import class_weight
 import numpy as np
 import matplotlib.pyplot as plt
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     else:
         print("Model loaded successfully.")
 
-    # Get the last convolutional layer name
+    # Get the last convolutional layer name for Grad-CAM
     last_conv_layer_name = get_last_conv_layer_name(model)
 
     # Test the model
