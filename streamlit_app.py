@@ -343,4 +343,27 @@ if photo is not None:
     # Load the image for HOG extraction
     captured_image = cv2.imread("captured_image.jpg")
     hog_features = extract_hog_features(captured_image)
-    hog_features = np.expand_dims(hog_features
+    hog_features = np.expand_dims(hog_features, axis=0)  # Add batch dimension
+
+    if hog_features is not None and model:  # Check if hog_features is valid before prediction
+        try:
+            prediction = model.predict(hog_features)
+            result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
+            st.subheader("Prediction Result for Captured Image:")
+            st.write(f"The model predicts the image is: **{result}**")
+
+            # Optionally generate Grad-CAM heatmap (if desired)
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='block5_conv3')
+            if heatmap is not None:
+                superimposed_img = display_gradcam(captured_image, heatmap)
+                st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
+                st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
+        except Exception as e:
+            st.error(f"Error during prediction: {str(e)}")
+
+    os.remove("captured_image.jpg")
+
+# Clear cache button
+if st.button("Clear Cache"):
+    st.cache_data.clear()  # Clear the cache
+    st.success("Cache cleared successfully!")
