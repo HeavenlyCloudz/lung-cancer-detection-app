@@ -27,6 +27,9 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 # Create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     densenet_model = DenseNet121(include_top=False, weights='imagenet', input_shape=input_shape)
+    
+    # Check the output shape from DenseNet
+    print("Output shape from DenseNet:", densenet_model.output_shape)
 
     for layer in densenet_model.layers:
         layer.trainable = False
