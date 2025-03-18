@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
-from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications import DenseNet121  # Use DenseNet121
 from sklearn.utils import class_weight
 from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
@@ -17,7 +17,7 @@ from skimage import feature
 import matplotlib.cm as cm
 
 # Constants
-IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set consistent input size to 224x224 for VGG16
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set consistent input size to 224x224 for DenseNet
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 BATCH_SIZE = 32
 base_data_dir = os.path.join(os.getcwd(), 'data')
@@ -32,25 +32,22 @@ def extract_hog_features(image):
     hog_features = feature.hog(gray_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=False)
     return hog_features
 
-# Create VGG16 model
-def create_vgg16_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
-    base_model = VGG16(weights='imagenet', include_top=False, input_shape=input_shape)
+# Create DenseNet model
+def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+    densenet_model = DenseNet121(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze the base model layers
-    for layer in base_model.layers:
+    for layer in densenet_model.layers:
         layer.trainable = False
 
     # Add custom layers
-    x = base_model.output
-    x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Dense(128, activation='relu')(x)
-    x = layers.Dropout(0.5)(x)  # Regularization
-    predictions = layers.Dense(num_classes, activation='sigmoid')(x)
+    flattened_layer = layers.Flatten()(densenet_model.output)  # Flattening layer
+    output_layer = layers.Dense(num_classes, activation='sigmoid')(flattened_layer)  # Adjust for binary classification
 
-    model = tf.keras.models.Model(inputs=base_model.input, outputs=predictions)
+    final_model = tf.keras.models.Model(inputs=densenet_model.input, outputs=output_layer)
 
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    return model
+    final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    return final_model
 
 # Load model from file
 def load_model_file():
@@ -274,7 +271,7 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
-        model = create_vgg16_model()  # Create a new VGG16 model
+        model = create_densenet_model()  # Create a new DenseNet model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
         
         # Calculate class weights
@@ -322,7 +319,7 @@ if uploaded_file is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='block5_conv3')
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name for DenseNet
             if heatmap is not None:
                 superimposed_img = display_gradcam(uploaded_image, heatmap)
                 st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
@@ -353,7 +350,7 @@ if photo is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='block5_conv3')
+            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name for DenseNet
             if heatmap is not None:
                 superimposed_img = display_gradcam(captured_image, heatmap)
                 st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
