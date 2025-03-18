@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
 from tensorflow.keras.applications.densenet import DenseNet121, preprocess_input
 from sklearn.utils import class_weight
@@ -88,17 +88,13 @@ def load_data(train_dir, val_dir, batch_size):
 # Preprocess the image for prediction
 def preprocess_image(img_path):
     try:
-        img = Image.open(img_path).convert('RGB')
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
-        processed_image = np.asarray(new_image) / 255.0
+        img = load_img(img_path, target_size=(IMAGE_WIDTH, IMAGE_HEIGHT))  # Load and resize image
+        image_array = img_to_array(img)                                     # Convert to array
+        image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
+        image_array = preprocess_input(image_array)                         # Preprocess
 
-        if processed_image.ndim == 2:  
-            processed_image = np.stack((processed_image,) * 3, axis=-1)
-
-        img_array = np.expand_dims(processed_image, axis=0)  # Shape becomes (1, 224, 224, 3)
-
-        print(f"Processed image shape: {img_array.shape}")  # Debug output
-        return img_array
+        print(f"Processed image shape: {image_array.shape}")  # Debug output
+        return image_array
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
         return None
@@ -181,7 +177,7 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
     with tf.GradientTape() as tape:
         last_conv_layer_output, preds = grad_model(img_array)
-        
+
         if pred_index is None:
             pred_index = tf.argmax(preds[0])
         class_channel = preds[:, pred_index]
@@ -266,14 +262,14 @@ if st.sidebar.button("Train Model"):
     with st.spinner("Training the model..."):
         model = create_densenet_model()  # Create a new DenseNet model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
-        
+
         # Calculate class weights
         if train_generator is not None and val_generator is not None:
             y_train = train_generator.classes
             class_labels = np.unique(y_train)
             weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
             class_weights = {i: weights[i] for i in range(len(class_labels))}
-            
+
             # Early stopping callback
             early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
 
@@ -303,14 +299,8 @@ if uploaded_file is not None:
     processed_image = preprocess_image("temp_image.jpg")
     if processed_image is not None and model:  # Check if processed_image is valid before prediction
         try:
-            # Example of reshaping a single image for testing
-            test_image = processed_image.reshape((1, IMAGE_HEIGHT, IMAGE_WIDTH, 3))  # Add batch dimension
-
-            # Normalize the input
-            test_image = preprocess_input(test_image)  # Ensure test_image is shaped (1, 224, 224, 3)
-
             # Make prediction
-            prediction = model.predict(test_image)
+            prediction = model.predict(processed_image)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
@@ -319,7 +309,7 @@ if uploaded_file is not None:
             last_conv_layer_name = 'conv5_block32_concat'  # Change this if using a different layer
 
             # Generate Grad-CAM heatmap
-            heatmap = make_gradcam_heatmap(test_image, model, last_conv_layer_name)
+            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
             if heatmap is not None:
                 uploaded_image = cv2.imread("temp_image.jpg")
                 superimposed_img = display_gradcam(uploaded_image, heatmap)
@@ -328,7 +318,7 @@ if uploaded_file is not None:
 
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
-   
+
     os.remove("temp_image.jpg")
 
 # Mobile Upload Option
@@ -343,20 +333,14 @@ if photo is not None:
     processed_image = preprocess_image("captured_image.jpg")
     if processed_image is not None and model:  # Check if processed_image is valid before prediction
         try:
-            # Example of reshaping a single image for testing
-            test_image = processed_image.reshape((1, IMAGE_HEIGHT, IMAGE_WIDTH, 3))  # Add batch dimension
-
-            # Normalize the input
-            test_image = preprocess_input(test_image)  # Ensure test_image is shaped (1, 224, 224, 3)
-
             # Make prediction
-            prediction = model.predict(test_image)
+            prediction = model.predict(processed_image)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
             # Generate Grad-CAM heatmap
-            heatmap = make_gradcam_heatmap(test_image, model, last_conv_layer_name)
+            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
             if heatmap is not None:
                 captured_image = cv2.imread("captured_image.jpg")
                 superimposed_img = display_gradcam(captured_image, heatmap)
