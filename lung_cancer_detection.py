@@ -45,29 +45,36 @@ def load_model_file(model_file):
         try:
             model = load_model(model_file)
             model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            print("Model loaded successfully!")
             return model
         except Exception as e:
             print(f"Error loading model: {str(e)}")
+    else:
+        print("No saved model found.")
     return None
 
 # Load data
 def load_data(train_dir, val_dir):
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
-                                       width_shift_range=0.2, height_shift_range=0.2,
-                                       shear_range=0.2, zoom_range=0.2,
-                                       horizontal_flip=True, fill_mode='nearest')
+    try:
+        train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
+                                           width_shift_range=0.2, height_shift_range=0.2,
+                                           shear_range=0.2, zoom_range=0.2,
+                                           horizontal_flip=True, fill_mode='nearest')
 
-    val_datagen = ImageDataGenerator(rescale=1./255)
+        val_datagen = ImageDataGenerator(rescale=1./255)
 
-    train_generator = train_datagen.flow_from_directory(
-        train_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-        batch_size=BATCH_SIZE, class_mode='binary')
+        train_generator = train_datagen.flow_from_directory(
+            train_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=BATCH_SIZE, class_mode='binary')
 
-    val_generator = val_datagen.flow_from_directory(
-        val_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-        batch_size=BATCH_SIZE, class_mode='binary')
+        val_generator = val_datagen.flow_from_directory(
+            val_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=BATCH_SIZE, class_mode='binary')
 
-    return train_generator, val_generator
+        return train_generator, val_generator
+    except Exception as e:
+        print(f"Error loading data: {str(e)}")
+        return None, None
 
 # Plot training history
 def plot_training_history(history):
@@ -101,7 +108,8 @@ def preprocess_image(img_path):
         if processed_image.ndim == 2:
             processed_image = np.stack((processed_image,) * 3, axis=-1)
 
-        img_array = np.expand_dims(processed_image, axis=0)  
+        img_array = np.expand_dims(processed_image, axis=0)  # Shape becomes (1, 224, 224, 3)
+        print(f"Processed image shape: {img_array.shape}")  # Debug output
         
         return img_array
     except Exception as e:
