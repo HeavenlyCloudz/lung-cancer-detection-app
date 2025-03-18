@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
-from skimage import feature
 import matplotlib.cm as cm
 
 # Constants
@@ -25,13 +24,6 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# HOG Feature Extraction
-def extract_hog_features(image):
-    resized_image = cv2.resize(image, (IMAGE_WIDTH, IMAGE_HEIGHT))
-    gray_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
-    hog_features = feature.hog(gray_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=False)
-    return hog_features
-
 # Create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     densenet_model = DenseNet121(include_top=False, weights='imagenet', input_shape=input_shape)
@@ -41,10 +33,13 @@ def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classe
         layer.trainable = False
 
     # Add custom layers
-    flattened_layer = layers.Flatten()(densenet_model.output)  # Flattening layer
-    output_layer = layers.Dense(num_classes, activation='sigmoid')(flattened_layer)  # Adjust for binary classification
+    x = densenet_model.output
+    x = layers.GlobalAveragePooling2D()(x)  # Use Global Average Pooling
+    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dropout(0.5)(x)  # Regularization
+    predictions = layers.Dense(num_classes, activation='sigmoid')(x)  # Adjust for binary classification
 
-    final_model = tf.keras.models.Model(inputs=densenet_model.input, outputs=output_layer)
+    final_model = tf.keras.models.Model(inputs=densenet_model.input, outputs=predictions)
 
     final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return final_model
@@ -306,21 +301,19 @@ if uploaded_file is not None:
     with open("temp_image.jpg", "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Load the image for HOG extraction
-    uploaded_image = cv2.imread("temp_image.jpg")
-    hog_features = extract_hog_features(uploaded_image)
-    hog_features = np.expand_dims(hog_features, axis=0)  # Add batch dimension
-
-    if hog_features is not None and model:  # Check if hog_features is valid before prediction
+    # Load the image for prediction
+    processed_image = preprocess_image("temp_image.jpg")
+    if processed_image is not None and model:  # Check if processed_image is valid before prediction
         try:
-            prediction = model.predict(hog_features)
+            prediction = model.predict(processed_image)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
             # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name for DenseNet
+            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name for DenseNet
             if heatmap is not None:
+                uploaded_image = cv2.imread("temp_image.jpg")
                 superimposed_img = display_gradcam(uploaded_image, heatmap)
                 st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
@@ -337,21 +330,19 @@ if photo is not None:
     with open("captured_image.jpg", "wb") as f:
         f.write(photo.getbuffer())
 
-    # Load the image for HOG extraction
-    captured_image = cv2.imread("captured_image.jpg")
-    hog_features = extract_hog_features(captured_image)
-    hog_features = np.expand_dims(hog_features, axis=0)  # Add batch dimension
-
-    if hog_features is not None and model:  # Check if hog_features is valid before prediction
+    # Load the image for prediction
+    processed_image = preprocess_image("captured_image.jpg")
+    if processed_image is not None and model:  # Check if processed_image is valid before prediction
         try:
-            prediction = model.predict(hog_features)
+            prediction = model.predict(processed_image)
             result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
             st.subheader("Prediction Result for Captured Image:")
             st.write(f"The model predicts the image is: **{result}**")
 
             # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name for DenseNet
+            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name for DenseNet
             if heatmap is not None:
+                captured_image = cv2.imread("captured_image.jpg")
                 superimposed_img = display_gradcam(captured_image, heatmap)
                 st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
