@@ -1,21 +1,20 @@
-import streamlit as st
 import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
-from tensorflow.keras.applications import DenseNet121  # Use DenseNet121
+from tensorflow.keras.applications import DenseNet121
 from sklearn.utils import class_weight
-from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import matplotlib.cm as cm
+import cv2
 
 # Constants
-IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224  # Set image dimensions to 224x224 for DenseNet
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 BATCH_SIZE = 32
 
@@ -28,20 +27,15 @@ test_data_dir = os.path.join(base_data_dir, "test")
 # Create DenseNet model
 def create_densenet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
     densenet_model = DenseNet121(include_top=False, weights='imagenet', input_shape=input_shape)
-
-    # Freeze the base model layers
     for layer in densenet_model.layers:
         layer.trainable = False
-
-    # Add custom layers
     x = densenet_model.output
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(128, activation='relu')(x)
-    x = layers.Dropout(0.5)(x)  # Regularization
+    x = layers.Dropout(0.5)(x)
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
 
     model = tf.keras.models.Model(inputs=densenet_model.input, outputs=predictions)
-
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
@@ -58,19 +52,19 @@ def load_model_file(model_file):
 
 # Load data
 def load_data(train_dir, val_dir):
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, 
-                                       width_shift_range=0.2, height_shift_range=0.2, 
-                                       shear_range=0.2, zoom_range=0.2, 
+    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
+                                       width_shift_range=0.2, height_shift_range=0.2,
+                                       shear_range=0.2, zoom_range=0.2,
                                        horizontal_flip=True, fill_mode='nearest')
 
     val_datagen = ImageDataGenerator(rescale=1./255)
 
     train_generator = train_datagen.flow_from_directory(
-        train_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH), 
+        train_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
         batch_size=BATCH_SIZE, class_mode='binary')
 
     val_generator = val_datagen.flow_from_directory(
-        val_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH), 
+        val_dir, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
         batch_size=BATCH_SIZE, class_mode='binary')
 
     return train_generator, val_generator
@@ -100,11 +94,11 @@ def plot_training_history(history):
 # Preprocess the image for prediction
 def preprocess_image(img_path):
     try:
-        img = Image.open(img_path).convert('RGB')  
+        img = Image.open(img_path).convert('RGB')
         new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to 224x224
-        processed_image = np.asarray(new_image) / 255.0  
-
-        if processed_image.ndim == 2:  
+        processed_image = np.asarray(new_image) / 255.0
+        
+        if processed_image.ndim == 2:
             processed_image = np.stack((processed_image,) * 3, axis=-1)
 
         img_array = np.expand_dims(processed_image, axis=0)  
@@ -185,6 +179,9 @@ if __name__ == "__main__":
     else:
         print("Model loaded successfully.")
 
+    # Print model summary to find the correct layer name
+    model.summary()
+
     # Test the model
     test_model(model, test_data_dir)
 
@@ -198,7 +195,7 @@ if __name__ == "__main__":
         print(f"Prediction: {result}")
 
         # Generate Grad-CAM heatmap
-        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='conv5_block32_2_conv')  # Adjust layer name as needed
+        heatmap = make_gradcam_heatmap(test_image_array, model, last_conv_layer_name='conv5_block32_concat')  # Update with the correct layer name
         if heatmap is not None:
             original_image = cv2.imread(test_image_path)
             if original_image is not None:
