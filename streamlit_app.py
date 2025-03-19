@@ -24,7 +24,7 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-def create_model(num_classes=1):
+def create_densenet_model(num_classes=1):
     base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
     # Freeze the base model
@@ -38,7 +38,6 @@ def create_model(num_classes=1):
 
     # Fully connected layers (adaptive neurons)
     x = layers.Dense(x.shape[-1] * 2, activation='relu')(x)  # Adapts dynamically
-    x = layers.Dense(256, activation='relu')(x)  
     x = layers.Dropout(0.5)(x)
 
     # Output layer
