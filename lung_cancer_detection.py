@@ -24,36 +24,31 @@ train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
-def create_model(input_shape=(224, 224, 3), num_classes=1):
+def create_model(num_classes=1):
     # Load DenseNet without the top layers
-    base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=input_shape)
-    
+    base_model = DenseNet121(include_top=False, weights='imagenet')
+
     # Freeze the base model
     for layer in base_model.layers:
         layer.trainable = False
+
+    # Input layer with variable shape
+    input_tensor = layers.Input(shape=(None, None, 3))  # Accepts any height and width
+    x = base_model(input_tensor)
     
-    # Get output from the base model
-    x = base_model.output
-    print("Shape after DenseNet base model:", x.shape)  # Debug output
-    
-    # Apply Global Average Pooling
+    # Global Average Pooling
     x = layers.GlobalAveragePooling2D()(x)
-    print("Shape after Global Average Pooling:", x.shape)  # Should be (None, 1024)
     
-    # Add dense layers
+    # Dense layers
     x = layers.Dense(128, activation='relu')(x)
-    print("Shape after Dense layer:", x.shape)  # Should be (None, 128)
-    
     x = layers.Dropout(0.5)(x)
-    predictions = layers.Dense(num_classes, activation='sigmoid')(x)  # Final output
-    print("Shape after final Dense layer:", predictions.shape)  # Should be (None, 1 or num_classes)
+    predictions = layers.Dense(num_classes, activation='sigmoid')(x)
 
     # Create the model
-    model = tf.keras.models.Model(inputs=base_model.input, outputs=predictions)
+    model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    
     return model
-
-# Create and test the model
-model = create_model()
 
 # Load model from file
 def load_model_file(model_file):
@@ -78,8 +73,6 @@ def preprocess_image(img_path):
         image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
         image_array = preprocess_input(image_array)                         # Preprocess
 
-        print(f"Processed image shape: {image_array.shape}")  # Debug output
-        
         return image_array
     except Exception as e:
         print(f"Error processing image: {str(e)}")
@@ -129,7 +122,6 @@ def plot_training_history(history):
     plt.legend()
 
     plt.show()
-
 
 # Find the last convolutional layer name
 def get_last_conv_layer_name(model):
@@ -221,7 +213,7 @@ if __name__ == "__main__":
     if not model:
         print("No saved model found. Training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        model = create_densenet_model()  # Create DenseNet model
+        model = create_model()  # Create DenseNet model
         train_model(model, train_generator, val_generator)  # Train the model
     else:
         print("Model loaded successfully.")
