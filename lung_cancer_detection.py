@@ -38,7 +38,8 @@ def create_model(num_classes=1):
     x = layers.GlobalMaxPooling2D()(x)
     
     # Dense layers
-    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dense(36992, activation='relu')(x)  # Set to 36992 units
+
     x = layers.Dropout(0.5)(x)
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
 
@@ -46,7 +47,6 @@ def create_model(num_classes=1):
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
-
 # Load model from file
 def load_model_file(model_file):
     if os.path.exists(model_file):
