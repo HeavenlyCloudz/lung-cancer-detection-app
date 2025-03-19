@@ -38,7 +38,7 @@ def create_model(num_classes=1):
     x = layers.GlobalMaxPooling2D()(x)
     
     # Dense layers
-    x = layers.Dense(1, activation='relu')(x)  # Set to 36992 units
+    x = layers.Dense(128, activation='relu')(x)  
 
     x = layers.Dropout(0.5)(x)
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
