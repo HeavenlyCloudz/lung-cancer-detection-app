@@ -33,11 +33,11 @@ def create_densenet_model(num_classes=1):
     input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  
     x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
 
-    # Adaptive pooling layer
-    x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1024)
+    # Global Average Pooling
+    x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1920)
 
-    # Fully connected layers (adaptive neurons)
-    x = layers.Dense(1920 * 2, activation='relu')(x)
+    # Fully connected layers
+    x = layers.Dense(256, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
 
     # Output layer
