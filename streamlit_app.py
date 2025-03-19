@@ -35,7 +35,7 @@ def create_model(num_classes=1):
     x = base_model(input_tensor)
 
      # Global Average 
-    x = layers.GlobalAverageMaxPooling()(x)  # Convert the output to a 1D vector
+    x = layers.GlobalAveragePooling()(x)  # Convert the output to a 1D vector
 
     # Force the output shape to 36992 using Reshape
     x = layers.Reshape((36992,))(x)  # Reshape to the desired size
