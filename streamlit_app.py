@@ -106,7 +106,6 @@ def load_data(train_dir, val_dir, batch_size):
         st.error(f"Error loading data: {str(e)}")
         return None, None
 
-
 # Function to plot training history
 def plot_training_history(history):
     try:
@@ -228,7 +227,6 @@ def display_gradcam(img, heatmap, alpha=0.4):
         return None
 
 # Streamlit UI
-st.title("Lung Cancer Detection🖥️")
 st.markdown(
     """
     <style>
@@ -260,6 +258,12 @@ st.header("Thank you for using ONCO AI🌐")
 st.write("CNNs are the preferred network for detecting lung cancer due to their ability to process image data. They can perform tasks such as classification, segmentation, and object recognition. In the case of lung cancer detection, CNNs have surpassed radiologists.")
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("Visit [ONCO AI](https://readymag.website/u4174625345/5256774/) for more information.")
+
+# Show the model summary
+model = create_densenet_model()
+model_summary = []
+model.summary(print_fn=lambda x: model_summary.append(x))  # Capture the summary
+st.text('\n'.join(model_summary))  # Display the summary in Streamlit
 
 # Sidebar controls
 st.sidebar.title("Controls🎮")
