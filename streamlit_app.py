@@ -28,23 +28,21 @@ def create_model(num_classes=1):
     base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
     # Freeze the base model
-    for layer in base_model.layers:
-        layer.trainable = False
+    base_model.trainable = False
 
-    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  # Ensure consistent input shape
-    x = base_model(input_tensor)
+    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  
+    x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
 
-     # Global Average 
-    x = layers.GlobalAveragePooling()(x)  # Convert the output to a 1D vector
+    # Correct Pooling: Ensures we get (None, 1024)
+    x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1024)
 
-    # Force the output shape to 36992 using Reshape
-    x = layers.Reshape((36992,))(x)  # Reshape to the desired size
+    # Expanding to 36,992 using a Dense layer
+    x = layers.Dense(36992, activation='relu')(x)  # Now the shape is (None, 36992)
 
-    # Set the Dense layer to a reasonable number of units
-    x = layers.Dense(256, activation='relu')(x)  # Use a reasonable number of units
-
+    # Additional layers
+    x = layers.Dense(256, activation='relu')(x)  
     x = layers.Dropout(0.5)(x)
-    predictions = layers.Dense(num_classes, activation='sigmoid')(x)  # Output layer for binary classification
+    predictions = layers.Dense(num_classes, activation='sigmoid')(x)  
 
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
