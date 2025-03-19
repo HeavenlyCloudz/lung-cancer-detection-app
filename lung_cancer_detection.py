@@ -33,21 +33,22 @@ def create_model(num_classes=1):
     input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  
     x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
 
-    # Correct Pooling: Ensures we get (None, 1024)
+    # Adaptive pooling layer
     x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1024)
 
-    # Expanding to 36,992 using a Dense layer
-    x = layers.Dense(36992, activation='relu')(x)  # Now the shape is (None, 36992)
-
-    # Additional layers
+    # Fully connected layers (adaptive neurons)
+    x = layers.Dense(x.shape[-1] * 2, activation='relu')(x)  # Adapts dynamically
     x = layers.Dense(256, activation='relu')(x)  
     x = layers.Dropout(0.5)(x)
+
+    # Output layer
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)  
 
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
+
     
 # Load model from file
 def load_model_file(model_file):
