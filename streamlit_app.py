@@ -130,7 +130,6 @@ def plot_training_history(history):
     except Exception as e:
         st.error(f"Error plotting training history: {str(e)}")
 
-# Function to test the model
 def test_model(model):
     test_datagen = ImageDataGenerator(rescale=1./255)
     try:
@@ -140,6 +139,12 @@ def test_model(model):
             batch_size=BATCH_SIZE,
             class_mode='binary'
         )
+
+        # Ensure the output shape matches what the model expects
+        for data in test_generator:
+            x, y = data
+            print(f"Input shape: {x.shape}")  # Debugging line to check input shape
+            break  # Remove this after checking the shape
 
         test_loss, test_accuracy = model.evaluate(test_generator)
         st.sidebar.write(f"Test Loss: {test_loss:.4f}")
