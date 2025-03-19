@@ -24,22 +24,31 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Create DenseNet model
-def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
-    densenet_model = DenseNet121(include_top=False, weights='imagenet', input_shape=input_shape)
+def create_model(num_classes=1):
+    # Load DenseNet without the top layers
+    base_model = DenseNet121(include_top=False, weights='imagenet')
 
-    for layer in densenet_model.layers:
+    # Freeze the base model
+    for layer in base_model.layers:
         layer.trainable = False
 
-    x = densenet_model.output
+    # Input layer with variable shape
+    input_tensor = layers.Input(shape=(None, None, 3))  # Accepts any height and width
+    x = base_model(input_tensor)
+    
+    # Global Average Pooling
     x = layers.GlobalAveragePooling2D()(x)
+    
+    # Dense layers
     x = layers.Dense(128, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
 
-    final_model = tf.keras.models.Model(inputs=densenet_model.input, outputs=predictions)
-    final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    return final_model
+    # Create the model
+    model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    
+    return model
 
 
 # Load model from file
