@@ -26,14 +26,14 @@ test_data_dir = os.path.join(base_data_dir, "test")
 
 def create_model(num_classes=1):
     # Load DenseNet without the top layers
-    base_model = DenseNet121(include_top=False, weights='imagenet')
+    base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
     # Freeze the base model
     for layer in base_model.layers:
         layer.trainable = False
 
-    # Input layer with variable shape
-    input_tensor = layers.Input(shape=(None, None, 3))  # Accepts any height and width
+    # Input layer with fixed shape
+    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
     x = base_model(input_tensor)
     
     # Global Average Pooling
