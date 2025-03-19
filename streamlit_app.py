@@ -117,14 +117,14 @@ def plot_training_history(history):
 
         ax[0].plot(history.history['accuracy'], label='Train Accuracy')
         ax[0].plot(history.history['val_accuracy'], label='Validation Accuracy')
-        ax[0].set_title('Model Accuracy')
+        ax[0].set_title('Model Accuracy🧠')
         ax[0].set_xlabel('Epoch')
         ax[0].set_ylabel('Accuracy')
         ax[0].legend()
 
         ax[1].plot(history.history['loss'], label='Train Loss')
         ax[1].plot(history.history['val_loss'], label='Validation Loss')
-        ax[1].set_title('Model Loss')
+        ax[1].set_title('Model Loss⚠️')
         ax[1].set_xlabel('Epoch')
         ax[1].set_ylabel('Loss')
         ax[1].legend()
@@ -175,7 +175,7 @@ def test_model(model):
                      yticklabels=['Non-Cancerous', 'Cancerous'], ax=ax)
         ax.set_ylabel('Actual')
         ax.set_xlabel('Predicted')
-        ax.set_title('Confusion Matrix')
+        ax.set_title('Confusion Matrix📊')
         st.pyplot(fig)
     except Exception as e:
         st.error(f"Error during testing: {str(e)}")
@@ -375,4 +375,4 @@ if photo is not None:
 # Clear cache button
 if st.button("Clear Cache"):
     st.cache_data.clear()  # Clear the cache
-    st.success("Cache cleared successfully!")
+    st.success("Cache cleared successfully!🎯")
