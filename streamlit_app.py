@@ -257,7 +257,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("Visit [ONCO AI](https://readymag.website/u4174625345/5256774/) for more information.")
 
 # Sidebar controls
-st.sidebar.title("Controls")
+st.sidebar.title("Controls🎮")
 
 # Load the model
 model = load_model_file()
@@ -271,7 +271,7 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
 
 # Button to train model
 if st.sidebar.button("Train Model"):
-    with st.spinner("Training the model..."):
+    with st.spinner("Training the model🤖..."):
         model = create_densenet_model()  # Create a new DenseNet model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
 
@@ -295,7 +295,7 @@ if st.sidebar.button("Train Model"):
 # Button to test model
 if st.sidebar.button("Test Model"):
     if model:
-        with st.spinner("Testing the model..."):
+        with st.spinner("Testing the model📝..."):
             for _ in range(eval_epochs):  # Repeat testing as per user input
                 test_model(model)
     else:
