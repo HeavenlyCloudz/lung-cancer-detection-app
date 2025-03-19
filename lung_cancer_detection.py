@@ -25,26 +25,23 @@ val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
 def create_model(num_classes=1):
-    # Load DenseNet without the top layers
     base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
     # Freeze the base model
     for layer in base_model.layers:
         layer.trainable = False
 
-    # Input layer with fixed shape
-    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  # Ensure consistent input shape
     x = base_model(input_tensor)
     
-    # Global Average Pooling
-    x = layers.GlobalAveragePooling2D()(x)
+    # Use Global Max Pooling
+    x = layers.GlobalMaxPooling2D()(x)
     
     # Dense layers
     x = layers.Dense(128, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
 
-    # Create the model
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     
@@ -68,7 +65,7 @@ def load_model_file(model_file):
 def preprocess_image(img_path):
     try:
         # Load and preprocess the image
-        img = load_img(img_path, target_size=(IMAGE_WIDTH, IMAGE_HEIGHT))  # Load and resize image
+        img = load_img(img_path, target_size=(IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to (224, 224)
         image_array = img_to_array(img)                                     # Convert to array
         image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
         image_array = preprocess_input(image_array)                         # Preprocess
