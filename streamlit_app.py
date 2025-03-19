@@ -31,11 +31,14 @@ def create_model(num_classes=1):
     input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
     x = base_model(input_tensor)
     x = layers.GlobalMaxPooling2D()(x)
-    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dense(36992, activation='relu')(x)  # Set to 36992 units
+
     x = layers.Dropout(0.5)(x)
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
+
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    
     return model
 
 
