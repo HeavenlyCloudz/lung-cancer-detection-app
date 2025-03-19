@@ -34,8 +34,8 @@ def create_model(num_classes=1):
     input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  # Ensure consistent input shape
     x = base_model(input_tensor)
 
-    # Use Flatten
-    x = layers.Flatten()(x)  # Convert the output to a 1D vector
+     # Global Average 
+    x = layers.GlobalAverageMaxPooling()(x)  # Convert the output to a 1D vector
 
     # Force the output shape to 36992 using Reshape
     x = layers.Reshape((36992,))(x)  # Reshape to the desired size
