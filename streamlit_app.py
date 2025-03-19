@@ -26,22 +26,30 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 
 def create_model(num_classes=1):
     base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+
+    # Freeze the base model
     for layer in base_model.layers:
         layer.trainable = False
-    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+
+    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  # Ensure consistent input shape
     x = base_model(input_tensor)
-    x = layers.GlobalMaxPooling2D()(x)
-    st.write(f"Shape after pooling: {x.shape}")
-    x = layers.Dense(128, activation='relu')(x)  
+    
+    # Use Flatten instead of Global Max Pooling
+    x = layers.Flatten()(x)  # Convert the output to a 1D vector
+
+    # Print the shape after flattening for debugging
+    print(f"Shape after flattening: {x.shape}")  # Check the shape here
+
+    # Set Dense layer to a reasonable number of units
+    x = layers.Dense(256, activation='relu')(x)  # Use a reasonable number of units
 
     x = layers.Dropout(0.5)(x)
-    predictions = layers.Dense(num_classes, activation='sigmoid')(x)
+    predictions = layers.Dense(num_classes, activation='sigmoid')(x)  # Output layer for binary classification
 
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
-
 
 # Load model from file
 def load_model_file():
