@@ -31,7 +31,8 @@ def create_model(num_classes=1):
     input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
     x = base_model(input_tensor)
     x = layers.GlobalMaxPooling2D()(x)
-    x = layers.Dense(256, activation='relu')(x)  # Set to 36992 units
+    st.write(f"Shape after pooling: {x.shape}")
+    x = layers.Dense(128, activation='relu')(x)  
 
     x = layers.Dropout(0.5)(x)
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
