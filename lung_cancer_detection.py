@@ -37,7 +37,7 @@ def create_densenet_model(num_classes=1):
     x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1024)
 
     # Fully connected layers (adaptive neurons)
-    x = layers.Dense(x.shape[-1] * 2, activation='relu')(x)  # Adapts dynamically
+    x = layers.Dense(1920 * 2, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
 
     # Output layer
