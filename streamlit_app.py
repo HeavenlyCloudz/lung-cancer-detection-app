@@ -25,29 +25,17 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
 def create_model(num_classes=1):
-    # Load DenseNet without the top layers
     base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-
-    # Freeze the base model
     for layer in base_model.layers:
         layer.trainable = False
-
-    # Input layer with fixed shape
     input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
     x = base_model(input_tensor)
-    
-    # Global Average Pooling
-    x = layers.GlobalAveragePooling2D()(x)
-    
-    # Dense layers
+    x = layers.GlobalMaxPooling2D()(x)
     x = layers.Dense(128, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
-
-    # Create the model
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    
     return model
 
 
@@ -199,24 +187,32 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
     last_conv_layer_output = last_conv_layer_output[0]
     heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
     heatmap = tf.maximum(heatmap, 0)  # ReLU
-    heatmap /= tf.reduce_max(heatmap)  # Normalize
+
+    # Normalize the heatmap
+    heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
 
     return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
 
 # Display Grad-CAM heatmap
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
+        # Convert heatmap to uint8
         heatmap = np.uint8(255 * heatmap)
+
+        # Apply colormap
         jet = cm.get_cmap("jet")
-        jet_colors = jet(np.arange(256))[:, :3]
+        jet_colors = jet(np.arange(256))[:, :3]  # Get RGB values
         jet_heatmap = jet_colors[heatmap]
 
-        jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))
-        jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+        # Convert to an image
+        jet_heatmap = np.uint8(jet_heatmap * 255)  # Scale to 0-255
+        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
 
-        superimposed_img = jet_heatmap * alpha + img
-        superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)
+        # Resize heatmap to match the original image size
+        jet_heatmap = cv2.resize(jet_heatmap, (img.shape[1], img.shape[0]))
+
+        # Combine heatmap with original image
+        superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img, 1 - alpha, 0)
         return superimposed_img
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
