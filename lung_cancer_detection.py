@@ -27,7 +27,7 @@ test_data_dir = os.path.join(base_data_dir, "test")
 # Last layer name for Grad-CAM
 last_conv_layer_name = 'conv5_block16_concat'
 
-def create_densenet_model(num_classes=1):
+def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
     base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
     # Freeze the base model
@@ -50,6 +50,8 @@ def create_densenet_model(num_classes=1):
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
+
+model = create_densenet_model()
 
 # Load model from file
 def load_model_file(model_file):
