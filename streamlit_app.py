@@ -48,7 +48,7 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
     x = layers.Dense(256, activation="relu")(x)  # Optional extra reduction
 
     # Output layer
-    predictions = layers.Dense(num_classes, activation='sigmoid')(x)  
+    predictions = layers.Dense(1, activation='sigmoid')(x)  
 
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
