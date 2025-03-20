@@ -24,6 +24,9 @@ train_data_dir = os.path.join(base_data_dir, "train")
 val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
+# Last layer name for Grad-CAM
+last_conv_layer_name = 'conv5_block16_concat'
+
 def create_densenet_model(num_classes=1):
     base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
@@ -34,10 +37,10 @@ def create_densenet_model(num_classes=1):
     x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
 
     # Global Average Pooling
-    x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1920)
+    x = layers.GlobalAveragePooling2D()(x)
 
     # Fully connected layers
-    x = layers.Dense(512, activation='relu')(x)  # Adjust this to a reasonable size
+    x = layers.Dense(512, activation='relu')(x)
     x = layers.Dropout(0.5)(x)
 
     # Output layer
@@ -65,7 +68,6 @@ def load_model_file(model_file):
 # Preprocess the image for prediction
 def preprocess_image(img_path):
     try:
-        # Load and preprocess the image
         img = load_img(img_path, target_size=(IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to (224, 224)
         image_array = img_to_array(img)                                     # Convert to array
         image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
@@ -120,13 +122,6 @@ def plot_training_history(history):
     plt.legend()
 
     plt.show()
-
-# Find the last convolutional layer name
-def get_last_conv_layer_name(model):
-    for layer in reversed(model.layers):
-        if 'conv' in layer.name:  # Check if the layer is a convolutional layer
-            return layer.name
-    return None
 
 # Generate Grad-CAM heatmap
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
@@ -211,13 +206,10 @@ if __name__ == "__main__":
     if not model:
         print("No saved model found. Training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        model = create_densenet_model()  # Corrected function name
+        model = create_densenet_model()  # Create DenseNet model
         train_model(model, train_generator, val_generator)  # Train the model
     else:
         print("Model loaded successfully.")
-
-    # Get the last convolutional layer name for Grad-CAM
-    last_conv_layer_name = get_last_conv_layer_name(model)
 
     # Test the model
     test_model(model, test_data_dir)
