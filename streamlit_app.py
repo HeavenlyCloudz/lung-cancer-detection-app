@@ -66,16 +66,23 @@ def load_model_file():
         st.warning("No pre-trained model found.")
         return None
 
-# Preprocess the image for prediction
 def preprocess_image(img_path):
     try:
-        img = load_img(img_path, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH))  # Load and resize image
-        image_array = img_to_array(img)                                     # Convert to array
-        image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
-        image_array = preprocess_input(image_array)                         # Preprocess
+        # Open the image using PIL
+        img = Image.open(img_path)
+        # Convert to RGB if the image has an alpha channel
+        if img.mode == 'RGBA':
+            img = img.convert('RGB')
 
-        print(f"Processed image shape: {image_array.shape}")  # Debug output
-        return image_array
+        # Resize the image to the target dimensions
+        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+
+        # Convert to array and normalize
+        processed_image = np.asarray(new_image) / 255.0  # Normalize to [0, 1]
+        img_array = np.expand_dims(processed_image, axis=0)  # Add batch dimension
+
+        print(f"Processed image shape: {img_array.shape}")  # Debug output
+        return img_array
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
         return None
