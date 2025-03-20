@@ -232,6 +232,7 @@ def display_gradcam(img, heatmap, alpha=0.4):
         return None
 
 # Streamlit UI
+st.title("Lung Cancer Detection")
 st.markdown(
     """
     <style>
