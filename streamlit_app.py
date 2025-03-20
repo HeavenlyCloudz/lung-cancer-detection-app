@@ -408,3 +408,8 @@ if st.sidebar.button("Show Layer Names"):
     st.write("Layer names in DenseNet121:")
     layer_names = print_layer_names()
     st.text("\n".join(layer_names))
+
+if st.sidebar.button("Show Global Average Pooling Output Shape"):
+    model = create_densenet_model()
+    output_shape = model.layers[-2].output_shape  # Get the shape of the last Dense layer
+    st.text(f"Output shape after Global Average Pooling: {output_shape}")
