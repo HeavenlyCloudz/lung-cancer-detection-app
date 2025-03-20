@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
-from tensorflow.keras.applications.densenet import DenseNet121, preprocess_input
+from tensorflow.keras.applications import MobileNetV3Large, preprocess_input
 from sklearn.utils import class_weight
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,23 +25,23 @@ val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
 # Last layer name for Grad-CAM
-last_conv_layer_name = 'conv5_block16_concat'
+last_conv_layer_name = 'out_relu'
 
-def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
-    base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+def create_mobilenet_model(input_shape=(224, 224, 3), num_classes=1):
+    base_model = MobileNetV3Large(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
     # Freeze the base model
     base_model.trainable = False
 
     input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-    x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
+    x = base_model(input_tensor, training=False)  # Forward pass through MobileNetV3
 
     # Global Average Pooling
     x = layers.GlobalAveragePooling2D()(x)
 
-     # Fully connected layers
+    # Fully connected layers
     x = layers.Dense(256, activation='relu')(x)  
-    x = tf.keras.layers.Dropout(0.5)(x)  # Dropout to reduce overfitting
+    x = layers.Dropout(0.5)(x)  # Dropout to reduce overfitting
 
     # Output layer
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
@@ -51,7 +51,7 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
     
     return model
 
-model = create_densenet_model()
+model = create_mobilenet_model()
 
 # Load model from file
 def load_model_file(model_file):
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     if not model:
         print("No saved model found. Training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        model = create_densenet_model()  # Create DenseNet model
+        model = create_mobilenet_model()  # Create MobileNet model
         train_model(model, train_generator, val_generator)  # Train the model
     else:
         print("Model loaded successfully.")
