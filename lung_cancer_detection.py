@@ -41,7 +41,7 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
 
     # Fully connected layers
     x = layers.Dense(512, activation='relu')(x)
-    x = layers.Dropout(0.5)(x)
+    x = layers.Dense(256, activation="relu")(x)  # Optional extra reduction
 
     # Output layer
     predictions = layers.Dense(num_classes, activation='sigmoid')(x)
