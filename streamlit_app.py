@@ -4,8 +4,8 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
-from tensorflow.keras.applications.mobilenet_v3 import MobileNetV3Large
-from tensorflow.keras.applications.mobilenet_v3 import preprocess_input
+from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.applications.efficientnet import preprocess_input
 from sklearn.utils import class_weight
 import numpy as np
 import cv2
@@ -25,16 +25,16 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
 # Set the last convolutional layer name for Grad-CAM
-last_conv_layer_name = 'out_relu'
+last_conv_layer_name = 'top_conv'
 
-def create_mobilenet_model(input_shape=(224, 224, 3), num_classes=1):
-    base_model = MobileNetV3Large(include_top=False, weights='imagenet', input_shape=input_shape)
+def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
+    base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze the base model
     base_model.trainable = False
 
     input_tensor = layers.Input(shape=input_shape)
-    x = base_model(input_tensor, training=False)  # Forward pass through MobileNetV3
+    x = base_model(input_tensor, training=False)  # Forward pass through EfficientNetB0
 
     # Global Average Pooling
     x = layers.GlobalAveragePooling2D()(x)
@@ -51,7 +51,7 @@ def create_mobilenet_model(input_shape=(224, 224, 3), num_classes=1):
     
     return model
 
-model = create_mobilenet_model()
+model = create_efficientnet_model()
 model.summary()
 
 def preprocess_image(img_path):
@@ -67,7 +67,7 @@ def preprocess_image(img_path):
 
         # Convert to array and preprocess
         img_array = np.asarray(img, dtype=np.float32)
-        img_array = preprocess_input(img_array)  # Use MobileNetV3 preprocessing
+        img_array = preprocess_input(img_array)  # Use EfficientNet preprocessing
 
         # Expand dimensions for batch size (1, 224, 224, 3)
         img_array = np.expand_dims(img_array, axis=0)
@@ -122,10 +122,9 @@ def load_model_file():
         st.warning("No pre-trained model found.")
         return None
 
-
 def print_layer_names():
     try:
-        base_model = MobileNetV3Large(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
+        base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
         layer_names = [layer.name for layer in base_model.layers]
         return layer_names
     except Exception as e:
@@ -293,7 +292,7 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model🤖..."):
-        model = create_mobilenet_model()  # Create a new MobileNetV3 model
+        model = create_efficientnet_model()  # Create a new EfficientNetB0 model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
 
         # Calculate class weights
@@ -350,7 +349,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             os.remove(image_path)  # Ensure cleanup even if there's an error
 
 # Load Model
-last_conv_layer_name = 'out_relu'  # Adjust if needed
+last_conv_layer_name = 'top_conv'  # Adjust if needed
 
 # Normal Image Upload
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
@@ -381,6 +380,6 @@ if st.button("Clear Cache"):
     st.success("Cache cleared successfully!🎯")
 
 if st.sidebar.button("Show Layer Names"):
-    st.write("Layer names in MobileNetV3:")
+    st.write("Layer names in EfficientNetB0:")
     layer_names = print_layer_names()
     st.text("\n".join(layer_names))
