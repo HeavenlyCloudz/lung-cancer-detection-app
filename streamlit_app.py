@@ -4,7 +4,8 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
-from keras.applications import MobileNetV3Large, preprocess_input
+from tensorflow.keras.applications.mobilenet_v3 import MobileNetV3Large
+from tensorflow.keras.applications.mobilenet_v3 import preprocess_input
 from sklearn.utils import class_weight
 import numpy as np
 import cv2
