@@ -69,29 +69,38 @@ def load_model_file():
         st.warning("No pre-trained model found.")
         return None
 
+from PIL import Image
+import numpy as np
+
 def preprocess_image(img_path):
     try:
-        # Open the image using PIL
+        # Open the image
         img = Image.open(img_path)
 
-        # Convert to RGB if the image has an alpha channel
-        if img.mode == 'RGBA':
+        # Convert to RGB to ensure 3 channels
+        if img.mode != 'RGB':
             img = img.convert('RGB')
 
-        # Resize the image to (224, 224)
+        # Resize to (224, 224)
         img = img.resize((224, 224))
 
         # Convert to array, normalize, and ensure dtype is float32
-        processed_image = np.asarray(img, dtype=np.float32) / 255.0
+        img_array = np.asarray(img, dtype=np.float32) / 255.0
 
-        # Expand dimensions to match model input (1, 224, 224, 3)
-        img_array = np.expand_dims(processed_image, axis=0)
+        # Ensure shape is (224, 224, 3)
+        if img_array.shape[-1] != 3:
+            raise ValueError(f"Unexpected number of channels: {img_array.shape}")
 
-        print(f"Processed image shape: {img_array.shape}")  # Debug output
+        # Expand dimensions for batch size (1, 224, 224, 3)
+        img_array = np.expand_dims(img_array, axis=0)
+
+        print(f"✅ Processed image shape: {img_array.shape}")  # Debug output
         return img_array
+
     except Exception as e:
-        print(f"Error processing image: {str(e)}")
+        print(f"❌ Error processing image: {str(e)}")
         return None
+
 
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
