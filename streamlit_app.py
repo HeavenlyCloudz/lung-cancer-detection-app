@@ -37,7 +37,7 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
     x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
 
     # Global Average Pooling
-    x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1920)
+    x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1024)
 
     # Fully connected layers
     x = layers.Dense(512, activation='relu')(x)  # Adjust this to a reasonable size
