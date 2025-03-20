@@ -408,12 +408,3 @@ if st.sidebar.button("Show Layer Names"):
     st.write("Layer names in DenseNet121:")
     layer_names = print_layer_names()
     st.text("\n".join(layer_names))
-
-if st.sidebar.button("Show Global Average Pooling Output Shape"):
-    model = create_densenet_model()
-    
-    # Access the Global Average Pooling layer's output shape using its index
-    global_average_pooling_layer = model.get_layer('global_average_pooling2d_1')  # Adjust as needed if named differently
-    output_shape = global_average_pooling_layer.output_shape  # Get its output shape
-    
-    st.text(f"Output shape after Global Average Pooling: {output_shape}")
