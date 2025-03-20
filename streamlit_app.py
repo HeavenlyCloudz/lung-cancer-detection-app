@@ -106,6 +106,17 @@ def load_data(train_dir, val_dir, batch_size):
         st.error(f"Error loading data: {str(e)}")
         return None, None
 
+def print_layer_names():
+    # Load DenseNet121 model
+    base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
+
+    # Print all layers
+    layer_names = []
+    for layer in base_model.layers:
+        layer_names.append(layer.name)
+    
+    return layer_names
+
 # Function to plot training history
 def plot_training_history(history):
     try:
@@ -383,3 +394,8 @@ if photo is not None:
 if st.button("Clear Cache"):
     st.cache_data.clear()  # Clear the cache
     st.success("Cache cleared successfully!🎯")
+
+if st.sidebar.button("Show Layer Names"):
+    st.write("Layer names in DenseNet121:")
+    layer_names = print_layer_names()
+    st.text("\n".join(layer_names))
