@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
-from tensorflow.keras.applications.densenet import DenseNet121, preprocess_input
+from tensorflow.keras.applications import MobileNetV3Large, preprocess_input
 from sklearn.utils import class_weight
 import numpy as np
 import cv2
@@ -24,26 +24,23 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
 # Set the last convolutional layer name for Grad-CAM
-last_conv_layer_name = 'conv5_block16_concat'
+last_conv_layer_name = 'out_relu'
 
-def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
-    IMAGE_HEIGHT, IMAGE_WIDTH = input_shape[:2]
-    
-    base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+def create_mobilenet_model(input_shape=(224, 224, 3), num_classes=1):
+    base_model = MobileNetV3Large(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze the base model
     base_model.trainable = False
 
-    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  
-    x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
+    input_tensor = layers.Input(shape=input_shape)
+    x = base_model(input_tensor, training=False)  # Forward pass through MobileNetV3
 
     # Global Average Pooling
-    x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1024)
-    print(f"Shape after GlobalAveragePooling2D: {x.shape}")  # Should be (None, 1024)
+    x = layers.GlobalAveragePooling2D()(x)
 
     # Fully connected layers
     x = layers.Dense(256, activation='relu')(x)  
-    x = tf.keras.layers.Dropout(0.5)(x)  # Dropout to reduce overfitting
+    x = layers.Dropout(0.5)(x)  # Dropout to reduce overfitting
 
     # Output layer
     predictions = layers.Dense(1, activation='sigmoid')(x)  
@@ -53,13 +50,11 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
     
     return model
 
-model = create_densenet_model()
+model = create_mobilenet_model()
 model.summary()
-
 
 def preprocess_image(img_path):
     try:
-        # Open the image
         img = Image.open(img_path)
 
         # Convert to RGB to ensure 3 channels
@@ -67,25 +62,20 @@ def preprocess_image(img_path):
             img = img.convert('RGB')
 
         # Resize to (224, 224)
-        img = img.resize((224, 224))
+        img = img.resize((IMAGE_HEIGHT, IMAGE_WIDTH))
 
-        # Convert to array, normalize, and ensure dtype is float32
-        img_array = np.asarray(img, dtype=np.float32) / 255.0
-
-        # Ensure shape is (224, 224, 3)
-        if img_array.shape[-1] != 3:
-            raise ValueError(f"Unexpected number of channels: {img_array.shape}")
+        # Convert to array and preprocess
+        img_array = np.asarray(img, dtype=np.float32)
+        img_array = preprocess_input(img_array)  # Use MobileNetV3 preprocessing
 
         # Expand dimensions for batch size (1, 224, 224, 3)
         img_array = np.expand_dims(img_array, axis=0)
 
-        print(f"Processed image shape: {img_array.shape}")  # Debug output
         return img_array
 
     except Exception as e:
-        print(f"Error processing image: {str(e)}")
+        st.error(f"Error processing image: {str(e)}")
         return None
-
 
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
@@ -116,7 +106,6 @@ def load_data(train_dir, val_dir, batch_size):
         st.error(f"Error loading data: {str(e)}")
         return None, None
 
-
 # Load model from file
 def load_model_file():
     if os.path.exists(MODEL_FILE):
@@ -132,21 +121,16 @@ def load_model_file():
         st.warning("No pre-trained model found.")
         return None
 
-from PIL import Image
-import numpy as np
-
 
 def print_layer_names():
     try:
-        base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
+        base_model = MobileNetV3Large(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
         layer_names = [layer.name for layer in base_model.layers]
         return layer_names
     except Exception as e:
         st.error(f"Error in print_layer_names: {str(e)}")
         return []
 
-
-# Function to plot training history
 def plot_training_history(history):
     try:
         fig, ax = plt.subplots(1, 2, figsize=(12, 4))
@@ -180,12 +164,6 @@ def test_model(model):
             class_mode='binary'
         )
 
-        # Ensure the output shape matches what the model expects
-        for data in test_generator:
-            x, y = data
-            print(f"Input shape: {x.shape}")  # Debugging line to check input shape
-            break  # Remove this after checking the shape
-
         test_loss, test_accuracy = model.evaluate(test_generator)
         st.sidebar.write(f"Test Loss: {test_loss:.4f}")
         st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
@@ -195,9 +173,9 @@ def test_model(model):
         cm = confusion_matrix(test_generator.classes, y_pred_classes)
 
         # Calculate precision and recall
-        tp = cm[1, 1]  # True Positives
-        fp = cm[0, 1]  # False Positives
-        fn = cm[1, 0]  # False Negatives
+        tp = cm[1, 1]  
+        fp = cm[0, 1]  
+        fn = cm[1, 0]  
 
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
@@ -221,7 +199,6 @@ def test_model(model):
     except Exception as e:
         st.error(f"Error during testing: {str(e)}")
 
-# Generate Grad-CAM heatmap
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
     grad_model = tf.keras.models.Model(
         [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
@@ -239,32 +216,21 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
     last_conv_layer_output = last_conv_layer_output[0]
     heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
-    heatmap = tf.maximum(heatmap, 0)  # ReLU
+    heatmap = tf.maximum(heatmap, 0)
 
-    # Normalize the heatmap
     heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
 
     return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
 
-# Display Grad-CAM heatmap
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
-        # Convert heatmap to uint8
         heatmap = np.uint8(255 * heatmap)
-
-        # Apply colormap
         jet = cm.get_cmap("jet")
-        jet_colors = jet(np.arange(256))[:, :3]  # Get RGB values
+        jet_colors = jet(np.arange(256))[:, :3]
         jet_heatmap = jet_colors[heatmap]
-
-        # Convert to an image
-        jet_heatmap = np.uint8(jet_heatmap * 255)  # Scale to 0-255
-        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
-
-        # Resize heatmap to match the original image size
+        jet_heatmap = np.uint8(jet_heatmap * 255)
+        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)
         jet_heatmap = cv2.resize(jet_heatmap, (img.shape[1], img.shape[0]))
-
-        # Combine heatmap with original image
         superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img, 1 - alpha, 0)
         return superimposed_img
     except Exception as e:
@@ -306,7 +272,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("Visit [ONCO AI](https://readymag.website/u4174625345/5256774/) for more information.")
 
 # Show the model summary
-model = create_densenet_model()
 model_summary = []
 model.summary(print_fn=lambda x: model_summary.append(x))  # Capture the summary
 st.text('\n'.join(model_summary))  # Display the summary in Streamlit
@@ -327,7 +292,7 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model🤖..."):
-        model = create_densenet_model()  # Create a new DenseNet model
+        model = create_mobilenet_model()  # Create a new MobileNetV3 model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
 
         # Calculate class weights
@@ -345,7 +310,6 @@ if st.sidebar.button("Train Model"):
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
 
-
 # Button to test model
 if st.sidebar.button("Test Model"):
     if model:
@@ -354,7 +318,6 @@ if st.sidebar.button("Test Model"):
                 test_model(model)
     else:
         st.warning("No model found. Please train the model first.")
-
 
 # Function to process and predict image
 def process_and_predict(image_path, model, last_conv_layer_name):
@@ -386,7 +349,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             os.remove(image_path)  # Ensure cleanup even if there's an error
 
 # Load Model
-last_conv_layer_name = 'conv5_block16_concat'  # Adjust if needed
+last_conv_layer_name = 'out_relu'  # Adjust if needed
 
 # Normal Image Upload
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
@@ -410,13 +373,13 @@ if photo is not None:
         f.write(photo.getbuffer())
 
     process_and_predict(captured_filename, model, last_conv_layer_name)
-    
+
 # Clear cache button
 if st.button("Clear Cache"):
     st.cache_data.clear()  # Clear the cache
     st.success("Cache cleared successfully!🎯")
 
 if st.sidebar.button("Show Layer Names"):
-    st.write("Layer names in DenseNet121:")
+    st.write("Layer names in MobileNetV3:")
     layer_names = print_layer_names()
     st.text("\n".join(layer_names))
