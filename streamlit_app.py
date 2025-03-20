@@ -24,6 +24,9 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
+# Set the last convolutional layer name for Grad-CAM
+last_conv_layer_name = 'conv5_block16_concat'
+
 def create_densenet_model(num_classes=1):
     base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
@@ -343,7 +346,7 @@ if uploaded_file is not None:
             st.write(f"The model predicts the image is: **{result}**")
 
             # Get the last convolutional layer name for Grad-CAM
-            last_conv_layer_name = 'conv5_block32_concat'  # Change this if using a different layer
+            last_conv_layer_name = 'conv5_block16_concat'  
 
             # Generate Grad-CAM heatmap
             heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
