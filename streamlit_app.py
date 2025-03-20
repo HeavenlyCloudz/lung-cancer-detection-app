@@ -354,15 +354,12 @@ if st.sidebar.button("Test Model"):
     else:
         st.warning("No model found. Please train the model first.")
 
-# Image upload for prediction
-uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
-if uploaded_file is not None:
-    with open("temp_image.jpg", "wb") as f:
-        f.write(uploaded_file.getbuffer())
 
-    # Load the image for prediction
-    processed_image = preprocess_image("temp_image.jpg")
-    if processed_image is not None and model:  # Check if processed_image is valid before prediction
+# Function to process and predict image
+def process_and_predict(image_path, model, last_conv_layer_name):
+    processed_image = preprocess_image(image_path)
+
+    if processed_image is not None and model:
         try:
             # Make prediction
             prediction = model.predict(processed_image)
@@ -370,53 +367,49 @@ if uploaded_file is not None:
             st.subheader("Prediction Result:")
             st.write(f"The model predicts the image is: **{result}**")
 
-            # Get the last convolutional layer name for Grad-CAM
-            last_conv_layer_name = 'conv5_block16_concat'  
-
             # Generate Grad-CAM heatmap
             heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
+
             if heatmap is not None:
-                uploaded_image = cv2.imread("temp_image.jpg")
+                uploaded_image = Image.open(image_path)  # Open with PIL
                 superimposed_img = display_gradcam(uploaded_image, heatmap)
-                st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
+                st.image(image_path, caption='Uploaded Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
 
+            # Close and delete the image file
+            uploaded_image.close()
+            os.remove(image_path)
+
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
+            os.remove(image_path)  # Ensure cleanup even if there's an error
 
-    os.remove("temp_image.jpg")
+# Load Model
+last_conv_layer_name = 'conv5_block16_concat'  # Adjust if needed
 
-# Mobile Upload Option
+# **🔹 Normal Image Upload**
+uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
+if uploaded_file is not None:
+    file_extension = uploaded_file.name.split('.')[-1]
+    temp_filename = f"temp_image.{file_extension}"
+
+    with open(temp_filename, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+
+    process_and_predict(temp_filename, model, last_conv_layer_name)
+
+# **📱 Mobile Capture Option**
 st.sidebar.header("Take a Picture")
 photo = st.sidebar.file_uploader("Capture a photo", type=["jpg", "jpeg", "png"])
-
 if photo is not None:
-    with open("captured_image.jpg", "wb") as f:
+    file_extension = photo.name.split('.')[-1]
+    captured_filename = f"captured_image.{file_extension}"
+
+    with open(captured_filename, "wb") as f:
         f.write(photo.getbuffer())
 
-    # Load the image for prediction
-    processed_image = preprocess_image("captured_image.jpg")
-    if processed_image is not None and model:  # Check if processed_image is valid before prediction
-        try:
-            # Make prediction
-            prediction = model.predict(processed_image)
-            result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
-            st.subheader("Prediction Result for Captured Image:")
-            st.write(f"The model predicts the image is: **{result}**")
-
-            # Generate Grad-CAM heatmap
-            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
-            if heatmap is not None:
-                captured_image = cv2.imread("captured_image.jpg")
-                superimposed_img = display_gradcam(captured_image, heatmap)
-                st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
-                st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
-
-        except Exception as e:
-            st.error(f"Error during prediction: {str(e)}")
-
-    os.remove("captured_image.jpg")
-
+    process_and_predict(captured_filename, model, last_conv_layer_name)
+    
 # Clear cache button
 if st.button("Clear Cache"):
     st.cache_data.clear()  # Clear the cache
