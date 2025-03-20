@@ -3,8 +3,8 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
-from tensorflow.keras.applications.mobilenet_v3 import MobileNetV3Large
-from tensorflow.keras.applications.mobilenet_v3 import preprocess_input
+from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.applications.efficientnet import preprocess_input
 from sklearn.utils import class_weight
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,16 +26,16 @@ val_data_dir = os.path.join(base_data_dir, "val")
 test_data_dir = os.path.join(base_data_dir, "test")
 
 # Last layer name for Grad-CAM
-last_conv_layer_name = 'out_relu'
+last_conv_layer_name = 'top_conv'
 
-def create_mobilenet_model(input_shape=(224, 224, 3), num_classes=1):
-    base_model = MobileNetV3Large(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
+    base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
     # Freeze the base model
     base_model.trainable = False
 
     input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-    x = base_model(input_tensor, training=False)  # Forward pass through MobileNetV3
+    x = base_model(input_tensor, training=False)  # Forward pass through EfficientNetB0
 
     # Global Average Pooling
     x = layers.GlobalAveragePooling2D()(x)
@@ -52,7 +52,7 @@ def create_mobilenet_model(input_shape=(224, 224, 3), num_classes=1):
     
     return model
 
-model = create_mobilenet_model()
+model = create_efficientnet_model()
 
 # Load model from file
 def load_model_file(model_file):
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     if not model:
         print("No saved model found. Training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        model = create_mobilenet_model()  # Create MobileNet model
+        model = create_efficientnet_model()  # Create EfficientNet model
         train_model(model, train_generator, val_generator)  # Train the model
     else:
         print("Model loaded successfully.")
