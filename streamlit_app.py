@@ -30,8 +30,6 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
     IMAGE_HEIGHT, IMAGE_WIDTH = input_shape[:2]
     
     base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-    print("Base model output shape:", base_model.output.shape)
-
 
     # Freeze the base model
     base_model.trainable = False
@@ -57,6 +55,7 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
 
 model = create_densenet_model()
 model.summary()
+
 
 def preprocess_image(img_path):
     try:
