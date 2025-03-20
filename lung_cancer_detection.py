@@ -30,7 +30,7 @@ def create_densenet_model(num_classes=1):
     # Freeze the base model
     base_model.trainable = False
 
-    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  
+    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
     x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
 
     # Global Average Pooling
@@ -41,14 +41,13 @@ def create_densenet_model(num_classes=1):
     x = layers.Dropout(0.5)(x)
 
     # Output layer
-    predictions = layers.Dense(num_classes, activation='sigmoid')(x)  
+    predictions = layers.Dense(num_classes, activation='sigmoid')(x)
 
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
 
-    
 # Load model from file
 def load_model_file(model_file):
     if os.path.exists(model_file):
@@ -148,7 +147,7 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
     last_conv_layer_output = last_conv_layer_output[0]
     heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
     heatmap = tf.maximum(heatmap, 0)  # ReLU
-    heatmap /= tf.reduce_max(heatmap)  # Normalize
+    heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1  # Normalize
     
     return heatmap.numpy()
 
@@ -212,7 +211,7 @@ if __name__ == "__main__":
     if not model:
         print("No saved model found. Training a new model...")
         train_generator, val_generator = load_data(train_data_dir, val_data_dir)
-        model = create_model()  # Create DenseNet model
+        model = create_densenet_model()  # Corrected function name
         train_model(model, train_generator, val_generator)  # Train the model
     else:
         print("Model loaded successfully.")
