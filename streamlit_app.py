@@ -6,7 +6,6 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, i
 from tensorflow.keras import layers
 from tensorflow.keras.applications.densenet import DenseNet121, preprocess_input
 from sklearn.utils import class_weight
-from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -332,15 +331,14 @@ if st.sidebar.button("Train Model"):
             weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
             class_weights = {i: weights[i] for i in range(len(class_labels))}
 
-            # Early stopping callback
-            early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-
+            # Train the model (without early stopping)
             history = model.fit(train_generator, validation_data=val_generator, 
-                                epochs=epochs, class_weight=class_weights, 
-                                callbacks=[early_stopping])  # Use early stopping
+                                epochs=epochs, class_weight=class_weights) 
+
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
+
 
 # Button to test model
 if st.sidebar.button("Test Model"):
