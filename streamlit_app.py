@@ -103,8 +103,8 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
     print(f"Shape after GlobalAveragePooling2D: {x.shape}")  # Should be (None, 1024)
 
     # Fully connected layers
-    x = layers.Dense(512, activation='relu')(x)  # Adjust this to a reasonable size
-    x = layers.Dense(256, activation="relu")(x)  # Optional extra reduction
+    x = layers.Dense(256, activation='relu')(x)  
+    x = tf.keras.layers.Dropout(0.5)(x)  # Dropout to reduce overfitting
 
     # Output layer
     predictions = layers.Dense(1, activation='sigmoid')(x)  
