@@ -107,15 +107,14 @@ def load_data(train_dir, val_dir, batch_size):
         return None, None
 
 def print_layer_names():
-    # Load DenseNet121 model
-    base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
+    try:
+        base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
+        layer_names = [layer.name for layer in base_model.layers]
+        return layer_names
+    except Exception as e:
+        st.error(f"Error in print_layer_names: {str(e)}")
+        return []
 
-    # Print all layers
-    layer_names = []
-    for layer in base_model.layers:
-        layer_names.append(layer.name)
-    
-    return layer_names
 
 # Function to plot training history
 def plot_training_history(history):
