@@ -66,7 +66,7 @@ def load_model_file():
 # Preprocess the image for prediction
 def preprocess_image(img_path):
     try:
-        img = load_img(img_path, target_size=(224, 224))  # Load and resize image
+        img = load_img(img_path, target_size=(IMAGE_HEIGHT, IMAGE_WIDTH))  # Load and resize image
         image_array = img_to_array(img)                                     # Convert to array
         image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
         image_array = preprocess_input(image_array)                         # Preprocess
