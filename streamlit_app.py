@@ -51,6 +51,8 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
     
     return model
 
+model = create_densenet_model()
+
 # Load model from file
 def load_model_file():
     if os.path.exists(MODEL_FILE):
