@@ -98,11 +98,11 @@ def preprocess_image(img_path):
         # Expand dimensions for batch size (1, 224, 224, 3)
         img_array = np.expand_dims(img_array, axis=0)
 
-        print(f"✅ Processed image shape: {img_array.shape}")  # Debug output
+        print(f"Processed image shape: {img_array.shape}")  # Debug output
         return img_array
 
     except Exception as e:
-        print(f"❌ Error processing image: {str(e)}")
+        print(f"Error processing image: {str(e)}")
         return None
 
 
@@ -387,7 +387,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 # Load Model
 last_conv_layer_name = 'conv5_block16_concat'  # Adjust if needed
 
-# **🔹 Normal Image Upload**
+# Normal Image Upload
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
 if uploaded_file is not None:
     file_extension = uploaded_file.name.split('.')[-1]
@@ -398,7 +398,7 @@ if uploaded_file is not None:
 
     process_and_predict(temp_filename, model, last_conv_layer_name)
 
-# **📱 Mobile Capture Option**
+# Mobile Capture Option
 st.sidebar.header("Take a Picture")
 photo = st.sidebar.file_uploader("Capture a photo", type=["jpg", "jpeg", "png"])
 if photo is not None:
