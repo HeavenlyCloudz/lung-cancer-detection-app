@@ -72,21 +72,24 @@ def preprocess_image(img_path):
     try:
         # Open the image using PIL
         img = Image.open(img_path)
+
         # Convert to RGB if the image has an alpha channel
         if img.mode == 'RGBA':
             img = img.convert('RGB')
 
-        # Resize the image to the target dimensions
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+        # Resize the image to (224, 224)
+        img = img.resize((224, 224))
 
-        # Convert to array and normalize
-        processed_image = np.asarray(new_image) / 255.0  # Normalize to [0, 1]
-        img_array = np.expand_dims(processed_image, axis=0)  # Add batch dimension
+        # Convert to array, normalize, and ensure dtype is float32
+        processed_image = np.asarray(img, dtype=np.float32) / 255.0
+
+        # Expand dimensions to match model input (1, 224, 224, 3)
+        img_array = np.expand_dims(processed_image, axis=0)
 
         print(f"Processed image shape: {img_array.shape}")  # Debug output
         return img_array
     except Exception as e:
-        st.error(f"Error processing image: {str(e)}")
+        print(f"Error processing image: {str(e)}")
         return None
 
 # Load training and validation data
