@@ -26,56 +26,6 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 # Set the last convolutional layer name for Grad-CAM
 last_conv_layer_name = 'conv5_block16_concat'
 
-def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
-    IMAGE_HEIGHT, IMAGE_WIDTH = input_shape[:2]
-    
-    base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-    print("Base model output shape:", base_model.output.shape)
-
-
-    # Freeze the base model
-    base_model.trainable = False
-
-    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  
-    x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
-
-    # Global Average Pooling
-    x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1024)
-    print(f"Shape after GlobalAveragePooling2D: {x.shape}")  # Should be (None, 1024)
-
-    # Fully connected layers
-    x = layers.Dense(512, activation='relu')(x)  # Adjust this to a reasonable size
-    x = layers.Dense(256, activation="relu")(x)  # Optional extra reduction
-
-    # Output layer
-    predictions = layers.Dense(1, activation='sigmoid')(x)  
-
-    model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    
-    return model
-
-model = create_densenet_model()
-model.summary()
-
-# Load model from file
-def load_model_file():
-    if os.path.exists(MODEL_FILE):
-        try:
-            model = load_model(MODEL_FILE)
-            model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-            st.success("Model loaded successfully!")
-            return model
-        except Exception as e:
-            st.error(f"Error loading model: {str(e)}")
-            return None
-    else:
-        st.warning("No pre-trained model found.")
-        return None
-
-from PIL import Image
-import numpy as np
-
 def preprocess_image(img_path):
     try:
         # Open the image
@@ -134,6 +84,58 @@ def load_data(train_dir, val_dir, batch_size):
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None, None
+
+def create_densenet_model(input_shape=(224, 224, 3), num_classes=1):
+    IMAGE_HEIGHT, IMAGE_WIDTH = input_shape[:2]
+    
+    base_model = DenseNet121(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+    print("Base model output shape:", base_model.output.shape)
+
+
+    # Freeze the base model
+    base_model.trainable = False
+
+    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))  
+    x = base_model(input_tensor, training=False)  # Forward pass through DenseNet
+
+    # Global Average Pooling
+    x = layers.GlobalAveragePooling2D()(x)  # Output shape: (None, 1024)
+    print(f"Shape after GlobalAveragePooling2D: {x.shape}")  # Should be (None, 1024)
+
+    # Fully connected layers
+    x = layers.Dense(512, activation='relu')(x)  # Adjust this to a reasonable size
+    x = layers.Dense(256, activation="relu")(x)  # Optional extra reduction
+
+    # Output layer
+    predictions = layers.Dense(1, activation='sigmoid')(x)  
+
+    model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    
+    return model
+
+model = create_densenet_model()
+model.summary()
+
+# Load model from file
+def load_model_file():
+    if os.path.exists(MODEL_FILE):
+        try:
+            model = load_model(MODEL_FILE)
+            model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            st.success("Model loaded successfully!")
+            return model
+        except Exception as e:
+            st.error(f"Error loading model: {str(e)}")
+            return None
+    else:
+        st.warning("No pre-trained model found.")
+        return None
+
+from PIL import Image
+import numpy as np
+
+
 
 def print_layer_names():
     try:
