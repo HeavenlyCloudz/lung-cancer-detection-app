@@ -42,7 +42,7 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
 
     # Fully connected layers
     x = layers.Dense(256, activation='relu')(x)  
-    x = layers.Dropout(0.5)(x)  # Dropout to reduce overfitting
+    x = layers.Dropout(0.25)(x)  # Dropout to reduce overfitting
 
     # Output layer
     predictions = layers.Dense(1, activation='sigmoid')(x)  
