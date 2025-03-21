@@ -37,7 +37,8 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     
     x = base_model(input_tensor, training=False)  # Forward pass through EfficientNetB0
 
-    x = last_conv_layer_name('top_conv')
+    last_conv_layer = base_model.get_layer(last_conv_layer_name)
+    x = last_conv_layer(x)  
     
     # Global Average Pooling
     x = layers.GlobalAveragePooling2D()(x)
