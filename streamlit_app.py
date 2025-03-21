@@ -25,7 +25,7 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
 # Set the last convolutional layer name for Grad-CAM
-last_conv_layer_name = 'top_conv'
+last_conv_layer_name = 'block7a_project_conv'  # Replace 'top_conv' with the last conv layer
 
 def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
@@ -350,7 +350,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             os.remove(image_path)  # Ensure cleanup even if there's an error
 
 # Load Model
-last_conv_layer_name = 'top_conv'  # Adjust if needed
+last_conv_layer_name = 'block7a_project_conv'  # Adjust if needed
 
 # Normal Image Upload
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
