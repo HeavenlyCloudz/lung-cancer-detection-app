@@ -28,6 +28,26 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 last_conv_layer_name = 'block7a_projec' 
 # last_conv_layer_name = 'top_conv'
 
+# Focal Loss Function
+def focal_loss(alpha=0.25, gamma=2.0):
+    def loss(y_true, y_pred):
+        bce = tf.keras.losses.binary_crossentropy(y_true, y_pred)
+        p_t = y_true * y_pred + (1 - y_true) * (1 - y_pred)
+        alpha_factor = y_true * alpha + (1 - y_true) * (1 - alpha)
+        focal_weight = alpha_factor * tf.pow((1 - p_t), gamma)
+        return focal_weight * bce
+    return loss
+
+# Compute Class Weights
+def compute_class_weights():
+    labels = []
+    for class_dir in os.listdir(train_data_dir):
+        class_path = os.path.join(train_data_dir, class_dir)
+        labels.extend([class_dir] * len(os.listdir(class_path)))
+    class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(labels), y=labels)
+    return {i: class_weights[i] for i in range(len(class_weights))}
+    
+
 def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
