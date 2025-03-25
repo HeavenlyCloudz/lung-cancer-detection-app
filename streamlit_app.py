@@ -25,8 +25,8 @@ val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
 # Set the last convolutional layer name for Grad-CAM
-#last_conv_layer_name = 'block7a_projec' 
-last_conv_layer_name = 'top_conv'
+last_conv_layer_name = 'block7a_projec' 
+# last_conv_layer_name = 'top_conv'
 
 def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
@@ -139,14 +139,14 @@ def plot_training_history(history):
 
         ax[0].plot(history.history['accuracy'], label='Train Accuracy')
         ax[0].plot(history.history['val_accuracy'], label='Validation Accuracy')
-        ax[0].set_title('Model Accuracy🧠')
+        ax[0].set_title('Model Accuracy')
         ax[0].set_xlabel('Epoch')
         ax[0].set_ylabel('Accuracy')
         ax[0].legend()
 
         ax[1].plot(history.history['loss'], label='Train Loss')
         ax[1].plot(history.history['val_loss'], label='Validation Loss')
-        ax[1].set_title('Model Loss⚠️')
+        ax[1].set_title('Model Loss')
         ax[1].set_xlabel('Epoch')
         ax[1].set_ylabel('Loss')
         ax[1].legend()
@@ -196,7 +196,7 @@ def test_model(model):
                      yticklabels=['Non-Cancerous', 'Cancerous'], ax=ax)
         ax.set_ylabel('Actual')
         ax.set_xlabel('Predicted')
-        ax.set_title('Confusion Matrix📊')
+        ax.set_title('Confusion Matrix')
         st.pyplot(fig)
     except Exception as e:
         st.error(f"Error during testing: {str(e)}")
@@ -351,7 +351,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             os.remove(image_path)  # Ensure cleanup even if there's an error
 
 # Load Model
-last_conv_layer_name = 'top_conv'
+last_conv_layer_name = 'block7a_project'
 
 
 
