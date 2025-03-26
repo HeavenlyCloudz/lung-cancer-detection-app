@@ -84,21 +84,28 @@ def preprocess_image(img_path):
     try:
         img = Image.open(img_path)
 
-        # Convert to RGB to ensure 3 channels
+        # Convert to RGB if necessary
         if img.mode != 'RGB':
             img = img.convert('RGB')
 
-        # Resize to (224, 224)
+        # Resize image to (224, 224)
         img = img.resize((IMAGE_HEIGHT, IMAGE_WIDTH))
 
-        # Convert to array and preprocess
+        # Convert to numpy array
         img_array = np.asarray(img, dtype=np.float32)
-        img_array = preprocess_input(img_array)  # Use EfficientNet preprocessing
 
-        # Expand dimensions for batch size (1, 224, 224, 3)
+        # Preprocess the image using EfficientNet's preprocess_input
+        img_array = preprocess_input(img_array)
+
+        # Expand dimensions to fit the model's input shape
         img_array = np.expand_dims(img_array, axis=0)
 
         return img_array
+
+    except Exception as e:
+        st.error(f"Error processing image: {str(e)}")
+        return None
+
 
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
