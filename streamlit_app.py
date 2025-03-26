@@ -71,7 +71,7 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     
     # Compile the model
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4), 
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3), 
                   loss=focal_loss(alpha=0.25, gamma=2.0), 
                   metrics=['accuracy'])
     
