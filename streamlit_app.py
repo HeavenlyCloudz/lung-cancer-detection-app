@@ -24,9 +24,8 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# Set the last convolutional layer name for Grad-CAM
-last_conv_layer_name = 'block7a_projec' 
-# last_conv_layer_name = 'top_conv'
+# Set the last convolutional layer name for Grad-CAM 
+last_conv_layer_name = 'top_conv'
 
 # Focal Loss Function
 def focal_loss(alpha=0.25, gamma=2.0):
@@ -39,20 +38,21 @@ def focal_loss(alpha=0.25, gamma=2.0):
     return loss
 
 # Compute Class Weights
-def compute_class_weights():
-    labels = []
-    for class_dir in os.listdir(train_data_dir):
-        class_path = os.path.join(train_data_dir, class_dir)
-        labels.extend([class_dir] * len(os.listdir(class_path)))
-    class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(labels), y=labels)
-    return {i: class_weights[i] for i in range(len(class_weights))}
+def compute_class_weights(generator):
+    labels = generator.classes
+    class_labels = np.unique(labels)
+    weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=labels)
+    return {i: weights[i] for i in range(len(class_labels))}
     
 
 def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
-    # Freeze the base model
-    base_model.trainable = False
+    # Unfreeze the last few layers for fine-tuning
+    for layer in base_model.layers[:150]:  # Freeze first 150 layers
+        layer.trainable = False
+    for layer in base_model.layers[150:]:  # Train remaining layers
+        layer.trainable = True
 
     input_tensor = layers.Input(shape=input_shape)
     
@@ -63,13 +63,17 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
 
     # Fully connected layers
     x = layers.Dense(256, activation='relu')(x)  
-    #x = layers.Dropout(0.4)(x)  # Dropout to reduce overfitting
+    x = layers.Dropout(0.4)(x)  # Dropout to reduce overfitting
 
     # Output layer
     predictions = layers.Dense(1, activation='sigmoid')(x)  
 
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    
+    # Compile the model
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4), 
+                  loss=focal_loss(alpha=0.25, gamma=2.0), 
+                  metrics=['accuracy'])
     
     return model
 
@@ -348,10 +352,17 @@ def process_and_predict(image_path, model, last_conv_layer_name):
     if processed_image is not None and model:
         try:
             # Make prediction
-            prediction = model.predict(processed_image)
-            result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
+            prediction = model.predict(processed_image)[0][0]
+            confidence = prediction if prediction > 0.5 else 1 - prediction  # Confidence Score
+            confidence_percentage = confidence * 100  # Convert to percentage
+            
+            # Determine result label
+            result = 'Cancerous' if prediction > 0.5 else 'Non-Cancerous'
+            
+            # Display Prediction Result
             st.subheader("Prediction Result:")
-            st.write(f"The model predicts the image is: **{result}**")
+            st.write(f"**{result}**")
+            st.write(f"**Confidence: {confidence_percentage:.2f}%**")  # Show confidence
 
             # Generate Grad-CAM heatmap
             heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
@@ -359,6 +370,8 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             if heatmap is not None:
                 uploaded_image = Image.open(image_path)  # Open with PIL
                 superimposed_img = display_gradcam(uploaded_image, heatmap)
+
+                # Show images
                 st.image(image_path, caption='Uploaded Image', use_container_width=True)
                 st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
 
@@ -370,10 +383,9 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             st.error(f"Error during prediction: {str(e)}")
             os.remove(image_path)  # Ensure cleanup even if there's an error
 
+
 # Load Model
-last_conv_layer_name = 'block7a_project'
-
-
+last_conv_layer_name = 'top_conv'
 
 # Normal Image Upload
 
