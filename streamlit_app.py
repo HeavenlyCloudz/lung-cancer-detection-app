@@ -6,6 +6,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, i
 from tensorflow.keras import layers
 from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input
+from tensorflow.keras.callbacks import ReduceLROnPlateau
 from sklearn.utils import class_weight
 import numpy as np
 import cv2
@@ -70,12 +71,16 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
 
     model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
     
+    # Use SGD with momentum
+    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+
     # Compile the model
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3), 
+    model.compile(optimizer=optimizer, 
                   loss=focal_loss(alpha=0.25, gamma=2.0), 
                   metrics=['accuracy'])
     
     return model
+
 
 model = create_efficientnet_model()
 model.summary()
@@ -144,16 +149,24 @@ def load_data(train_dir, val_dir, batch_size):
 def load_model_file():
     if os.path.exists(MODEL_FILE):
         try:
-            model = load_model(MODEL_FILE)
-            model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})  # Load with focal loss
+            
+            # Use the same optimizer as in `create_efficientnet_model`
+            optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+
+            model.compile(optimizer=optimizer, 
+                          loss=focal_loss(alpha=0.25, gamma=2.0), 
+                          metrics=['accuracy'])
+            
             st.success("Model loaded successfully!")
             return model
         except Exception as e:
-            st.error(f"Error loading model: {str(e)}")
+            st.error(f"Error loading model: {e}")
             return None
     else:
-        st.warning("No pre-trained model found.")
+        st.warning("No saved model found.")
         return None
+
 
 def print_layer_names():
     try:
@@ -328,17 +341,26 @@ if st.sidebar.button("Train Model"):
         model = create_efficientnet_model()  # Create a new EfficientNetB0 model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
 
-        # Calculate class weights
+        # Compute class weights
         if train_generator is not None and val_generator is not None:
             y_train = train_generator.classes
             class_labels = np.unique(y_train)
             weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
             class_weights = {i: weights[i] for i in range(len(class_labels))}
 
-            # Train the model (without early stopping)
-            history = model.fit(train_generator, validation_data=val_generator, 
-                                epochs=epochs, class_weight=class_weights) 
+            # **Add ReduceLROnPlateau Callback**
+            reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
+            # Train the model
+            history = model.fit(
+                train_generator,
+                validation_data=val_generator, 
+                epochs=epochs, 
+                class_weight=class_weights, 
+                callbacks=[reduce_lr]  # **Include ReduceLROnPlateau here**
+            )
+
+            # Save model
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
