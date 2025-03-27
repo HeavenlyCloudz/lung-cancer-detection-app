@@ -351,10 +351,10 @@ if st.sidebar.button("Train Model"):
 
             # If imbalance ratio is high, use Focal Loss, otherwise use Binary Cross-Entropy
             if imbalance_ratio > 1.5:
-                loss_function = focal_loss(alpha=0.25, gamma=2.0)
+                loss_function = focal_loss(alpha=0.25, gamma=2.0)  # Use your Focal Loss
                 st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
             else:
-                loss_function = 'binary_crossentropy'
+                loss_function = 'binary_crossentropy'  # Use Binary Cross-Entropy
                 st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
 
             # **Add ReduceLROnPlateau Callback**
