@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
+from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
 from tensorflow.keras.applications import EfficientNetB0
