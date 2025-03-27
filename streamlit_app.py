@@ -114,10 +114,6 @@ def preprocess_image(img_path):
         return None
 
 
-    except Exception as e:
-        st.error(f"Error processing image: {str(e)}")
-        return None
-
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
