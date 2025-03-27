@@ -49,36 +49,37 @@ def compute_class_weights(generator):
 def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
-    # Unfreeze the last few layers for fine-tuning
-    for layer in base_model.layers[:150]:  # Freeze first 150 layers
-        layer.trainable = False
-    for layer in base_model.layers[150:]:  # Train remaining layers
-        layer.trainable = True
+    # Freeze all layers initially
+    for layer in base_model.layers:
+        layer.trainable = False  
 
-    input_tensor = layers.Input(shape=input_shape)
-    
-    x = base_model(input_tensor, training=False)  # Forward pass through EfficientNetB0
+    # Unfreeze last 50 layers for fine-tuning
+    for layer in base_model.layers[-50:]:
+        layer.trainable = True  
+
+    # Use base_model.input directly
+    x = base_model.output
 
     # Global Average Pooling
     x = layers.GlobalAveragePooling2D()(x)
 
     # Fully connected layers
-    x = layers.Dense(256, activation='relu')(x)  
-    x = layers.Dropout(0.4)(x)  # Dropout to reduce overfitting
+    x = layers.Dense(256, activation='relu')(x)
+    x = layers.Dropout(0.4)(x)  
 
     # Output layer
     predictions = layers.Dense(1, activation='sigmoid')(x)  
 
-    model = tf.keras.models.Model(inputs=input_tensor, outputs=predictions)
-    
+    model = Model(inputs=base_model.input, outputs=predictions)
+
     # Use SGD with momentum
     optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
 
-    # Compile the model
+    # Compile the model with Focal Loss
     model.compile(optimizer=optimizer, 
-                  loss=focal_loss(alpha=0.25, gamma=2.0), 
+                  loss=focal_loss(alpha=0.25, gamma=2.0),  # Ensure focal_loss is correct
                   metrics=['accuracy'])
-    
+
     return model
 
 
