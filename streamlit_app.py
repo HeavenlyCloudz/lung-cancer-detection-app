@@ -94,7 +94,7 @@ def create_efficientnet_model(train_generator, input_shape=(224, 224, 3), num_cl
     model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
     return model
 
-model = create_efficientnet_model()
+model = create_efficientnet_model(train_generator)
 model.summary()
 
 def preprocess_image(img_path):
