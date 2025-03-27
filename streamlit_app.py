@@ -48,7 +48,7 @@ def compute_class_weights(generator):
     return {i: weights[i] for i in range(len(class_labels))}, imbalance_ratio
     
 
-def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
+def create_efficientnet_model(train_generator, input_shape=(224, 224, 3), num_classes=1):
     base_model = EfficientNetB0(include_top=False, weights=None, input_shape=input_shape)
 
     # Freeze all layers initially
@@ -74,13 +74,25 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
 
     model = Model(inputs=base_model.input, outputs=predictions)
 
+    # Calculate class weights
+    class_weights = calculate_class_weights(train_generator)
+
+    # Calculate imbalance ratio
+    total_class_weight = sum(class_weights.values())
+    imbalance_ratio = max(class_weights.values()) / total_class_weight
+
+    # Decide whether to use focal loss or binary crossentropy based on imbalance ratio
+    if imbalance_ratio > 1.5:  # Adjust the threshold based on your data
+        loss_function = focal_loss(alpha=0.25, gamma=2.0)
+    else:
+        loss_function = 'binary_crossentropy'
+
     # Use SGD with momentum
     optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-    loss_function = focal_loss(alpha=0.25, gamma=2.0) if use_focal_loss else 'binary_crossentropy'
-    
+
+    # Compile model
     model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
     return model
-
 
 model = create_efficientnet_model()
 model.summary()
