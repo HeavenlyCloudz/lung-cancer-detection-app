@@ -48,7 +48,7 @@ def compute_class_weights(generator):
     
 
 def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
-    base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
+    base_model = EfficientNetB0(include_top=False, weights=None, input_shape=input_shape)
 
     # Freeze all layers initially
     for layer in base_model.layers:
