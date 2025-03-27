@@ -42,9 +42,10 @@ def focal_loss(alpha=0.25, gamma=2.0):
 # Compute Class Weights
 def compute_class_weights(generator):
     labels = generator.classes
-    class_labels = np.unique(labels)
+    class_labels, counts = np.unique(labels, return_counts=True)
     weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=labels)
-    return {i: weights[i] for i in range(len(class_labels))}
+    imbalance_ratio = max(counts) / min(counts)
+    return {i: weights[i] for i in range(len(class_labels))}, imbalance_ratio
     
 
 def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
@@ -75,12 +76,9 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
 
     # Use SGD with momentum
     optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-
-    # Compile the model with Focal Loss
-    model.compile(optimizer=optimizer, 
-                  loss=focal_loss(alpha=0.25, gamma=2.0),  # Ensure focal_loss is correct
-                  metrics=['accuracy'])
-
+    loss_function = focal_loss(alpha=0.25, gamma=2.0) if use_focal_loss else 'binary_crossentropy'
+    
+    model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
     return model
 
 
@@ -346,15 +344,31 @@ if st.sidebar.button("Train Model"):
             weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
             class_weights = {i: weights[i] for i in range(len(class_labels))}
 
+            # Check if class imbalance exists by comparing the class frequencies
+            class_0_count = np.sum(y_train == 0)
+            class_1_count = np.sum(y_train == 1)
+            imbalance_ratio = max(class_0_count, class_1_count) / min(class_0_count, class_1_count) if min(class_0_count, class_1_count) > 0 else 1
+
+            # If imbalance ratio is high, use Focal Loss, otherwise use Binary Cross-Entropy
+            if imbalance_ratio > 1.5:
+                loss_function = focal_loss(alpha=0.25, gamma=2.0)
+                st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
+            else:
+                loss_function = 'binary_crossentropy'
+                st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
+
             # **Add ReduceLROnPlateau Callback**
             reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
+
+            # Compile the model with the selected loss function
+            model.compile(optimizer='adam', loss=loss_function, metrics=['accuracy'])
 
             # Train the model
             history = model.fit(
                 train_generator,
-                validation_data=val_generator, 
-                epochs=epochs, 
-                class_weight=class_weights, 
+                validation_data=val_generator,
+                epochs=epochs,
+                class_weight=class_weights,
                 callbacks=[reduce_lr]  # **Include ReduceLROnPlateau here**
             )
 
@@ -362,6 +376,7 @@ if st.sidebar.button("Train Model"):
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
+
 
 # Button to test model
 if st.sidebar.button("Test Model"):
