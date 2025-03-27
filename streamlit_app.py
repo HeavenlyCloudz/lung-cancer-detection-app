@@ -8,6 +8,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input
 from tensorflow.keras.callbacks import ReduceLROnPlateau
+from sklearn.utils.class_weight import compute_class_weight
 from sklearn.utils import class_weight
 import numpy as np
 import cv2
@@ -29,27 +30,33 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 # Set the last convolutional layer name for Grad-CAM 
 last_conv_layer_name = 'top_conv'
 
+# Function to calculate class weights
+def calculate_class_weights(train_generator):
+    # Assuming that the class labels are integers, e.g., 0 and 1 for binary classification
+    labels = train_generator.classes
+    class_weights = compute_class_weight('balanced', classes=np.unique(labels), y=labels)
+    class_weights_dict = {i: class_weights[i] for i in range(len(class_weights))}
+    return class_weights_dict
+
+# Function to compute imbalance ratio
+def compute_class_weights(train_generator):
+    class_weights = calculate_class_weights(train_generator)
+    total_class_weight = sum(class_weights.values())
+    imbalance_ratio = max(class_weights.values()) / total_class_weight
+    return class_weights, imbalance_ratio
+
 # Focal Loss Function
 def focal_loss(alpha=0.25, gamma=2.0):
-    def loss(y_true, y_pred):
-        bce = tf.keras.losses.binary_crossentropy(y_true, y_pred)
-        p_t = y_true * y_pred + (1 - y_true) * (1 - y_pred)
-        alpha_factor = y_true * alpha + (1 - y_true) * (1 - alpha)
-        focal_weight = alpha_factor * tf.pow((1 - p_t), gamma)
-        return focal_weight * bce
-    return loss
+    def focal_loss_fixed(y_true, y_pred):
+        epsilon = tf.keras.backend.epsilon()
+        y_pred = tf.clip_by_value(y_pred, epsilon, 1. - epsilon)
+        cross_entropy = -y_true * tf.math.log(y_pred) - (1 - y_true) * tf.math.log(1 - y_pred)
+        loss = alpha * tf.pow(1 - y_pred, gamma) * cross_entropy
+        return tf.reduce_mean(loss)
+    return focal_loss_fixed
 
-# Compute Class Weights
-def compute_class_weights(generator):
-    labels = generator.classes
-    class_labels, counts = np.unique(labels, return_counts=True)
-    weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=labels)
-    imbalance_ratio = max(counts) / min(counts)
-    return {i: weights[i] for i in range(len(class_labels))}, imbalance_ratio
-    
-
-def create_efficientnet_model(train_generator, input_shape=(224, 224, 3), num_classes=1):
-    base_model = EfficientNetB0(include_top=False, weights=None, input_shape=input_shape)
+def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
+    base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze all layers initially
     for layer in base_model.layers:
@@ -74,27 +81,12 @@ def create_efficientnet_model(train_generator, input_shape=(224, 224, 3), num_cl
 
     model = Model(inputs=base_model.input, outputs=predictions)
 
-    # Calculate class weights
-    class_weights = calculate_class_weights(train_generator)
-
-    # Calculate imbalance ratio
-    total_class_weight = sum(class_weights.values())
-    imbalance_ratio = max(class_weights.values()) / total_class_weight
-
-    # Decide whether to use focal loss or binary crossentropy based on imbalance ratio
-    if imbalance_ratio > 1.5:  # Adjust the threshold based on your data
-        loss_function = focal_loss(alpha=0.25, gamma=2.0)
-    else:
-        loss_function = 'binary_crossentropy'
-
     # Use SGD with momentum
     optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
 
-    # Compile model
-    model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
     return model
 
-model = create_efficientnet_model(train_generator)
+model = create_efficientnet_model()
 model.summary()
 
 def preprocess_image(img_path):
@@ -178,7 +170,7 @@ def load_model_file():
 
 def print_layer_names():
     try:
-        base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
+        base_model = EfficientNetB0(include_top=False, weights='', input_shape=(224, 224, 3))
         layer_names = [layer.name for layer in base_model.layers]
         return layer_names
     except Exception as e:
@@ -207,6 +199,33 @@ def plot_training_history(history):
         st.pyplot(fig)
     except Exception as e:
         st.error(f"Error plotting training history: {str(e)}")
+
+# Training function
+def train(train_dir, val_dir):
+    train_generator, val_generator = load_data(train_dir, val_dir, BATCH_SIZE)
+
+    if not train_generator or not val_generator:
+        return
+
+    class_weights = calculate_class_weights(train_generator)
+    imbalance_ratio = max(class_weights.values()) / sum(class_weights.values())
+    loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'binary_crossentropy'
+
+    model = create_efficientnet_model()
+    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+    model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
+
+    history = model.fit(
+        train_generator,
+        epochs=EPOCHS,
+        validation_data=val_generator,
+        class_weight=class_weights
+    )
+
+    model.save('lung_cancer_detection_model.keras')
+    st.write("Model saved as lung_cancer_detection_model.keras")
+    st.write("Training completed.")
+
 
 def test_model(model):
     test_datagen = ImageDataGenerator(rescale=1./255)
