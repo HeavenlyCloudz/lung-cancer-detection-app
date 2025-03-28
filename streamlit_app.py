@@ -466,34 +466,33 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             st.write(f"**{result}**")
             st.write(f"**Confidence: {confidence_percentage:.2f}%**")  # Show confidence
 
-          # Generate Grad-CAM heatmap
-try:
-    heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
+            # Generate Grad-CAM heatmap
+            try:
+                heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
 
-    if heatmap is not None:
-        uploaded_image = Image.open(image_path)  # Open with PIL
+                if heatmap is not None:
+                    uploaded_image = Image.open(image_path)  # Open with PIL
 
-        # Convert PIL image to numpy array for OpenCV compatibility
-        uploaded_image_np = np.array(uploaded_image)
+                    # Convert PIL image to numpy array for OpenCV compatibility
+                    uploaded_image_np = np.array(uploaded_image)
 
-        superimposed_img = display_gradcam(uploaded_image_np, heatmap)
+                    superimposed_img = display_gradcam(uploaded_image_np, heatmap)
 
-        # Show images
-        st.image(image_path, caption='Uploaded Image', use_container_width=True)
+                    # Show images
+                    st.image(image_path, caption='Uploaded Image', use_container_width=True)
 
-        if superimposed_img is not None:
-            st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
-        else:
-            st.warning("Grad-CAM generation failed.")
+                    if superimposed_img is not None:
+                        st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+                    else:
+                        st.warning("Grad-CAM generation failed.")
 
-        uploaded_image.close()  # Close the PIL image
-    else:
-        st.warning("Grad-CAM generation returned None.")
+                    uploaded_image.close()  # Close the PIL image
+                else:
+                    st.warning("Grad-CAM generation returned None.")
 
-except Exception as e:
-    st.error(f"Error displaying Grad-CAM: {str(e)}")
+            except Exception as e:
+                st.error(f"Error displaying Grad-CAM: {str(e)}")
 
-            
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
 
