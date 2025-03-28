@@ -99,6 +99,7 @@ def preprocess_image(img_path):
 
         # Resize image to (224, 224)
         img = img.resize((IMAGE_HEIGHT, IMAGE_WIDTH))
+        print(f"Resized image size: {img.size}")  # Debugging print
 
         # Convert to numpy array
         img_array = np.asarray(img, dtype=np.float32)
@@ -112,13 +113,13 @@ def preprocess_image(img_path):
 
         # Expand dimensions to fit the model's input shape
         img_array = np.expand_dims(img_array, axis=0)
+        print(f"Image array shape after expanding: {img_array.shape}")  # Debugging print
 
         return img_array
 
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
         return None
-
 
 
 # Load training and validation data
