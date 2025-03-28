@@ -101,26 +101,25 @@ def preprocess_image(img_path):
         img = img.resize((224, 224))
         print(f"Resized image size: {img.size}")  # Debugging print
 
-        # Convert to numpy array
+        # Convert image to numpy array
         img_array = np.asarray(img, dtype=np.float32)
 
         # Ensure the correct shape
         if img_array.shape != (224, 224, 3):
             raise ValueError(f"Unexpected shape after resizing: {img_array.shape}")
 
-        # Preprocess the image using EfficientNet's preprocess_input
+        # Normalize the image data using EfficientNet's preprocess_input
         img_array = preprocess_input(img_array)
 
-        # Expand dimensions to fit the model's input shape
+        # Expand dimensions to fit the model's input shape (1, 224, 224, 3)
         img_array = np.expand_dims(img_array, axis=0)
         print(f"Image array shape after expanding: {img_array.shape}")  # Debugging print
 
         return img_array
 
     except Exception as e:
-        st.error(f"Error processing image: {str(e)}")
+        print(f"Error processing image: {str(e)}")  # More detailed error message for debugging
         return None
-
 
 
 # Load training and validation data
