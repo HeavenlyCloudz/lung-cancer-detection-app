@@ -98,7 +98,7 @@ def preprocess_image(img_path):
             img = img.convert('RGB')
 
         # Resize image to (224, 224)
-        img = img.resize((IMAGE_HEIGHT, IMAGE_WIDTH))
+        img = img.resize((224, 224))
         print(f"Resized image size: {img.size}")  # Debugging print
 
         # Convert to numpy array
@@ -120,6 +120,7 @@ def preprocess_image(img_path):
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
         return None
+
 
 
 # Load training and validation data
@@ -279,27 +280,33 @@ def test_model(model):
         st.error(f"Error during testing: {str(e)}")
 
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
-    grad_model = tf.keras.models.Model(
-        [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
-    )
+    try:
+        grad_model = tf.keras.models.Model(
+            [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
+        )
 
-    with tf.GradientTape() as tape:
-        last_conv_layer_output, preds = grad_model(img_array)
+        with tf.GradientTape() as tape:
+            last_conv_layer_output, preds = grad_model(img_array)
 
-        if pred_index is None:
-            pred_index = tf.argmax(preds[0])
-        class_channel = preds[:, pred_index]
+            if pred_index is None:
+                pred_index = tf.argmax(preds[0])
+            class_channel = preds[:, pred_index]
 
-    grads = tape.gradient(class_channel, last_conv_layer_output)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
+        grads = tape.gradient(class_channel, last_conv_layer_output)
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
 
-    last_conv_layer_output = last_conv_layer_output[0]
-    heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
-    heatmap = tf.maximum(heatmap, 0)
+        last_conv_layer_output = last_conv_layer_output[0]
+        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
+        heatmap = tf.maximum(heatmap, 0)
 
-    heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
+        heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
 
-    return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+        return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+
+    except Exception as e:
+        st.error(f"Error generating Grad-CAM heatmap: {str(e)}")
+        return None
+
 
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
@@ -426,10 +433,11 @@ if st.sidebar.button("Test Model"):
 
 # Function to process and predict image
 def process_and_predict(image_path, model, last_conv_layer_name):
-    processed_image = preprocess_image(image_path)
+    try:
+        # Preprocess the image
+        processed_image = preprocess_image(image_path)
 
-    if processed_image is not None and model:
-        try:
+        if processed_image is not None and model:
             # Make prediction
             prediction = model.predict(processed_image)[0][0]
             confidence = prediction if prediction > 0.5 else 1 - prediction  # Confidence Score
@@ -452,15 +460,22 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 
                 # Show images
                 st.image(image_path, caption='Uploaded Image', use_container_width=True)
-                st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+               
+                if superimposed_img is not None:
+                    st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+                else:
+                    st.warning("Grad-CAM generation failed.")
+            
+    except Exception as e:
+        st.error(f"Error during prediction: {str(e)}")
 
-            # Close and delete the image file
-            uploaded_image.close()
-            os.remove(image_path)
-
-        except Exception as e:
-            st.error(f"Error during prediction: {str(e)}")
-            os.remove(image_path)  # Ensure cleanup even if there's an error
+    finally:
+        # Ensure cleanup of the image file
+        if os.path.exists(image_path):
+            try:
+                os.remove(image_path)
+            except Exception as e:
+                st.warning(f"Error removing image file: {str(e)}")
 
 
 # Load Model
@@ -489,6 +504,7 @@ if photo is not None:
         f.write(photo.getbuffer())
 
     process_and_predict(captured_filename, model, last_conv_layer_name)
+
 
 # Clear cache button
 if st.button("Clear Cache"):
