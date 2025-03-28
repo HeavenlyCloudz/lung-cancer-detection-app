@@ -103,6 +103,10 @@ def preprocess_image(img_path):
         # Convert to numpy array
         img_array = np.asarray(img, dtype=np.float32)
 
+        # Ensure the correct shape
+        if img_array.shape != (224, 224, 3):
+            raise ValueError(f"Unexpected shape after resizing: {img_array.shape}")
+
         # Preprocess the image using EfficientNet's preprocess_input
         img_array = preprocess_input(img_array)
 
@@ -114,6 +118,7 @@ def preprocess_image(img_path):
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
         return None
+
 
 
 # Load training and validation data
