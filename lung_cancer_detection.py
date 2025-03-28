@@ -28,13 +28,13 @@ test_data_dir = os.path.join(base_data_dir, "test")
 # Last layer name for Grad-CAM
 last_conv_layer_name = 'top_conv'
 
-def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
-    base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+def create_efficientnet_model(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
+    base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze the base model
     base_model.trainable = False
 
-    input_tensor = layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+    input_tensor = layers.Input(shape=input_shape)
     x = base_model(input_tensor, training=False)  # Forward pass through EfficientNetB0
 
     # Global Average Pooling
@@ -52,8 +52,6 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     
     return model
 
-model = create_efficientnet_model()
-
 # Load model from file
 def load_model_file(model_file):
     if os.path.exists(model_file):
@@ -70,15 +68,35 @@ def load_model_file(model_file):
 
 # Preprocess the image for prediction
 def preprocess_image(img_path):
-    try:
-        img = load_img(img_path, target_size=(IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to (224, 224)
-        image_array = img_to_array(img)                                     # Convert to array
-        image_array = np.expand_dims(image_array, axis=0)                  # Add batch dimension
-        image_array = preprocess_input(image_array)                         # Preprocess
+     try:
+        img = Image.open(img_path)
 
-        return image_array
+        # Convert to RGB if necessary
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        # Resize image to (224, 224)
+        img = img.resize((224, 224))
+        print(f"Resized image size: {img.size}")  # Debugging print
+
+        # Convert image to numpy array
+        img_array = np.asarray(img, dtype=np.float32)
+
+        # Ensure the correct shape
+        if img_array.shape != (224, 224, 3):
+            raise ValueError(f"Unexpected shape after resizing: {img_array.shape}")
+
+        # Normalize the image data using EfficientNet's preprocess_input
+        img_array = preprocess_input(img_array)
+
+        # Expand dimensions to fit the model's input shape (1, 224, 224, 3)
+        img_array = np.expand_dims(img_array, axis=0)
+        print(f"Image array shape after expanding: {img_array.shape}")  # Debugging print
+
+        return img_array
+
     except Exception as e:
-        print(f"Error processing image: {str(e)}")
+        print(f"Error processing image: {str(e)}")  # More detailed error message for debugging
         return None
 
 # Load data
