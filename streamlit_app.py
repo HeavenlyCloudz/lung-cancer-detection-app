@@ -466,11 +466,11 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             st.write(f"**{result}**")
             st.write(f"**Confidence: {confidence_percentage:.2f}%**")  # Show confidence
 
-           # Generate Grad-CAM heatmap
-heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
+          # Generate Grad-CAM heatmap
+try:
+    heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
 
-if heatmap is not None:
-    try:
+    if heatmap is not None:
         uploaded_image = Image.open(image_path)  # Open with PIL
 
         # Convert PIL image to numpy array for OpenCV compatibility
@@ -485,13 +485,13 @@ if heatmap is not None:
             st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
         else:
             st.warning("Grad-CAM generation failed.")
-        
-        uploaded_image.close()  # Close the PIL image
 
-    except Exception as e:
-        st.error(f"Error displaying Grad-CAM: {str(e)}")
-else:
-    st.warning("Grad-CAM generation returned None.")
+        uploaded_image.close()  # Close the PIL image
+    else:
+        st.warning("Grad-CAM generation returned None.")
+
+except Exception as e:
+    st.error(f"Error displaying Grad-CAM: {str(e)}")
 
             
     except Exception as e:
