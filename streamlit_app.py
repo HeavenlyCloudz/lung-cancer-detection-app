@@ -280,6 +280,7 @@ def test_model(model):
 
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
     try:
+        # Creating the Grad-CAM model
         grad_model = tf.keras.models.Model(
             [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
         )
@@ -287,37 +288,52 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         with tf.GradientTape() as tape:
             last_conv_layer_output, preds = grad_model(img_array)
 
+            # If pred_index is not provided, use the class with the highest probability
             if pred_index is None:
-                pred_index = tf.argmax(preds[0])
-            class_channel = preds[:, pred_index]
+                pred_index = tf.argmax(preds[0])  # Index of the predicted class
 
+            class_channel = preds[:, pred_index]  # Class channel to compute gradient for
+
+        # Compute the gradients
         grads = tape.gradient(class_channel, last_conv_layer_output)
-        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))  # Pool gradients over spatial dimensions
 
+        # Get the output from the last convolutional layer
         last_conv_layer_output = last_conv_layer_output[0]
-        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
-        heatmap = tf.maximum(heatmap, 0)
 
+        # Compute the Grad-CAM heatmap
+        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
+        heatmap = tf.maximum(heatmap, 0)  # ReLU activation on the heatmap
+
+        # Normalize the heatmap to the range [0, 1]
         heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
 
+        # Return the resized heatmap to match the input image dimensions
         return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
 
     except Exception as e:
         st.error(f"Error generating Grad-CAM heatmap: {str(e)}")
         return None
 
-
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
+        # Convert the heatmap to 8-bit (0-255) format
         heatmap = np.uint8(255 * heatmap)
-        jet = cm.get_cmap("jet")
-        jet_colors = jet(np.arange(256))[:, :3]
-        jet_heatmap = jet_colors[heatmap]
-        jet_heatmap = np.uint8(jet_heatmap * 255)
-        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)
+
+        # Use the new colormap API from Matplotlib (avoid deprecated `get_cmap`)
+        jet = plt.cm.get_cmap("jet")
+        jet_colors = jet(np.arange(256))[:, :3]  # Get the RGB values
+        jet_heatmap = jet_colors[heatmap]  # Apply the colormap to the heatmap
+        jet_heatmap = np.uint8(jet_heatmap * 255)  # Convert to 8-bit format
+        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
+
+        # Resize the heatmap to match the input image dimensions
         jet_heatmap = cv2.resize(jet_heatmap, (img.shape[1], img.shape[0]))
+
+        # Superimpose the heatmap on the original image
         superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img, 1 - alpha, 0)
         return superimposed_img
+
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
         return None
@@ -450,20 +466,33 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             st.write(f"**{result}**")
             st.write(f"**Confidence: {confidence_percentage:.2f}%**")  # Show confidence
 
-            # Generate Grad-CAM heatmap
-            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
+           # Generate Grad-CAM heatmap
+heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
 
-            if heatmap is not None:
-                uploaded_image = Image.open(image_path)  # Open with PIL
-                superimposed_img = display_gradcam(uploaded_image, heatmap)
+if heatmap is not None:
+    try:
+        uploaded_image = Image.open(image_path)  # Open with PIL
 
-                # Show images
-                st.image(image_path, caption='Uploaded Image', use_container_width=True)
-               
-                if superimposed_img is not None:
-                    st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
-                else:
-                    st.warning("Grad-CAM generation failed.")
+        # Convert PIL image to numpy array for OpenCV compatibility
+        uploaded_image_np = np.array(uploaded_image)
+
+        superimposed_img = display_gradcam(uploaded_image_np, heatmap)
+
+        # Show images
+        st.image(image_path, caption='Uploaded Image', use_container_width=True)
+
+        if superimposed_img is not None:
+            st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+        else:
+            st.warning("Grad-CAM generation failed.")
+        
+        uploaded_image.close()  # Close the PIL image
+
+    except Exception as e:
+        st.error(f"Error displaying Grad-CAM: {str(e)}")
+else:
+    st.warning("Grad-CAM generation returned None.")
+
             
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
