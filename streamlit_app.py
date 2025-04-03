@@ -470,6 +470,9 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             if result == 'Cancerous':
                 st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consolidate with a health professional and other experts on these results.")
 
+            if result == 'Non-Cancerous':
+                st.write("**Note:** The mode has determined this CT scan to be exempt from the presence of cancer. However, please continue to consilidate a health professional and other experts on these results.")
+
             # Generate Grad-CAM heatmap
             try:
                 heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
