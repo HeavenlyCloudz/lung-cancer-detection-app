@@ -229,6 +229,7 @@ def train(train_dir, val_dir):
     )
 
     model.save('lung_cancer_detection_model.keras')
+    model.save_weights('lung_cancer_detection_weights.h5')
     st.write("Model saved as lung_cancer_detection_model.keras")
     st.write("Training completed.")
 
