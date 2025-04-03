@@ -166,13 +166,6 @@ def load_model_file():
             
             st.success("Model loaded successfully!")
 
-            # Load weights if available
-            if os.path.exists('lung_cancer_detection_weights.h5'):
-                model.load_weights('lung_cancer_detection_weights.h5')
-                st.success("Weights loaded successfully!")
-            else:
-                st.warning("No weights file found.")
-
             return model
         except Exception as e:
             st.error(f"Error loading model: {e}")
@@ -180,7 +173,6 @@ def load_model_file():
     else:
         st.warning("No saved model found.")
         return None
-
 
 def print_layer_names():
     try:
@@ -236,9 +228,8 @@ def train(train_dir, val_dir):
         class_weight=class_weights
     )
 
-    model.save('lung_cancer_detection_model.keras')
-    model.save_weights('lung_cancer_detection_weights.h5')
-    st.write("Model and weights saved successfully!")
+    model.save(MODEL_FILE)
+    st.write("Model saved successfully!")
     st.write("Training completed.")
 
 
@@ -481,7 +472,24 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 
             if result == 'Non-Cancerous':
                 st.write("**Note:** The mode has determined this CT scan to be exempt from the presence of cancer. However, please continue to consilidate a health professional and other experts on these results.")
+                
+                # Symptoms checkboxes
+                symptoms = [
+                    "Persistent cough",
+                    "Shortness of breath",
+                    "Chest pain",
+                    "Fatigue",
+                    "Weight loss",
+                    "Wheezing",
+                    "Coughing up blood"
+                ]
+                
+                selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
 
+                # Check how many symptoms are selected
+                if len(selected_symptoms) > 3:
+                    st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses. Please contact medical support.")
+            
             # Generate Grad-CAM heatmap
             try:
                 heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
