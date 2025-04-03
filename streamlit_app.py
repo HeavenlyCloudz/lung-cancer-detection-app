@@ -165,6 +165,14 @@ def load_model_file():
                           metrics=['accuracy'])
             
             st.success("Model loaded successfully!")
+
+            # Load weights if available
+            if os.path.exists('lung_cancer_detection_weights.h5'):
+                model.load_weights('lung_cancer_detection_weights.h5')
+                st.success("Weights loaded successfully!")
+            else:
+                st.warning("No weights file found.")
+
             return model
         except Exception as e:
             st.error(f"Error loading model: {e}")
@@ -230,7 +238,7 @@ def train(train_dir, val_dir):
 
     model.save('lung_cancer_detection_model.keras')
     model.save_weights('lung_cancer_detection_weights.h5')
-    st.write("Model saved as lung_cancer_detection_model.keras")
+    st.write("Model and weights saved successfully!")
     st.write("Training completed.")
 
 
