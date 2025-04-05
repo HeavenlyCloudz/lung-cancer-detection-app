@@ -84,6 +84,10 @@ def load_model_file():
                           metrics=['accuracy'])
 
             return model
+        except Exception as e:
+            st.error(f"Error loading model: {str(e)}")
+            return None
+
        
 # Function to print layer names
 def print_layer_names(model):
