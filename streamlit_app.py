@@ -520,12 +520,21 @@ if st.button("Clear Cache"):
 if 'show_layers' not in st.session_state:
     st.session_state.show_layers = False
 
+# Function to print layer names
+def print_layer_names(model):
+    try:
+        layer_names = [layer.name for layer in model.layers]
+        return layer_names
+    except Exception as e:
+        st.error(f"Error retrieving layer names: {str(e)}")
+        return []
+
 # Button to toggle visibility of layer names
 if st.sidebar.button("Toggle Layer Names"):
     st.session_state.show_layers = not st.session_state.show_layers
 
 # Displaying the layer names if the state is True
 if st.session_state.show_layers:
-    layer_names = print_layer_names()  # Assume this function returns a list of layer names
-    st.write("Layer names in EfficientNetB0:")
+    layer_names = print_layer_names(model)
+    st.write("Layer names in the model:")
     st.text("\n".join(layer_names))
