@@ -93,6 +93,18 @@ def load_model_file():
         st.warning("No saved model found.")
         return None
 
+# Function to print layer names
+def print_layer_names(model):
+    try:
+        layer_names = [layer.name for layer in model.layers]
+        return layer_names
+    except Exception as e:
+        st.error(f"Error retrieving layer names: {str(e)}")
+        return []
+
+# Load the model
+model = load_model_file()
+
 def preprocess_image(img_path):
     try:
         img = Image.open(img_path)
@@ -520,21 +532,12 @@ if st.button("Clear Cache"):
 if 'show_layers' not in st.session_state:
     st.session_state.show_layers = False
 
-# Function to print layer names
-def print_layer_names(model):
-    try:
-        layer_names = [layer.name for layer in model.layers]
-        return layer_names
-    except Exception as e:
-        st.error(f"Error retrieving layer names: {str(e)}")
-        return []
-
 # Button to toggle visibility of layer names
 if st.sidebar.button("Toggle Layer Names"):
     st.session_state.show_layers = not st.session_state.show_layers
 
 # Displaying the layer names if the state is True
-if st.session_state.show_layers:
+if st.session_state.show_layers and model is not None:
     layer_names = print_layer_names(model)
     st.write("Layer names in the model:")
     st.text("\n".join(layer_names))
