@@ -607,7 +607,6 @@ if photo is not None:
 
     process_and_predict(captured_filename, model, last_conv_layer_name)
 
-
 # Clear cache button
 if st.button("Clear Cache"):
     st.cache_data.clear()  # Clear the cache
