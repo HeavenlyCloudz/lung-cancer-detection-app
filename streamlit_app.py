@@ -135,7 +135,6 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
         return None
 
 model = create_efficientnet_model()
-model.summary()
 
 def preprocess_image(img_path):
     try:
