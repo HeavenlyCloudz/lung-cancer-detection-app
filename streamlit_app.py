@@ -496,9 +496,6 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                     st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
                 else:
                     st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
-    
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
             
             # Generate Grad-CAM heatmap
             try:
