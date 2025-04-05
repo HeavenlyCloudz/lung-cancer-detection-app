@@ -402,7 +402,7 @@ if st.sidebar.button("Train Model"):
                 layer.trainable = False
 
             # Add custom layers on top of the EfficientNetB0 base model
-            x = layers.GlobalAveragePooling2D()(base_model.output)
+            x = layers.Flatten()(base_model.output)
             x = layers.Dense(256, activation='relu')(x)
             x = layers.Dropout(0.4)(x)
             predictions = layers.Dense(1, activation='sigmoid')(x)  # Binary classification
