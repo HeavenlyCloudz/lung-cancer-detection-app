@@ -2,21 +2,24 @@ import streamlit as st
 import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Model
+from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
+from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.applications.efficientnet import preprocess_input
+from tensorflow.keras.callbacks import ReduceLROnPlateau
+from sklearn.utils.class_weight import compute_class_weight
 from sklearn.utils import class_weight
-from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
-from skimage import feature
 import matplotlib.cm as cm
 
 # Constants
-IMAGE_HEIGHT, IMAGE_WIDTH = 150, 150  # Set consistent input size to 150x150
+IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 BATCH_SIZE = 32
 base_data_dir = os.path.join(os.getcwd(), 'data')
@@ -24,45 +27,100 @@ train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
-# HOG Feature Extraction
-def extract_hog_features(image):
-    resized_image = cv2.resize(image, (IMAGE_WIDTH, IMAGE_HEIGHT))
-    gray_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
-    hog_features = feature.hog(gray_image, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=False)
-    return hog_features
+# Set the last convolutional layer name for Grad-CAM 
+last_conv_layer_name = 'top_conv'
 
-# Create CNN model with explicit layer names
-def create_custom_cnn(input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3), num_classes=1):
-    model = tf.keras.models.Sequential([
-        layers.Input(shape=input_shape),
-        layers.Conv2D(64, (3, 3), activation='relu', name='conv2d'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d'),
-        layers.Conv2D(128, (3, 3), activation='relu', name='conv2d_1'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d_1'),
-        layers.Conv2D(256, (3, 3), activation='relu', name='conv2d_2'),
-        layers.MaxPooling2D((2, 2), name='max_pooling2d_2'),
-        layers.GlobalAveragePooling2D(name='global_avg_pool'),
-        layers.Dense(128, activation='relu', name='dense_layer_1'),
-        layers.Dense(num_classes, activation='sigmoid', name='output_layer')
-    ])
-    
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+# Function to calculate class weights
+def calculate_class_weights(train_generator):
+    # Assuming that the class labels are integers, e.g., 0 and 1 for binary classification
+    labels = train_generator.classes
+    class_weights = compute_class_weight('balanced', classes=np.unique(labels), y=labels)
+    class_weights_dict = {i: class_weights[i] for i in range(len(class_weights))}
+    return class_weights_dict
+
+# Function to compute imbalance ratio
+def compute_class_weights(train_generator):
+    class_weights = calculate_class_weights(train_generator)
+    total_class_weight = sum(class_weights.values())
+    imbalance_ratio = max(class_weights.values()) / total_class_weight
+    return class_weights, imbalance_ratio
+
+# Focal Loss Function
+def focal_loss(alpha=0.25, gamma=2.0):
+    def focal_loss_fixed(y_true, y_pred):
+        epsilon = tf.keras.backend.epsilon()
+        y_pred = tf.clip_by_value(y_pred, epsilon, 1. - epsilon)
+        cross_entropy = -y_true * tf.math.log(y_pred) - (1 - y_true) * tf.math.log(1 - y_pred)
+        loss = alpha * tf.pow(1 - y_pred, gamma) * cross_entropy
+        return tf.reduce_mean(loss)
+    return focal_loss_fixed
+
+def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
+    base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
+
+    # Freeze all layers initially
+    for layer in base_model.layers:
+        layer.trainable = False  
+
+    # Unfreeze last 50 layers for fine-tuning
+    for layer in base_model.layers[-50:]:
+        layer.trainable = True  
+
+    # Use base_model.input directly
+    x = base_model.output
+
+    # Global Average Pooling
+    x = layers.GlobalAveragePooling2D()(x)
+
+    # Fully connected layers
+    x = layers.Dense(256, activation='relu')(x)
+    x = layers.Dropout(0.4)(x)  
+
+    # Output layer
+    predictions = layers.Dense(1, activation='sigmoid')(x)  
+
+    model = Model(inputs=base_model.input, outputs=predictions)
+
+    # Use SGD with momentum
+    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+
     return model
 
-# Load model from file
-def load_model_file():
-    if os.path.exists(MODEL_FILE):
-        try:
-            model = load_model(MODEL_FILE)
-            model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-            st.success("Model loaded successfully!")
-            return model
-        except Exception as e:
-            st.error(f"Error loading model: {str(e)}")
-            return None
-    else:
-        st.warning("No pre-trained model found.")
+model = create_efficientnet_model()
+model.summary()
+
+def preprocess_image(img_path):
+    try:
+        img = Image.open(img_path)
+
+        # Convert to RGB if necessary
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        # Resize image to (224, 224)
+        img = img.resize((224, 224))
+        print(f"Resized image size: {img.size}")  # Debugging print
+
+        # Convert image to numpy array
+        img_array = np.asarray(img, dtype=np.float32)
+
+        # Ensure the correct shape
+        if img_array.shape != (224, 224, 3):
+            raise ValueError(f"Unexpected shape after resizing: {img_array.shape}")
+
+        # Normalize the image data using EfficientNet's preprocess_input
+        img_array = preprocess_input(img_array)
+
+        # Expand dimensions to fit the model's input shape (1, 224, 224, 3)
+        img_array = np.expand_dims(img_array, axis=0)
+        print(f"Image array shape after expanding: {img_array.shape}")  # Debugging print
+
+        return img_array
+
+    except Exception as e:
+        print(f"Error processing image: {str(e)}")  # More detailed error message for debugging
         return None
+
 
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
@@ -93,24 +151,38 @@ def load_data(train_dir, val_dir, batch_size):
         st.error(f"Error loading data: {str(e)}")
         return None, None
 
-# Preprocess the image for prediction
-def preprocess_image(img_path):
-    try:
-        img = Image.open(img_path).convert('RGB')
-        new_image = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
-        processed_image = np.asarray(new_image) / 255.0
+# Load model from file
+def load_model_file():
+    if os.path.exists(MODEL_FILE):
+        try:
+            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})  # Load with focal loss
+            
+            # Use the same optimizer as in `create_efficientnet_model`
+            optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
 
-        if processed_image.ndim == 2:  
-            processed_image = np.stack((processed_image,) * 3, axis=-1)
+            model.compile(optimizer=optimizer, 
+                          loss=focal_loss(alpha=0.25, gamma=2.0), 
+                          metrics=['accuracy'])
+            
+            st.success("Model loaded successfully!")
 
-        img_array = np.expand_dims(processed_image, axis=0)
-        
-        return img_array
-    except Exception as e:
-        st.error(f"Error processing image: {str(e)}")
+            return model
+        except Exception as e:
+            st.error(f"Error loading model: {e}")
+            return None
+    else:
+        st.warning("No saved model found.")
         return None
 
-# Function to plot training history
+def print_layer_names():
+    try:
+        base_model = EfficientNetB0(include_top=False, weights='', input_shape=(224, 224, 3))
+        layer_names = [layer.name for layer in base_model.layers]
+        return layer_names
+    except Exception as e:
+        st.error(f"Error in print_layer_names: {str(e)}")
+        return []
+
 def plot_training_history(history):
     try:
         fig, ax = plt.subplots(1, 2, figsize=(12, 4))
@@ -134,7 +206,33 @@ def plot_training_history(history):
     except Exception as e:
         st.error(f"Error plotting training history: {str(e)}")
 
-# Function to test the model
+# Training function
+def train(train_dir, val_dir):
+    train_generator, val_generator = load_data(train_dir, val_dir, BATCH_SIZE)
+
+    if not train_generator or not val_generator:
+        return
+
+    class_weights = calculate_class_weights(train_generator)
+    imbalance_ratio = max(class_weights.values()) / sum(class_weights.values())
+    loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'binary_crossentropy'
+
+    model = create_efficientnet_model()
+    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+    model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
+
+    history = model.fit(
+        train_generator,
+        epochs=EPOCHS,
+        validation_data=val_generator,
+        class_weight=class_weights
+    )
+
+    model.save(MODEL_FILE)
+    st.write("Model saved successfully!")
+    st.write("Training completed.")
+
+
 def test_model(model):
     test_datagen = ImageDataGenerator(rescale=1./255)
     try:
@@ -154,9 +252,9 @@ def test_model(model):
         cm = confusion_matrix(test_generator.classes, y_pred_classes)
 
         # Calculate precision and recall
-        tp = cm[1, 1]  # True Positives
-        fp = cm[0, 1]  # False Positives
-        fn = cm[1, 0]  # False Negatives
+        tp = cm[1, 1]  
+        fp = cm[0, 1]  
+        fn = cm[1, 0]  
 
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
@@ -180,50 +278,68 @@ def test_model(model):
     except Exception as e:
         st.error(f"Error during testing: {str(e)}")
 
-# Generate Grad-CAM heatmap
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
-    grad_model = tf.keras.models.Model(
-        [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
-    )
+    try:
+        # Creating the Grad-CAM model
+        grad_model = tf.keras.models.Model(
+            [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
+        )
 
-    with tf.GradientTape() as tape:
-        last_conv_layer_output, preds = grad_model(img_array)
-        
-        if pred_index is None:
-            pred_index = tf.argmax(preds[0])
-        class_channel = preds[:, pred_index]
+        with tf.GradientTape() as tape:
+            last_conv_layer_output, preds = grad_model(img_array)
 
-    grads = tape.gradient(class_channel, last_conv_layer_output)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
+            # If pred_index is not provided, use the class with the highest probability
+            if pred_index is None:
+                pred_index = tf.argmax(preds[0])  # Index of the predicted class
 
-    last_conv_layer_output = last_conv_layer_output[0]
-    heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
-    heatmap = tf.maximum(heatmap, 0)  # ReLU
-    heatmap /= tf.reduce_max(heatmap)  # Normalize
+            class_channel = preds[:, pred_index]  # Class channel to compute gradient for
 
-    return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+        # Compute the gradients
+        grads = tape.gradient(class_channel, last_conv_layer_output)
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))  # Pool gradients over spatial dimensions
 
-# Display Grad-CAM heatmap
+        # Get the output from the last convolutional layer
+        last_conv_layer_output = last_conv_layer_output[0]
+
+        # Compute the Grad-CAM heatmap
+        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
+        heatmap = tf.maximum(heatmap, 0)  # ReLU activation on the heatmap
+
+        # Normalize the heatmap to the range [0, 1]
+        heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
+
+        # Return the resized heatmap to match the input image dimensions
+        return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+
+    except Exception as e:
+        st.error(f"Error generating Grad-CAM heatmap: {str(e)}")
+        return None
+
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
+        # Convert the heatmap to 8-bit (0-255) format
         heatmap = np.uint8(255 * heatmap)
-        jet = cm.get_cmap("jet")
-        jet_colors = jet(np.arange(256))[:, :3]
-        jet_heatmap = jet_colors[heatmap]
 
-        jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
-        jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))
-        jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+        # Use the new colormap API from Matplotlib (avoid deprecated `get_cmap`)
+        jet = plt.cm.get_cmap("jet")
+        jet_colors = jet(np.arange(256))[:, :3]  # Get the RGB values
+        jet_heatmap = jet_colors[heatmap]  # Apply the colormap to the heatmap
+        jet_heatmap = np.uint8(jet_heatmap * 255)  # Convert to 8-bit format
+        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
 
-        superimposed_img = jet_heatmap * alpha + img
-        superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)
+        # Resize the heatmap to match the input image dimensions
+        jet_heatmap = cv2.resize(jet_heatmap, (img.shape[1], img.shape[0]))
+
+        # Superimpose the heatmap on the original image
+        superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img, 1 - alpha, 0)
         return superimposed_img
+
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
         return None
 
 # Streamlit UI
-st.title("Lung Cancer Detection")
+st.title("Lung Cancer Detection💻")
 st.markdown(
     """
     <style>
@@ -251,12 +367,18 @@ st.markdown(
 )
 
 st.markdown('<div class="section">', unsafe_allow_html=True)
-st.header("Thank you for using ONCOSCAN")
+st.header("Thank you for using ONCO AI🌐")
 st.write("CNNs are the preferred network for detecting lung cancer due to their ability to process image data. They can perform tasks such as classification, segmentation, and object recognition. In the case of lung cancer detection, CNNs have surpassed radiologists.")
 st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("Visit [ONCO AI](https://readymag.website/u4174625345/5256774/) for more information.")
+
+# Show the model summary
+# model_summary = []
+# model.summary(print_fn=lambda x: model_summary.append(x))  # Capture the summary
+# st.text('\n'.join(model_summary))  # Display the summary in Streamlit
 
 # Sidebar controls
-st.sidebar.title("Controls")
+st.sidebar.title("Controls🎮")
 
 # Load the model
 model = load_model_file()
@@ -270,97 +392,184 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
 
 # Button to train model
 if st.sidebar.button("Train Model"):
-    with st.spinner("Training the model..."):
-        model = create_custom_cnn()  # Create a new model
+    with st.spinner("Training the model🤖..."):
+        model = create_efficientnet_model()  # Create a new EfficientNetB0 model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
-        
-        # Calculate class weights
+
+        # Compute class weights
         if train_generator is not None and val_generator is not None:
             y_train = train_generator.classes
             class_labels = np.unique(y_train)
             weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
             class_weights = {i: weights[i] for i in range(len(class_labels))}
-            
-            # Early stopping callback
-            early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
 
-            history = model.fit(train_generator, validation_data=val_generator, 
-                                epochs=epochs, class_weight=class_weights, 
-                                callbacks=[early_stopping])  # Use early stopping
+            # Check if class imbalance exists by comparing the class frequencies
+            class_0_count = np.sum(y_train == 0)
+            class_1_count = np.sum(y_train == 1)
+            imbalance_ratio = max(class_0_count, class_1_count) / min(class_0_count, class_1_count) if min(class_0_count, class_1_count) > 0 else 1
+
+            # If imbalance ratio is high, use Focal Loss, otherwise use Binary Cross-Entropy
+            if imbalance_ratio > 1.5:
+                loss_function = focal_loss(alpha=0.25, gamma=2.0)  # Use your Focal Loss
+                st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
+            else:
+                loss_function = 'binary_crossentropy'  # Use Binary Cross-Entropy
+                st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
+
+            # **Add ReduceLROnPlateau Callback**
+            reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
+
+            # Compile the model with the selected loss function
+            model.compile(optimizer='adam', loss=loss_function, metrics=['accuracy'])
+
+            # Train the model
+            history = model.fit(
+                train_generator,
+                validation_data=val_generator,
+                epochs=epochs,
+                class_weight=class_weights,
+                callbacks=[reduce_lr]  # **Include ReduceLROnPlateau here**
+            )
+
+            # Save model
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
 
+
 # Button to test model
 if st.sidebar.button("Test Model"):
     if model:
-        with st.spinner("Testing the model..."):
+        with st.spinner("Testing the model📝..."):
             for _ in range(eval_epochs):  # Repeat testing as per user input
                 test_model(model)
     else:
         st.warning("No model found. Please train the model first.")
 
-# Image upload for prediction
+# Function to process and predict image
+def process_and_predict(image_path, model, last_conv_layer_name):
+    try:
+        # Preprocess the image
+        processed_image = preprocess_image(image_path)
+
+        if processed_image is not None and model:
+            # Make prediction
+            prediction = model.predict(processed_image)[0][0]
+            confidence = prediction if prediction > 0.5 else 1 - prediction  # Confidence Score
+            confidence_percentage = confidence * 100  # Convert to percentage
+            
+            # Determine result label
+            result = 'Cancerous' if prediction > 0.5 else 'Non-Cancerous'
+            
+            # Display Prediction Result
+            st.subheader("Prediction Result:")
+            st.write(f"**{result}**")
+            st.write(f"**Confidence: {confidence_percentage:.2f}%**")  # Show confidence
+
+            # Add description for cancerous result
+            if result == 'Cancerous':
+                st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional and other experts on these results.")
+
+            if result == 'Non-Cancerous':
+                st.write("**Note:** The model has determined this CT scan to be exempt from the presence of cancer. However, please continue to consult a health professional and other experts on these results.")
+
+                # Symptoms checkboxes
+                symptoms = [
+                    "Persistent cough",
+                    "Shortness of breath",
+                    "Chest pain",
+                    "Fatigue",
+                    "Weight loss",
+                    "Wheezing",
+                    "Coughing up blood"
+                ]
+    
+                # Multi-select for symptoms
+                selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
+    
+                # Done button
+                if st.button("Done"):
+                    # Check how many symptoms are selected
+                    if len(selected_symptoms) > 3:
+                        st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses. Please contact medical support.")
+                    elif len(selected_symptoms) > 0:
+                        st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
+                    else:
+                        st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
+            
+            # Generate Grad-CAM heatmap
+            try:
+                heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
+
+                if heatmap is not None:
+                    uploaded_image = Image.open(image_path)  # Open with PIL
+
+                    # Convert PIL image to numpy array for OpenCV compatibility
+                    uploaded_image_np = np.array(uploaded_image)
+
+                    superimposed_img = display_gradcam(uploaded_image_np, heatmap)
+
+                    # Show images
+                    st.image(image_path, caption='Uploaded Image', use_container_width=True)
+
+                    if superimposed_img is not None:
+                        st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+                    else:
+                        st.warning("Grad-CAM generation failed.")
+
+                    uploaded_image.close()  # Close the PIL image
+                else:
+                    st.warning("Grad-CAM generation returned None.")
+
+            except Exception as e:
+                st.error(f"Error displaying Grad-CAM: {str(e)}")
+
+    except Exception as e:
+        st.error(f"Error during prediction: {str(e)}")
+
+    finally:
+        # Ensure cleanup of the image file
+        if os.path.exists(image_path):
+            try:
+                os.remove(image_path)
+            except Exception as e:
+                st.warning(f"Error removing image file: {str(e)}")
+
+
+# Load Model
+last_conv_layer_name = 'top_conv'
+
+# Normal Image Upload
+
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
 if uploaded_file is not None:
-    with open("temp_image.jpg", "wb") as f:
+    file_extension = uploaded_file.name.split('.')[-1]
+    temp_filename = f"temp_image.{file_extension}"
+
+    with open(temp_filename, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Load the image for HOG extraction
-    uploaded_image = cv2.imread("temp_image.jpg")
-    hog_features = extract_hog_features(uploaded_image)
-    hog_features = np.expand_dims(hog_features, axis=0)  # Add batch dimension
+    process_and_predict(temp_filename, model, last_conv_layer_name)
 
-    if hog_features is not None and model:  # Check if hog_features is valid before prediction
-        try:
-            prediction = model.predict(hog_features)
-            result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
-            st.subheader("Prediction Result:")
-            st.write(f"The model predicts the image is: **{result}**")
-
-            # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_2')
-            if heatmap is not None:
-                superimposed_img = display_gradcam(uploaded_image, heatmap)
-                st.image("temp_image.jpg", caption='Uploaded Image', use_container_width=True)
-                st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
-        except Exception as e:
-            st.error(f"Error during prediction: {str(e)}")
-   
-    os.remove("temp_image.jpg")
-
-# Mobile Upload Option
+# Mobile Capture Option
 st.sidebar.header("Take a Picture")
 photo = st.sidebar.file_uploader("Capture a photo", type=["jpg", "jpeg", "png"])
-
 if photo is not None:
-    with open("captured_image.jpg", "wb") as f:
+    file_extension = photo.name.split('.')[-1]
+    captured_filename = f"captured_image.{file_extension}"
+
+    with open(captured_filename, "wb") as f:
         f.write(photo.getbuffer())
 
-    # Load the image for HOG extraction
-    captured_image = cv2.imread("captured_image.jpg")
-    hog_features = extract_hog_features(captured_image)
-    hog_features = np.expand_dims(hog_features, axis=0)  # Add batch dimension
+    process_and_predict(captured_filename, model, last_conv_layer_name)
 
-    if hog_features is not None and model:  # Check if hog_features is valid before prediction
-        try:
-            prediction = model.predict(hog_features)
-            result = 'Cancerous' if prediction[0][0] > 0.5 else 'Non-Cancerous'
-            st.subheader("Prediction Result for Captured Image:")
-            st.write(f"The model predicts the image is: **{result}**")
-
-            # Optionally generate Grad-CAM heatmap (if desired)
-            heatmap = make_gradcam_heatmap(hog_features, model, last_conv_layer_name='conv2d_2')
-            if heatmap is not None:
-                superimposed_img = display_gradcam(captured_image, heatmap)
-                st.image("captured_image.jpg", caption='Captured Image', use_container_width=True)
-                st.image(superimposed_img, caption='Superimposed Grad-CAM for Captured Image', use_container_width=True)
-        except Exception as e:
-            st.error(f"Error during prediction: {str(e)}")
-
-    os.remove("captured_image.jpg")
 
 # Clear cache button
 if st.button("Clear Cache"):
     st.cache_data.clear()  # Clear the cache
-    st.success("Cache cleared successfully!")
+    st.success("Cache cleared successfully!🎯")
+
+if st.sidebar.button("Show Layer Names"):
+    st.write("Layer names in EfficientNetB0:")
+    layer_names = print_layer_names()
+    st.text("\n".join(layer_names))

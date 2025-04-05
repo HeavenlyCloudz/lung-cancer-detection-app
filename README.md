@@ -1,6 +1,6 @@
-# ONCOSCAN, a lung cancer detection Streamlit app
+# ONCO AI, a lung cancer detection Streamlit app
 
-This is a Streamlit application for detecting lung cancer using a convolutional neural network (CNN), ONCOSCAN. The app allows users to upload lung images and receive predictions on whether the images are cancerous or non-cancerous.
+This is a Streamlit application for detecting lung cancer using a convolutional neural network (CNN), ONCO AI. The app allows users to upload lung images and receive predictions on whether the images are cancerous or non-cancerous.
 
 ## Table of Contents
 - Introduction
