@@ -27,8 +27,6 @@ base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
-
-# Set the last convolutional layer name for Grad-CAM 
 last_conv_layer_name = 'top_conv'
 
 # Function to establish Snowflake connection
@@ -216,30 +214,25 @@ def plot_training_history(history):
         st.error(f"Error plotting training history: {str(e)}")
 
 # Training function
-def train(train_dir, val_dir):
-    train_generator, val_generator = load_data(train_dir, val_dir, BATCH_SIZE)
-
+def train_model(model):
+    train_generator, val_generator = load_data(train_data_dir, val_data_dir, BATCH_SIZE)
     if not train_generator or not val_generator:
         return
-
-    class_weights = calculate_class_weights(train_generator)
-    imbalance_ratio = max(class_weights.values()) / sum(class_weights.values())
+    
+    class_weights = compute_class_weight('balanced', classes=np.unique(train_generator.classes), y=train_generator.classes)
+    imbalance_ratio = max(class_weights) / sum(class_weights)
+    
     loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'binary_crossentropy'
-
-    model = create_efficientnet_model()
     optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-    model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
-
-    history = model.fit(
-        train_generator,
-        epochs=EPOCHS,
-        validation_data=val_generator,
-        class_weight=class_weights
-    )
-
+    
+    model.compile(optimizer='adam', loss=loss_function, metrics=['accuracy'])
+    
+    history = model.fit(train_generator, validation_data=val_generator, epochs=epochs, class_weight=class_weights)
+    
     model.save(MODEL_FILE)
-    st.write("Model saved successfully!")
-    st.write("Training completed.")
+    st.success("Model saved successfully!")
+    st.success("Training was successful!")
+    plot_training_history(history)
 
 
 def test_model(model):
@@ -403,30 +396,47 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model🤖..."):
-        model = create_efficientnet_model()  # Create a new EfficientNetB0 model
-        train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
+        # Check if the model is loaded; if not, create a new EfficientNetB0 model
+        if model is None:
+            base_model = EfficientNetB0(weights='imagenet', include_top=False, input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
 
-        # Compute class weights
+            # Unfreeze the last 50 layers
+            for layer in base_model.layers[-50:]:
+                layer.trainable = True
+            for layer in base_model.layers[:-50]:
+                layer.trainable = False
+
+            # Add custom layers on top of the EfficientNetB0 base model
+            x = layers.GlobalAveragePooling2D()(base_model.output)
+            x = layers.Dense(256, activation='relu')(x)
+            x = layers.Dropout(0.4)(x)
+            predictions = layers.Dense(1, activation='sigmoid')(x)  # Binary classification
+            model = Model(inputs=base_model.input, outputs=predictions)
+
+        # Load training and validation data
+        train_generator, val_generator = load_data(train_data_dir, val_data_dir, BATCH_SIZE)
+
         if train_generator is not None and val_generator is not None:
+            # Compute class weights
             y_train = train_generator.classes
             class_labels = np.unique(y_train)
-            weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
+            weights = compute_class_weight('balanced', classes=class_labels, y=y_train)
             class_weights = {i: weights[i] for i in range(len(class_labels))}
 
-            # Check if class imbalance exists by comparing the class frequencies
+            # Check for class imbalance
             class_0_count = np.sum(y_train == 0)
             class_1_count = np.sum(y_train == 1)
             imbalance_ratio = max(class_0_count, class_1_count) / min(class_0_count, class_1_count) if min(class_0_count, class_1_count) > 0 else 1
 
-            # If imbalance ratio is high, use Focal Loss, otherwise use Binary Cross-Entropy
+            # Set loss function based on imbalance ratio
             if imbalance_ratio > 1.5:
-                loss_function = focal_loss(alpha=0.25, gamma=2.0)  # Use your Focal Loss
+                loss_function = focal_loss(alpha=0.25, gamma=2.0)
                 st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
             else:
-                loss_function = 'binary_crossentropy'  # Use Binary Cross-Entropy
+                loss_function = 'binary_crossentropy'
                 st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
 
-            # **Add ReduceLROnPlateau Callback**
+            # Add ReduceLROnPlateau Callback
             reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
             # Compile the model with the selected loss function
@@ -438,13 +448,15 @@ if st.sidebar.button("Train Model"):
                 validation_data=val_generator,
                 epochs=epochs,
                 class_weight=class_weights,
-                callbacks=[reduce_lr]  # **Include ReduceLROnPlateau here**
+                callbacks=[reduce_lr]
             )
 
             # Save model
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
+        else:
+            st.error("Error loading training/validation data.")
 
 
 # Button to test model
