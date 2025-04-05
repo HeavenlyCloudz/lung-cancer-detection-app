@@ -375,11 +375,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("Visit [ONCO AI](https://readymag.website/u4174625345/5256774/) for more information.")
 st.markdown("Visit my [GitHub](https://github.com/HeavenlyCloudz/lung-cancer-detection-app) repository for insight on my code.")
 
-# Show the model summary
-# model_summary = []
-# model.summary(print_fn=lambda x: model_summary.append(x))  # Capture the summary
-# st.text('\n'.join(model_summary))  # Display the summary in Streamlit
-
 # Sidebar controls
 st.sidebar.title("Controls🎮")
 
