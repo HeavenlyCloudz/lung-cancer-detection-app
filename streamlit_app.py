@@ -82,17 +82,9 @@ def load_model_file():
             model.compile(optimizer=optimizer, 
                           loss=focal_loss(alpha=0.25, gamma=2.0), 
                           metrics=['accuracy'])
-            
-            st.success("Model loaded successfully!")
 
             return model
-        except Exception as e:
-            st.error(f"Error loading model: {e}")
-            return None
-    else:
-        st.warning("No saved model found.")
-        return None
-
+       
 # Function to print layer names
 def print_layer_names(model):
     try:
