@@ -98,43 +98,28 @@ def focal_loss(alpha=0.25, gamma=2.0):
         return tf.reduce_mean(loss)
     return focal_loss_fixed
 
-def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
-    try:
-        base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
-    
-        # Freeze all layers initially
-        for layer in base_model.layers:
-            layer.trainable = False  
-    
-        # Unfreeze last 50 layers for fine-tuning
-        for layer in base_model.layers[-50:]:
-            layer.trainable = True  
-    
-        # Use base_model.input directly
-        x = base_model.output
-    
-        # Global Average Pooling
-        x = layers.GlobalAveragePooling2D()(x)
-    
-        # Fully connected layers
-        x = layers.Dense(256, activation='relu')(x)
-        x = layers.Dropout(0.4)(x)  
-    
-        # Output layer
-        predictions = layers.Dense(1, activation='sigmoid')(x)  
-    
-        model = Model(inputs=base_model.input, outputs=predictions)
-    
-        # Use SGD with momentum
-        optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+# Load model from file
+def load_model_file():
+    if os.path.exists(MODEL_FILE):
+        try:
+            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})  # Load with focal loss
+            
+            # Use the same optimizer as in `create_efficientnet_model`
+            optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
 
-        return model
-        
-    except Exception as e:
-        print(f"Error creating model: {str(e)}")
+            model.compile(optimizer=optimizer, 
+                          loss=focal_loss(alpha=0.25, gamma=2.0), 
+                          metrics=['accuracy'])
+            
+            st.success("Model loaded successfully!")
+
+            return model
+        except Exception as e:
+            st.error(f"Error loading model: {e}")
+            return None
+    else:
+        st.warning("No saved model found.")
         return None
-
-model = create_efficientnet_model()
 
 def preprocess_image(img_path):
     try:
@@ -197,29 +182,6 @@ def load_data(train_dir, val_dir, batch_size):
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None, None
-
-# Load model from file
-def load_model_file():
-    if os.path.exists(MODEL_FILE):
-        try:
-            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})  # Load with focal loss
-            
-            # Use the same optimizer as in `create_efficientnet_model`
-            optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-
-            model.compile(optimizer=optimizer, 
-                          loss=focal_loss(alpha=0.25, gamma=2.0), 
-                          metrics=['accuracy'])
-            
-            st.success("Model loaded successfully!")
-
-            return model
-        except Exception as e:
-            st.error(f"Error loading model: {e}")
-            return None
-    else:
-        st.warning("No saved model found.")
-        return None
 
 def print_layer_names():
     try:
