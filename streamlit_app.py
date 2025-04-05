@@ -183,7 +183,7 @@ def load_data(train_dir, val_dir, batch_size):
 
 def print_layer_names():
     try:
-        base_model = EfficientNetB0(include_top=False, weights='', input_shape=(224, 224, 3))
+        base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
         layer_names = [layer.name for layer in base_model.layers]
         return layer_names
     except Exception as e:
