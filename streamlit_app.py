@@ -468,27 +468,37 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 
             # Add description for cancerous result
             if result == 'Cancerous':
-                st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consolidate with a health professional and other experts on these results.")
+                st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional and other experts on these results.")
 
             if result == 'Non-Cancerous':
-                st.write("**Note:** The mode has determined this CT scan to be exempt from the presence of cancer. However, please continue to consilidate a health professional and other experts on these results.")
-                
-                # Symptoms checkboxes
-                symptoms = [
-                    "Persistent cough",
-                    "Shortness of breath",
-                    "Chest pain",
-                    "Fatigue",
-                    "Weight loss",
-                    "Wheezing",
-                    "Coughing up blood"
-                ]
-                
-                selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
+                st.write("**Note:** The model has determined this CT scan to be exempt from the presence of cancer. However, please continue to consult a health professional and other experts on these results.")
 
+            # Symptoms checkboxes
+            symptoms = [
+                "Persistent cough",
+                "Shortness of breath",
+                "Chest pain",
+                "Fatigue",
+                "Weight loss",
+                "Wheezing",
+                "Coughing up blood"
+            ]
+
+            # Multi-select for symptoms
+            selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
+
+            # Done button
+            if st.button("Done"):
                 # Check how many symptoms are selected
                 if len(selected_symptoms) > 3:
                     st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses. Please contact medical support.")
+                elif len(selected_symptoms) > 0:
+                    st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
+                else:
+                    st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
+    
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
             
             # Generate Grad-CAM heatmap
             try:
