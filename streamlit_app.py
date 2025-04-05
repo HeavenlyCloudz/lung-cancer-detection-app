@@ -437,7 +437,6 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model🤖..."):
-        model = create_efficientnet_model()  # Create a new EfficientNetB0 model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
 
         # Compute class weights
@@ -467,8 +466,9 @@ if st.sidebar.button("Train Model"):
             # **Add ReduceLROnPlateau Callback**
             reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
-            # Compile the model with the selected loss function
-            model.compile(optimizer='adam', loss=loss_function, metrics=['accuracy'])
+            # Compile the model with the selected loss function if not already compiled
+            if model._is_compiled is False:
+                model.compile(optimizer='adam', loss=loss_function, metrics=['accuracy'])
 
             # Train the model
             history = model.fit(
