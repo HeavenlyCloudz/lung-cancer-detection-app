@@ -3,21 +3,17 @@ import snowflake.connector
 import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 from tensorflow.keras import layers
-from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from sklearn.utils.class_weight import compute_class_weight
-from sklearn.utils import class_weight
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
-import matplotlib.cm as cm
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
@@ -57,34 +53,12 @@ def save_prediction_to_snowflake(image_path, prediction, confidence):
         cursor.close()
         conn.close()
 
-def get_snowflake_connection():
-    required_env_vars = ['SNOWFLAKE_USER', 'SNOWFLAKE_PASSWORD', 'SNOWFLAKE_ACCOUNT', 'SNOWFLAKE_WAREHOUSE', 'SNOWFLAKE_DATABASE', 'SNOWFLAKE_SCHEMA']
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise EnvironmentError(f"Environment variable {var} is not set.")
-    return snowflake.connector.connect(
-        user=os.getenv('SNOWFLAKE_USER'),
-        password=os.getenv('SNOWFLAKE_PASSWORD'),
-        account=os.getenv('SNOWFLAKE_ACCOUNT'),
-        warehouse=os.getenv('SNOWFLAKE_WAREHOUSE'),
-        database=os.getenv('SNOWFLAKE_DATABASE'),
-        schema=os.getenv('SNOWFLAKE_SCHEMA')
-    )
-
 # Function to calculate class weights
 def calculate_class_weights(train_generator):
-    # Assuming that the class labels are integers, e.g., 0 and 1 for binary classification
     labels = train_generator.classes
     class_weights = compute_class_weight('balanced', classes=np.unique(labels), y=labels)
     class_weights_dict = {i: class_weights[i] for i in range(len(class_weights))}
     return class_weights_dict
-
-# Function to compute imbalance ratio
-def compute_class_weights(train_generator):
-    class_weights = calculate_class_weights(train_generator)
-    total_class_weight = sum(class_weights.values())
-    imbalance_ratio = max(class_weights.values()) / total_class_weight
-    return class_weights, imbalance_ratio
 
 # Focal Loss Function
 def focal_loss(alpha=0.25, gamma=2.0):
@@ -129,28 +103,19 @@ def preprocess_image(img_path):
 
         # Resize image to (224, 224)
         img = img.resize((224, 224))
-        print(f"Resized image size: {img.size}")  # Debugging print
-
-        # Convert image to numpy array
         img_array = np.asarray(img, dtype=np.float32)
-
-        # Ensure the correct shape
-        if img_array.shape != (224, 224, 3):
-            raise ValueError(f"Unexpected shape after resizing: {img_array.shape}")
 
         # Normalize the image data using EfficientNet's preprocess_input
         img_array = preprocess_input(img_array)
 
         # Expand dimensions to fit the model's input shape (1, 224, 224, 3)
         img_array = np.expand_dims(img_array, axis=0)
-        print(f"Image array shape after expanding: {img_array.shape}")  # Debugging print
 
         return img_array
 
     except Exception as e:
         print(f"Error processing image: {str(e)}")  # More detailed error message for debugging
         return None
-
 
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
@@ -180,15 +145,6 @@ def load_data(train_dir, val_dir, batch_size):
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None, None
-
-def print_layer_names():
-    try:
-        base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
-        layer_names = [layer.name for layer in base_model.layers]
-        return layer_names
-    except Exception as e:
-        st.error(f"Error in print_layer_names: {str(e)}")
-        return []
 
 def plot_training_history(history):
     try:
@@ -223,15 +179,12 @@ def train_model(model):
     imbalance_ratio = max(class_weights) / sum(class_weights)
     
     loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'binary_crossentropy'
-    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-    
     model.compile(optimizer='adam', loss=loss_function, metrics=['accuracy'])
     
     history = model.fit(train_generator, validation_data=val_generator, epochs=epochs, class_weight=class_weights)
     
     model.save(MODEL_FILE)
-    st.success("Model saved successfully!")
-    st.success("Training was successful!")
+    st.success("Model trained and saved successfully!")
     plot_training_history(history)
 
 
@@ -385,29 +338,9 @@ model = load_model_file()
 epochs = st.sidebar.number_input("Number of epochs for training", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=BATCH_SIZE)
 
-# Add input for number of evaluations during testing
-eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_value=1, max_value=10, value=1)
-
 # Button to train model
 if st.sidebar.button("Train Model"):
     with st.spinner("Training the model🤖..."):
-        # Check if the model is loaded; if not, create a new EfficientNetB0 model
-        if model is None:
-            base_model = EfficientNetB0(weights='imagenet', include_top=False, input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, 3))
-
-            # Unfreeze the last 50 layers
-            for layer in base_model.layers[-50:]:
-                layer.trainable = True
-            for layer in base_model.layers[:-50]:
-                layer.trainable = False
-
-            # Add custom layers on top of the EfficientNetB0 base model
-            x = layers.Flatten()(base_model.output)
-            x = layers.Dense(256, activation='relu')(x)
-            x = layers.Dropout(0.4)(x)
-            predictions = layers.Dense(1, activation='sigmoid')(x)  # Binary classification
-            model = Model(inputs=base_model.input, outputs=predictions)
-
         # Load training and validation data
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, BATCH_SIZE)
 
@@ -453,18 +386,16 @@ if st.sidebar.button("Train Model"):
         else:
             st.error("Error loading training/validation data.")
 
-
 # Button to test model
 if st.sidebar.button("Test Model"):
     if model:
         with st.spinner("Testing the model📝..."):
-            for _ in range(eval_epochs):  # Repeat testing as per user input
-                test_model(model)
+            test_model(model)
     else:
         st.warning("No model found. Please train the model first.")
 
 # Function to process and predict image
-def process_and_predict(image_path, model, last_conv_layer_name):
+def process_and_predict(image_path, model):
     try:
         # Preprocess the image
         processed_image = preprocess_image(image_path)
@@ -585,7 +516,16 @@ if st.button("Clear Cache"):
     st.cache_data.clear()  # Clear the cache
     st.success("Cache cleared successfully!🎯")
 
-if st.sidebar.button("Show Layer Names"):
+# Initialize session state for layer visibility
+if 'show_layers' not in st.session_state:
+    st.session_state.show_layers = False
+
+# Button to toggle visibility of layer names
+if st.sidebar.button("Toggle Layer Names"):
+    st.session_state.show_layers = not st.session_state.show_layers
+
+# Displaying the layer names if the state is True
+if st.session_state.show_layers:
+    layer_names = print_layer_names()  # Assume this function returns a list of layer names
     st.write("Layer names in EfficientNetB0:")
-    layer_names = print_layer_names()
     st.text("\n".join(layer_names))
