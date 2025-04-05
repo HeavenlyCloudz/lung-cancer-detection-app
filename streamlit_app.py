@@ -607,7 +607,7 @@ if photo is not None:
 
     process_and_predict(captured_filename, model, last_conv_layer_name)
 
-edges = cv2.Canny(np.array(image), 224,224)
+edges = cv2.Canny(np.array(img), 224,224)
 tab1, tab2 = st.tabs(["Detected edges", "Original"])
 tab1.image(edges, use_container_width=True)
 tab2.image(image, use_container_width=True)
