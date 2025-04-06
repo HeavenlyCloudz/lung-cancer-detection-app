@@ -116,37 +116,43 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     for layer in base_model.layers[-50:]:
         layer.trainable = True
 
-    # Use base_model.input directly
+    # Build the model
     x = base_model.output
-
-    # Global Average Pooling
     x = layers.GlobalAveragePooling2D()(x)
-
-    # Fully connected layers
     x = layers.Dense(256, activation='relu')(x)
     x = layers.Dropout(0.4)(x)
-
-    # Output layer
     predictions = layers.Dense(1, activation='sigmoid')(x)
 
-    model = Model(inputs=base_model.input, outputs=predictions)
+    model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
+    return model  # Return the model
 
-    return model  # Make sure to return the model
+# Load model from file or create a new one
+def load_model_file():
+    if os.path.exists(MODEL_FILE):
+        try:
+            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
+            # Set last 50 layers as trainable
+            for layer in model.layers[-50:]:
+                layer.trainable = True
+            st.success("Model loaded successfully!")
+            return model
+        except Exception as e:
+            st.error(f"Error loading model: {e}")
+            return None
+    else:
+        st.warning("No saved model found. Creating a new model.")
+        return create_efficientnet_model()
 
-# Load existing model or create a new one
-if os.path.exists(MODEL_FILE):
-    model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
-    # Set last 50 layers as trainable if needed
-    for layer in model.layers[-50:]:
-        layer.trainable = True
-    st.success("Model loaded successfully!")
+# Load or create the model
+model = load_model_file()
+
+# Compile the model after loading or creating
+if model is not None:
+    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 else:
-    model = create_efficientnet_model()  # Create new model
-    st.info("New model created.")
+    st.error("Model is None. Cannot proceed to training.")
 
-# Compile the model after creating or loading
-optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 
 def preprocess_image(img_path):
     try:
@@ -208,29 +214,6 @@ def load_data(train_dir, val_dir, batch_size):
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None, None
-
-# Load model from file
-def load_model_file():
-    if os.path.exists(MODEL_FILE):
-        try:
-            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})  # Load with focal loss
-
-            # Use the same optimizer as in `create_efficientnet_model`
-            optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-
-            model.compile(optimizer=optimizer, 
-                          loss=focal_loss(alpha=0.25, gamma=2.0), 
-                          metrics=['accuracy'])
-
-            st.success("Model loaded successfully!")
-
-            return model
-        except Exception as e:
-            st.error(f"Error loading model: {e}")
-            return None
-    else:
-        st.warning("No saved model found.")
-        return None
 
 def print_layer_names():
     try:
@@ -444,7 +427,7 @@ batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, va
 eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_value=1, max_value=10, value=1)
 
 # Button to train model
-if st.sidebar.button("Train Model"):
+if st.sidebar.button("Train Model") and model is not None:
     with st.spinner("Training the model🤖..."):
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
 
@@ -452,10 +435,10 @@ if st.sidebar.button("Train Model"):
         if train_generator is not None and val_generator is not None:
             y_train = train_generator.classes
             class_labels = np.unique(y_train)
-            weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
+            weights = compute_class_weight('balanced', classes=class_labels, y=y_train)
             class_weights = {i: weights[i] for i in range(len(class_labels))}
 
-            # Check if class imbalance exists by comparing the class frequencies
+            # Calculate imbalance ratio
             class_0_count = np.sum(y_train == 0)
             class_1_count = np.sum(y_train == 1)
             imbalance_ratio = (
@@ -464,20 +447,19 @@ if st.sidebar.button("Train Model"):
                 else 1
             )
 
-            # If imbalance ratio is high, use Focal Loss, otherwise use Binary Cross-Entropy
+            # Determine loss function based on imbalance
             if imbalance_ratio > 1.5:
-                loss_function = focal_loss(alpha=0.25, gamma=2.0)  # Use your Focal Loss
+                loss_function = focal_loss(alpha=0.25, gamma=2.0)
                 st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
             else:
-                loss_function = 'binary_crossentropy'  # Use Binary Cross-Entropy
+                loss_function = 'binary_crossentropy'
                 st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
 
-            # **Add ReduceLROnPlateau Callback**
+            # Add ReduceLROnPlateau Callback
             reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
-            # Compile the model with the selected loss function if not already compiled
-            if model._is_compiled is False:
-                model.compile(optimizer='adam', loss=loss_function, metrics=['accuracy'])
+            # Compile the model with the selected loss function
+            model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
             # Train the model
             history = model.fit(
@@ -485,13 +467,25 @@ if st.sidebar.button("Train Model"):
                 validation_data=val_generator,
                 epochs=epochs,
                 class_weight=class_weights,
-                callbacks=[reduce_lr]  # **Include ReduceLROnPlateau here**
+                callbacks=[reduce_lr]
             )
 
             # Save model
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
+else:
+    st.error("Model is not available for training.")
+
+# Add a download button for the model file
+with open(MODEL_FILE, "rb") as f:
+    model_data = f.read()
+st.download_button(
+    label="Download Trained Model",
+    data=model_data,
+    file_name=MODEL_FILE,
+    mime="application/octet-stream"
+)
 
 # Button to test model
 if st.sidebar.button("Test Model"):
