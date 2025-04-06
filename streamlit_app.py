@@ -159,7 +159,6 @@ def load_model_file():
     if os.path.exists(MODEL_FILE):
         try:
             model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
-            # Set last 50 layers as trainable
             for layer in model.layers[-50:]:
                 layer.trainable = True
             st.success("✅Model loaded")
@@ -169,11 +168,14 @@ def load_model_file():
             return None
     else:
         st.warning("No saved model found. Creating a new model.")
-        is_new_model = True  # Set the flag to indicate a new model is created
+        is_new_model = True
         return create_efficientnet_model()
 
 # Load or create the model
 model = load_model_file()
+if model is None:
+    st.error("Failed to load model. Please check the model file.")
+    return  # Prevent further execution if the model is not loaded
 
 # Define the predict function with tf.function
 @tf.function(input_signature=[tf.TensorSpec(shape=[None, 224, 224, 3], dtype=tf.float32)])
