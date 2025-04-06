@@ -551,27 +551,23 @@ def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=N
                 st.error("Prediction failed. Please check the input image or try again.")
                 return
 
-            # Get predicted class index (for multi-class output)
-            predicted_index = np.argmax(prediction[0])
+            # Confidence and threshold logic
+            confidence = np.max(prediction[0]) * 100  # Get the highest confidence score
+            cancerous_threshold = 0.5  # Set the threshold for classification as cancerous
 
-            # Get actual label
-            predicted_label = label_mapping[predicted_index] if label_mapping else str(predicted_index)
-
-            # Classify as Cancerous or Non-Cancerous
-            cancerous_labels = ['adenocarcinoma', 'squamous cell carcinoma', 'large cell carcinoma', 'malignant']
-            non_cancerous_labels = ['normal', 'benign']
-
-            if predicted_label.lower() in cancerous_labels:
+            # Determine if the result is cancerous or non-cancerous based on confidence
+            if confidence > cancerous_threshold:
+                # Category is cancerous, classify as cancer type
                 category = 'Cancerous'
-            elif predicted_label.lower() in non_cancerous_labels:
-                category = 'Non-Cancerous'
+                predicted_index = np.argmax(prediction[0])  # Get the cancer type index
+                predicted_label = label_mapping[predicted_index] if label_mapping else str(predicted_index)
             else:
-                category = 'Unknown'
+                # Category is non-cancerous, classify as benign or normal
+                category = 'Non-Cancerous'
+                predicted_index = np.argmax(prediction[0])  # Get the non-cancerous type index
+                predicted_label = label_mapping[predicted_index] if label_mapping else str(predicted_index)
 
-            # Confidence score
-            confidence = np.max(prediction[0]) * 100
-
-            # Display Result
+            # Display the result
             st.subheader("Prediction Result:")
             st.write(f"**Category:** {category}")
             st.write(f"**Type:** {predicted_label}")
@@ -583,6 +579,7 @@ def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=N
             elif category == 'Non-Cancerous':
                 st.write("**Note:** The model has determined this CT scan to be exempt from the presence of cancer. However, please continue to consult a health professional and other experts on these results.")
 
+                # Symptoms for non-cancerous cases
                 symptoms = [
                     "Persistent cough",
                     "Shortness of breath",
