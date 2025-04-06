@@ -534,6 +534,16 @@ if st.sidebar.button("Test Model"):
     else:
         st.warning("No model found. Please train the model first.")
 
+
+label_mapping = {
+    0: 'adenocarcinoma',
+    1: 'squamous cell carcinoma',
+    2: 'large cell carcinoma',
+    3: 'malignant',
+    4: 'normal',
+    5: 'benign'
+}
+
 def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=None):
     try:
         # Preprocess the image
