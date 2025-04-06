@@ -389,20 +389,18 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
 def display_gradcam(img_path, heatmap, alpha=0.4):
     try:
-        # Load original image (from file path, again)
-        img = cv2.imread(img_path)
-        img = cv2.resize(img, (IMAGE_WIDTH, IMAGE_HEIGHT))
+        # Load original image using PIL
+        img = Image.open(img_path)
+        img = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to match heatmap size
+        img = np.array(img)  # Convert PIL image to numpy array
 
-        # Convert BGR to RGB for consistency
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        # Ensure 3 channels
+        # Ensure 3 channels (RGB)
         if len(img.shape) != 3 or img.shape[2] != 3:
             img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
         # Prepare heatmap
         heatmap = np.uint8(255 * heatmap)
-        jet = plt.colormaps['jet']
+        jet = plt.cm.jet  # Use matplotlib's colormap
         jet_colors = jet(np.arange(256))[:, :3]
         jet_heatmap = jet_colors[heatmap]
         jet_heatmap = np.uint8(jet_heatmap * 255)
