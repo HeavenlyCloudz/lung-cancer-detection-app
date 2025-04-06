@@ -131,16 +131,22 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
 
     model = Model(inputs=base_model.input, outputs=predictions)
 
-    # Use SGD with momentum
-    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+    return model  # Make sure to return the model
 
 # Load existing model or create a new one
 if os.path.exists(MODEL_FILE):
     model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
+    # Set last 50 layers as trainable if needed
+    for layer in model.layers[-50:]:
+        layer.trainable = True
     st.success("Model loaded successfully!")
 else:
     model = create_efficientnet_model()  # Create new model
     st.info("New model created.")
+
+# Compile the model after creating or loading
+optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 
 def preprocess_image(img_path):
     try:
