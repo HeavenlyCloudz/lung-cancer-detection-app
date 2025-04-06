@@ -84,7 +84,7 @@ def get_snowflake_connection():
 
 # Function to calculate class weights
 def calculate_class_weights(train_generator):
-    # Assuming that the class labels are integers, e.g., 0 and 1 for binary classification
+    # Assuming that the class labels are integers
     labels = train_generator.classes
     class_weights = compute_class_weight('balanced', classes=np.unique(labels), y=labels)
     class_weights_dict = {i: class_weights[i] for i in range(len(class_weights))}
@@ -123,13 +123,13 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1, learning
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(256, activation='relu')(x)
     x = layers.Dropout(0.4)(x)
-    predictions = layers.Dense(1, activation='sigmoid')(x)
+    predictions = layers.Dense(2, activation='softmax')(x)
 
     model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
 
     # Compile the model with the Adam optimizer
     optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
     return model  # Return the model
 
@@ -142,7 +142,7 @@ def load_model_file():
             # Set last 50 layers as trainable
             for layer in model.layers[-50:]:
                 layer.trainable = True
-            st.success("Model loaded successfully!")
+            st.success("✅")
             return model
         except Exception as e:
             st.error(f"Error loading model: {e}")
@@ -214,14 +214,14 @@ def load_data(train_dir, val_dir, batch_size):
             train_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
             batch_size=batch_size,
-            class_mode='binary'
+            class_mode='categorical'
         )
 
         val_generator = val_datagen.flow_from_directory(
             val_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
             batch_size=batch_size,
-            class_mode='binary'
+            class_mode='categorical'
         )
 
         return train_generator, val_generator
@@ -273,7 +273,7 @@ def train(train_dir, val_dir):
 
     class_weights = calculate_class_weights(train_generator)
     imbalance_ratio = max(class_weights.values()) / sum(class_weights.values())
-    loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'binary_crossentropy'
+    loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'categorical_crossentropy'
 
     # Compile the model if it hasn't been compiled yet
     if not model._is_compiled:  # Check if the model is compiled
@@ -300,7 +300,7 @@ def test_model(model):
             test_data_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
             batch_size=BATCH_SIZE,
-            class_mode='binary'
+            class_mode='categorical'
         )
 
         test_loss, test_accuracy = model.evaluate(test_generator)
@@ -470,8 +470,8 @@ if st.sidebar.button("Train Model"):
                     loss_function = focal_loss(alpha=0.25, gamma=2.0)
                     st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
                 else:
-                    loss_function = 'binary_crossentropy'
-                    st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
+                    loss_function = 'categorical_crossentropy'
+                    st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Categorical Cross-Entropy.")
 
                 # Add ReduceLROnPlateau Callback
                 reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
@@ -515,34 +515,47 @@ if st.sidebar.button("Test Model"):
     else:
         st.warning("No model found. Please train the model first.")
 
-# Function to process and predict image
-def process_and_predict(image_path, model, last_conv_layer_name):
+def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=None):
     try:
         # Preprocess the image
         processed_image = preprocess_image(image_path)
 
         if processed_image is not None and model:
             # Make prediction
-            prediction = model.predict(processed_image)[0][0]
-            confidence = prediction if prediction > 0.5 else 1 - prediction  # Confidence Score
-            confidence_percentage = confidence * 100  # Convert to percentage
+            prediction = model.predict(processed_image)
 
-            # Determine result label
-            result = 'Cancerous' if prediction > 0.5 else 'Non-Cancerous'
+            # Get predicted class index
+            predicted_index = np.argmax(prediction[0])
 
-            # Display Prediction Result
+            # Get actual label
+            predicted_label = label_mapping[predicted_index] if label_mapping else str(predicted_index)
+
+            # Classify as Cancerous or Non-Cancerous
+            cancerous_labels = ['adenocarcinoma', 'squamous cell carcinoma', 'large cell carcinoma', 'malignant']
+            non_cancerous_labels = ['normal', 'benign']
+
+            if predicted_label.lower() in cancerous_labels:
+                category = 'Cancerous'
+            elif predicted_label.lower() in non_cancerous_labels:
+                category = 'Non-Cancerous'
+            else:
+                category = 'Unknown'
+
+            # Confidence score
+            confidence = np.max(prediction[0]) * 100
+
+            # Display Result
             st.subheader("Prediction Result:")
-            st.write(f"**{result}**")
-            st.write(f"**Confidence: {confidence_percentage:.2f}%**")  # Show confidence
+            st.write(f"**Category:** {category}")
+            st.write(f"**Type:** {predicted_label}")
+            st.write(f"**Confidence: {confidence:.2f}%**")
 
-            # Add description for cancerous result
-            if result == 'Cancerous':
+            # Notes and symptoms
+            if category == 'Cancerous':
                 st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional and other experts on these results.")
-
-            if result == 'Non-Cancerous':
+            elif category == 'Non-Cancerous':
                 st.write("**Note:** The model has determined this CT scan to be exempt from the presence of cancer. However, please continue to consult a health professional and other experts on these results.")
 
-                # Symptoms checkboxes
                 symptoms = [
                     "Persistent cough",
                     "Shortness of breath",
@@ -553,12 +566,9 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                     "Coughing up blood"
                 ]
 
-                # Multi-select for symptoms
                 selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
 
-                # Done button
                 if st.button("Done"):
-                    # Check how many symptoms are selected
                     if len(selected_symptoms) > 3:
                         st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses. Please contact medical support.")
                     elif len(selected_symptoms) == 3:
@@ -567,6 +577,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                         st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
                     else:
                         st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
+
 
             # Generate Grad-CAM heatmap
             try:
