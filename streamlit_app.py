@@ -327,7 +327,6 @@ def test_model(model):
 
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
     try:
-        # Creating the Grad-CAM model
         grad_model = tf.keras.models.Model(
             [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
         )
@@ -335,28 +334,22 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         with tf.GradientTape() as tape:
             last_conv_layer_output, preds = grad_model(img_array)
 
-            # If pred_index is not provided, use the class with the highest probability
             if pred_index is None:
-                pred_index = tf.argmax(preds[0])  # Index of the predicted class
+                pred_index = tf.argmax(preds[0])
 
-            class_channel = preds[:, pred_index]  # Class channel to compute gradient for
+            class_channel = preds[:, pred_index]
 
-        # Compute the gradients
         grads = tape.gradient(class_channel, last_conv_layer_output)
-        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))  # Pool gradients over spatial dimensions
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
 
-        # Get the output from the last convolutional layer
         last_conv_layer_output = last_conv_layer_output[0]
-
-        # Compute the Grad-CAM heatmap
         heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
-        heatmap = tf.maximum(heatmap, 0)  # ReLU activation on the heatmap
-
-        # Normalize the heatmap to the range [0, 1]
+        heatmap = tf.maximum(heatmap, 0)
         heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
 
-        # Return the resized heatmap to match the input image dimensions
-        return cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+        # Resize the heatmap to match the original image size
+        heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
+        return heatmap
 
     except Exception as e:
         st.error(f"Error generating Grad-CAM heatmap: {str(e)}")
@@ -364,24 +357,31 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
+        # Ensure img is in the correct format (BGR to RGB if needed)
+        if img.shape[2] == 3:  # Check if the image has 3 channels
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        else:
+            img_rgb = img
+
         heatmap = np.uint8(255 * heatmap)
 
         # Use the updated method to get the colormap
-        jet = plt.colormaps['jet']  # Updated method
+        jet = plt.colormaps['jet']
         jet_colors = jet(np.arange(256))[:, :3]
         jet_heatmap = jet_colors[heatmap]
         jet_heatmap = np.uint8(jet_heatmap * 255)
         jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)
 
-        jet_heatmap = cv2.resize(jet_heatmap, (img.shape[1], img.shape[0]))
+        # Resize the heatmap to the original image size
+        jet_heatmap = cv2.resize(jet_heatmap, (img_rgb.shape[1], img_rgb.shape[0]))
 
-        superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img, 1 - alpha, 0)
+        superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img_rgb, 1 - alpha, 0)
         return superimposed_img
 
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
         return None
-
+        
 # Streamlit UI
 st.title("Lung Cancer Detection💻")
 st.markdown(
