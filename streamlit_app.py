@@ -431,66 +431,67 @@ batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, va
 eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_value=1, max_value=10, value=1)
 
 # Button to train model
-if st.sidebar.button("Train Model") and model is not None:
-    with st.spinner("Training the model🤖..."):
-        train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
+if st.sidebar.button("Train Model"):
+    if model is not None:
+        with st.spinner("Training the model🤖..."):
+            train_generator, val_generator = load_data(train_data_dir, val_data_dir, BATCH_SIZE)
 
-        # Ensure generators are loaded
-        if train_generator is not None and val_generator is not None:
-            y_train = train_generator.classes
-            class_labels = np.unique(y_train)
-            weights = compute_class_weight('balanced', classes=class_labels, y=y_train)
-            class_weights = {i: weights[i] for i in range(len(class_labels))}
+            # Ensure generators are loaded
+            if train_generator is not None and val_generator is not None:
+                y_train = train_generator.classes
+                class_labels = np.unique(y_train)
+                weights = compute_class_weight('balanced', classes=class_labels, y=y_train)
+                class_weights = {i: weights[i] for i in range(len(class_labels))}
 
-            # Calculate imbalance ratio
-            class_0_count = np.sum(y_train == 0)
-            class_1_count = np.sum(y_train == 1)
-            imbalance_ratio = (
-                max(class_0_count, class_1_count) / min(class_0_count, class_1_count)
-                if min(class_0_count, class_1_count) > 0
-                else 1
-            )
+                # Calculate imbalance ratio
+                class_0_count = np.sum(y_train == 0)
+                class_1_count = np.sum(y_train == 1)
+                imbalance_ratio = (
+                    max(class_0_count, class_1_count) / min(class_0_count, class_1_count)
+                    if min(class_0_count, class_1_count) > 0
+                    else 1
+                )
 
-            # Determine loss function based on imbalance
-            if imbalance_ratio > 1.5:
-                loss_function = focal_loss(alpha=0.25, gamma=2.0)
-                st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
-            else:
-                loss_function = 'binary_crossentropy'
-                st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
+                # Determine loss function based on imbalance
+                if imbalance_ratio > 1.5:
+                    loss_function = focal_loss(alpha=0.25, gamma=2.0)
+                    st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
+                else:
+                    loss_function = 'binary_crossentropy'
+                    st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
 
-            # Add ReduceLROnPlateau Callback
-            reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
+                # Add ReduceLROnPlateau Callback
+                reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
-            # Compile the model with the selected loss function
-            optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-            model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
+                # Compile the model with the selected loss function
+                optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+                model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
-            # Train the model
-            history = model.fit(
-                train_generator,
-                validation_data=val_generator,
-                epochs=epochs,
-                class_weight=class_weights,
-                callbacks=[reduce_lr]
-            )
+                # Train the model
+                history = model.fit(
+                    train_generator,
+                    validation_data=val_generator,
+                    epochs=epochs,
+                    class_weight=class_weights,
+                    callbacks=[reduce_lr]
+                )
 
-            # Save model
-            model.save(MODEL_FILE)
-            st.success("Model trained and saved successfully!")
-            plot_training_history(history)
+                # Save model
+                model.save(MODEL_FILE)
+                st.success("Model trained and saved successfully!")
+                plot_training_history(history)
 
-            # Add a download button for the model file after training completes
-            with open(MODEL_FILE, "rb") as f:
-                model_data = f.read()
-            st.download_button(
-                label="Download Trained Model",
-                data=model_data,
-                file_name=MODEL_FILE,
-                mime="application/octet-stream"
-            )
-else:
-    st.error("Model is not available for training.")
+                # Add a download button for the model file after training completes
+                with open(MODEL_FILE, "rb") as f:
+                    model_data = f.read()
+                st.download_button(
+                    label="Download Trained Model",
+                    data=model_data,
+                    file_name=MODEL_FILE,
+                    mime="application/octet-stream"
+                )
+    else:
+        st.error("Model is not available for training. Please check model initialization.")
 
 # Button to test model
 if st.sidebar.button("Test Model"):
