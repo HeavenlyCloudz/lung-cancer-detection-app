@@ -387,32 +387,28 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         st.error(f"Error generating Grad-CAM heatmap: {str(e)}")
         return None
 
-def display_gradcam(img_path, heatmap, alpha=0.4):
+def display_gradcam(img_array, heatmap, alpha=0.4):
     try:
-        # Load original image using PIL
-        img = Image.open(img_path)
-        img = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT))  # Resize to match heatmap size
-        img = np.array(img)  # Convert PIL image to numpy array
+        # Ensure img_array is in the correct format
+        if img_array.ndim != 3 or img_array.shape[2] != 3:
+            raise ValueError("Input image must have 3 channels (RGB).")
 
-        # Ensure 3 channels (RGB)
-        if len(img.shape) != 3 or img.shape[2] != 3:
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        # Resize heatmap to match image dimensions
+        heatmap = cv2.resize(heatmap, (img_array.shape[1], img_array.shape[0]))
 
-        # Prepare heatmap
+        # Normalize heatmap to the range [0, 255]
         heatmap = np.uint8(255 * heatmap)
-        jet = plt.cm.jet  # Use matplotlib's colormap
-        jet_colors = jet(np.arange(256))[:, :3]
-        jet_heatmap = jet_colors[heatmap]
-        jet_heatmap = np.uint8(jet_heatmap * 255)
-        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)
+        jet = plt.cm.jet(np.arange(256))[:, :3]  # Get jet colormap
+        jet_heatmap = jet[heatmap]  # Apply colormap to heatmap
+        jet_heatmap = np.uint8(jet_heatmap * 255)  # Convert to uint8
 
-        # Resize heatmap to match image
-        jet_heatmap = cv2.resize(jet_heatmap, (img.shape[1], img.shape[0]))
+        # Convert original image to float32 for blending
+        img_array = np.float32(img_array) / 255.0
 
         # Blend heatmap and image
-        superimposed_img = cv2.addWeighted(img, 1 - alpha, jet_heatmap, alpha, 0)
+        superimposed_img = cv2.addWeighted(img_array, 1 - alpha, jet_heatmap, alpha, 0)
 
-        return superimposed_img
+        return np.uint8(superimposed_img * 255)  # Convert back to uint8
 
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
