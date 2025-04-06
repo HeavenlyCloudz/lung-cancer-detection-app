@@ -534,7 +534,6 @@ if st.sidebar.button("Test Model"):
     else:
         st.warning("No model found. Please train the model first.")
 
-
 label_mapping = {
     0: 'adenocarcinoma',
     1: 'squamous cell carcinoma',
