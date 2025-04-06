@@ -372,20 +372,17 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
-        # Convert the heatmap to 8-bit (0-255) format
         heatmap = np.uint8(255 * heatmap)
 
-        # Use the new colormap API from Matplotlib (avoid deprecated `get_cmap`)
-        jet = plt.cm.get_cmap("jet")
-        jet_colors = jet(np.arange(256))[:, :3]  # Get the RGB values
-        jet_heatmap = jet_colors[heatmap]  # Apply the colormap to the heatmap
-        jet_heatmap = np.uint8(jet_heatmap * 255)  # Convert to 8-bit format
-        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
+        # Use the updated method to get the colormap
+        jet = plt.colormaps['jet']  # Updated method
+        jet_colors = jet(np.arange(256))[:, :3]
+        jet_heatmap = jet_colors[heatmap]
+        jet_heatmap = np.uint8(jet_heatmap * 255)
+        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)
 
-        # Resize the heatmap to match the input image dimensions
         jet_heatmap = cv2.resize(jet_heatmap, (img.shape[1], img.shape[0]))
 
-        # Superimpose the heatmap on the original image
         superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img, 1 - alpha, 0)
         return superimposed_img
 
