@@ -107,7 +107,7 @@ def focal_loss(alpha=0.25, gamma=2.0):
         return tf.reduce_mean(loss)
     return focal_loss_fixed
 
-def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1, learning_rate=1e-3):
+def create_efficientnet_model(input_shape=(224, 224, 3), learning_rate=1e-3):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze all layers initially
@@ -123,15 +123,34 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1, learning
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(256, activation='relu')(x)
     x = layers.Dropout(0.4)(x)
-    predictions = layers.Dense(2, activation='softmax')(x)
 
-    model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
+    # First output: Binary classification for cancerous vs non-cancerous
+    cancerous_output = layers.Dense(1, activation='sigmoid', name='cancerous_output')(x)
+    
+    # Second output: Predict cancer type if the image is cancerous
+    cancer_type_output = layers.Dense(4, activation='softmax', name='cancer_type_output')(x)  # 4 types of cancer: adenocarcinoma, squamous cell carcinoma, large cell carcinoma, malignant
+    
+    # Third output: Predict non-cancerous type if it's non-cancerous (benign or normal)
+    non_cancerous_type_output = layers.Dense(2, activation='softmax', name='non_cancerous_type_output')(x)  # 2 types: benign or normal
+    
+    model = models.Model(inputs=base_model.input, outputs=[cancerous_output, cancer_type_output, non_cancerous_type_output])
 
-    # Compile the model with the Adam optimizer
-    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    # Compile the model
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+        loss={
+            'cancerous_output': 'binary_crossentropy',  # Binary output: Cancerous or Non-Cancerous
+            'cancer_type_output': 'categorical_crossentropy',  # For cancerous: 1 of 4 cancer types
+            'non_cancerous_type_output': 'categorical_crossentropy'  # For non-cancerous: 1 of 2 types (benign or normal)
+        },
+        metrics={
+            'cancerous_output': 'accuracy',
+            'cancer_type_output': 'accuracy',
+            'non_cancerous_type_output': 'accuracy'
+        }
+    )
 
-    return model  # Return the model
+    return model
 
 # Load model from file or create a new one
 def load_model_file():
@@ -142,7 +161,7 @@ def load_model_file():
             # Set last 50 layers as trainable
             for layer in model.layers[-50:]:
                 layer.trainable = True
-            st.success("✅")
+            st.success("✅Model loaded")
             return model
         except Exception as e:
             st.error(f"Error loading model: {e}")
@@ -520,11 +539,19 @@ def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=N
         # Preprocess the image
         processed_image = preprocess_image(image_path)
 
-        if processed_image is not None and model:
+        if processed_image is None:
+            st.error("Failed to process the image. Please try again.")
+            return
+
+        if model:
             # Make prediction
             prediction = model.predict(processed_image)
 
-            # Get predicted class index
+            if prediction is None or len(prediction) == 0:
+                st.error("Prediction failed. Please check the input image or try again.")
+                return
+
+            # Get predicted class index (for multi-class output)
             predicted_index = np.argmax(prediction[0])
 
             # Get actual label
@@ -577,7 +604,6 @@ def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=N
                         st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
                     else:
                         st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
-
 
             # Generate Grad-CAM heatmap
             try:
