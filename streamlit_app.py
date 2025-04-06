@@ -387,20 +387,21 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         st.error(f"Error generating Grad-CAM heatmap: {str(e)}")
         return None
 
-def display_gradcam(img, heatmap, alpha=0.4):
+def display_gradcam(img_path, heatmap, alpha=0.4):
     try:
-        # Ensure image has 3 channels (convert grayscale to RGB if needed)
-        if img.shape[2] == 1:
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        elif img.shape[2] == 3:
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        else:
-            img_rgb = img  # If already RGB
+        # Load original image (from file path, again)
+        img = cv2.imread(img_path)
+        img = cv2.resize(img, (IMAGE_WIDTH, IMAGE_HEIGHT))
 
-        # Ensure heatmap is in the correct format
+        # Convert BGR to RGB for consistency
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # Ensure 3 channels
+        if len(img.shape) != 3 or img.shape[2] != 3:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+
+        # Prepare heatmap
         heatmap = np.uint8(255 * heatmap)
-
-        # Use colormap and convert to BGR
         jet = plt.colormaps['jet']
         jet_colors = jet(np.arange(256))[:, :3]
         jet_heatmap = jet_colors[heatmap]
@@ -408,20 +409,16 @@ def display_gradcam(img, heatmap, alpha=0.4):
         jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)
 
         # Resize heatmap to match image
-        jet_heatmap = cv2.resize(jet_heatmap, (img_rgb.shape[1], img_rgb.shape[0]))
+        jet_heatmap = cv2.resize(jet_heatmap, (img.shape[1], img.shape[0]))
 
-        # Make sure both arrays are the same shape
-        if jet_heatmap.shape != img_rgb.shape:
-            img_rgb = cv2.resize(img_rgb, (jet_heatmap.shape[1], jet_heatmap.shape[0]))
+        # Blend heatmap and image
+        superimposed_img = cv2.addWeighted(img, 1 - alpha, jet_heatmap, alpha, 0)
 
-        # Overlay the heatmap on image
-        superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img_rgb, 1 - alpha, 0)
         return superimposed_img
 
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
         return None
-
         
 # Streamlit UI
 st.title("Lung Cancer Detection💻")
@@ -552,7 +549,7 @@ label_mapping = {
     5: 'benign'
 }
 
-def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=None):
+def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=label_mapping):
     try:
         # Preprocess the image
         processed_image = preprocess_image(image_path)
