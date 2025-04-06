@@ -129,9 +129,9 @@ def create_efficientnet_model(input_shape=(224, 224, 3), learning_rate=1e-3):
     cancerous_output = layers.Dense(1, activation='sigmoid', name='cancerous_output')(x)
     
     # Second output: Predict cancer type if the image is cancerous
-    cancer_type_output = layers.Dense(4, activation='softmax', name='cancer_type_output')(x)  # 4 types of cancer: adenocarcinoma, squamous cell carcinoma, large cell carcinoma, malignant
+    cancer_type_output = layers.Dense(4, activation='softmax', name='cancer_type_output')(x)  # 4 types of cancer
     
-    # Third output: Predict non-cancerous type if it's non-cancerous (benign or normal)
+    # Third output: Predict non-cancerous type (benign or normal)
     non_cancerous_type_output = layers.Dense(2, activation='softmax', name='non_cancerous_type_output')(x)  # 2 types: benign or normal
     
     model = models.Model(inputs=base_model.input, outputs=[cancerous_output, cancer_type_output, non_cancerous_type_output])
@@ -140,9 +140,9 @@ def create_efficientnet_model(input_shape=(224, 224, 3), learning_rate=1e-3):
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
         loss={
-            'cancerous_output': 'binary_crossentropy',  # Binary output: Cancerous or Non-Cancerous
-            'cancer_type_output': 'categorical_crossentropy',  # For cancerous: 1 of 4 cancer types
-            'non_cancerous_type_output': 'categorical_crossentropy'  # For non-cancerous: 1 of 2 types (benign or normal)
+            'cancerous_output': 'binary_crossentropy',  # For binary output
+            'cancer_type_output': 'categorical_crossentropy',  # For cancerous types
+            'non_cancerous_type_output': 'categorical_crossentropy'  # For non-cancerous types
         },
         metrics={
             'cancerous_output': 'accuracy',
@@ -152,7 +152,7 @@ def create_efficientnet_model(input_shape=(224, 224, 3), learning_rate=1e-3):
     )
 
     return model
-
+    
 # Load model from file or create a new one
 def load_model_file():
     global is_new_model
@@ -298,27 +298,27 @@ def train(train_dir, val_dir):
         # Get the class indices from the generator
         y_train = train_generator.classes
         y_val = val_generator.classes
-
+    
         # Prepare binary labels for cancerous output (0 for non-cancerous, 1 for cancerous)
         y_cancerous = np.array(y_train)
-
+    
         # Prepare cancer type labels (0 to 3 for types, -1 for non-cancerous)
         y_cancer_type = np.where(y_cancerous == 1, y_train, -1)  # Only get cancer type where cancerous
         y_non_cancerous = np.where(y_cancerous == 0, y_train, -1)  # Only get non-cancerous type
-
+    
         # One-hot encode the cancer type and non-cancerous type labels
         encoder_cancer_type = OneHotEncoder(sparse=False)
         y_cancer_type_encoded = encoder_cancer_type.fit_transform(y_cancer_type.reshape(-1, 1))
-
+    
         encoder_non_cancerous = OneHotEncoder(sparse=False)
         y_non_cancerous_encoded = encoder_non_cancerous.fit_transform(y_non_cancerous.reshape(-1, 1))
-
+    
         # Combine labels into a tuple for model training
         y_labels = (y_cancerous, y_cancer_type_encoded, y_non_cancerous_encoded)
-
+    
     except Exception as e:
         st.error(f"Error preparing labels: {str(e)}")
-        return
+        return  # Exit the function
 
     class_weights = calculate_class_weights(train_generator)
     imbalance_ratio = max(class_weights.values()) / sum(class_weights.values())
@@ -434,10 +434,11 @@ def display_gradcam(img_array, heatmap, alpha=0.4):
         jet_heatmap = jet[heatmap_normalized]  # Apply colormap to heatmap
         jet_heatmap = np.uint8(jet_heatmap * 255)  # Convert to uint8
 
-        # Blend heatmap and image
+        # Ensure both images are uint8 before blending
+        img_array = np.uint8(img_array * 255)  # Convert back to uint8
         superimposed_img = cv2.addWeighted(img_array, 1 - alpha, jet_heatmap, alpha, 0)
 
-        return np.uint8(superimposed_img * 255)  # Convert back to uint8
+        return superimposed_img  # Return the blended image
 
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
