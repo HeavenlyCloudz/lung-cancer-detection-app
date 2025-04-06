@@ -389,21 +389,20 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
 def display_gradcam(img_array, heatmap, alpha=0.4):
     try:
-        # Ensure img_array is in the correct format
+        # Ensure img_array is RGB and convert to float32
         if img_array.ndim != 3 or img_array.shape[2] != 3:
             raise ValueError("Input image must have 3 channels (RGB).")
+        
+        img_array = img_array.astype(np.float32) / 255.0  # Normalize image to [0, 1]
 
         # Resize heatmap to match image dimensions
-        heatmap = cv2.resize(heatmap, (img_array.shape[1], img_array.shape[0]))
+        heatmap_resized = cv2.resize(heatmap, (img_array.shape[1], img_array.shape[0]))
 
-        # Normalize heatmap to the range [0, 255]
-        heatmap = np.uint8(255 * heatmap)
+        # Normalize heatmap to be in the range [0, 255]
+        heatmap_normalized = np.uint8(255 * heatmap_resized)
         jet = plt.cm.jet(np.arange(256))[:, :3]  # Get jet colormap
-        jet_heatmap = jet[heatmap]  # Apply colormap to heatmap
+        jet_heatmap = jet[heatmap_normalized]  # Apply colormap to heatmap
         jet_heatmap = np.uint8(jet_heatmap * 255)  # Convert to uint8
-
-        # Convert original image to float32 for blending
-        img_array = np.float32(img_array) / 255.0
 
         # Blend heatmap and image
         superimposed_img = cv2.addWeighted(img_array, 1 - alpha, jet_heatmap, alpha, 0)
