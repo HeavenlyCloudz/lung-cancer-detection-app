@@ -142,7 +142,7 @@ def load_model_file():
             # Set last 50 layers as trainable
             for layer in model.layers[-50:]:
                 layer.trainable = True
-            st.success("Model loaded successfully!")
+            st.success("✅")
             return model
         except Exception as e:
             st.error(f"Error loading model: {e}")
