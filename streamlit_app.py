@@ -107,7 +107,7 @@ def focal_loss(alpha=0.25, gamma=2.0):
         return tf.reduce_mean(loss)
     return focal_loss_fixed
 
-def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
+def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1, learning_rate=1e-3):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze all layers initially
@@ -126,6 +126,11 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     predictions = layers.Dense(1, activation='sigmoid')(x)
 
     model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
+
+    # Compile the model with the Adam optimizer
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+
     return model  # Return the model
 
 # Load model from file or create a new one
