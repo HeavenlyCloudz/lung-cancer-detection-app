@@ -105,6 +105,14 @@ def focal_loss(alpha=0.25, gamma=2.0):
         return tf.reduce_mean(loss)
     return focal_loss_fixed
 
+# Load existing model or create a new one
+if os.path.exists(MODEL_FILE):
+    model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
+    st.success("Model loaded successfully!")
+else:
+    model = create_efficientnet_model()  # Create new model
+    st.info("New model created.")
+
 def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
