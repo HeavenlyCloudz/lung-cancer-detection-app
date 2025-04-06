@@ -175,7 +175,7 @@ def load_model_file():
 model = load_model_file()
 if model is None:
     st.error("Failed to load model. Please check the model file.")
-    return  # Prevent further execution if the model is not loaded
+    st.stop()  # Stops further execution of the Streamlit app
 
 # Define the predict function with tf.function
 @tf.function(input_signature=[tf.TensorSpec(shape=[None, 224, 224, 3], dtype=tf.float32)])
