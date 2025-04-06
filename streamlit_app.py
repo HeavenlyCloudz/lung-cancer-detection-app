@@ -389,30 +389,39 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
-        # Ensure img is in the correct format (BGR to RGB if needed)
-        if img.shape[2] == 3:  # Check if the image has 3 channels
+        # Ensure image has 3 channels (convert grayscale to RGB if needed)
+        if img.shape[2] == 1:
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        elif img.shape[2] == 3:
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         else:
-            img_rgb = img
+            img_rgb = img  # If already RGB
 
+        # Ensure heatmap is in the correct format
         heatmap = np.uint8(255 * heatmap)
 
-        # Use the updated method to get the colormap
+        # Use colormap and convert to BGR
         jet = plt.colormaps['jet']
         jet_colors = jet(np.arange(256))[:, :3]
         jet_heatmap = jet_colors[heatmap]
         jet_heatmap = np.uint8(jet_heatmap * 255)
         jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)
 
-        # Resize the heatmap to the original image size
+        # Resize heatmap to match image
         jet_heatmap = cv2.resize(jet_heatmap, (img_rgb.shape[1], img_rgb.shape[0]))
 
+        # Make sure both arrays are the same shape
+        if jet_heatmap.shape != img_rgb.shape:
+            img_rgb = cv2.resize(img_rgb, (jet_heatmap.shape[1], jet_heatmap.shape[0]))
+
+        # Overlay the heatmap on image
         superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img_rgb, 1 - alpha, 0)
         return superimposed_img
 
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
         return None
+
         
 # Streamlit UI
 st.title("Lung Cancer Detection💻")
