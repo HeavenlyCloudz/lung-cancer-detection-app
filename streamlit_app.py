@@ -157,7 +157,7 @@ model = load_model_file()
 
 # Compile the model after loading or creating
 if model is not None:
-    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 else:
     st.error("Model is None. Cannot proceed to training.")
