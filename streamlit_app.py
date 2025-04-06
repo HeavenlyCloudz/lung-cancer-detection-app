@@ -1,4 +1,5 @@
 import streamlit as st
+import snowflake.connector
 import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
@@ -30,6 +31,57 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 # Set the last convolutional layer name for Grad-CAM 
 last_conv_layer_name = 'top_conv'
 
+is_new_model = False  # Global flag to indicate if a new model is created
+
+# Function to establish Snowflake connection
+def get_snowflake_connection():
+    return snowflake.connector.connect(
+        user=os.getenv('SNOWFLAKE_USER'),
+        password=os.getenv('SNOWFLAKE_PASSWORD'),
+        account=os.getenv('SNOWFLAKE_ACCOUNT'),
+        warehouse=os.getenv('SNOWFLAKE_WAREHOUSE'),
+        database=os.getenv('SNOWFLAKE_DATABASE'),
+        schema=os.getenv('SNOWFLAKE_SCHEMA')
+    )
+
+# Function to save prediction to Snowflake
+def save_prediction_to_snowflake(image_path, prediction, confidence):
+    conn = get_snowflake_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO predictions (image_path, prediction, confidence) VALUES (%s, %s, %s)",
+            (image_path, prediction, confidence)
+        )
+        conn.commit()
+        st.success("Prediction saved to Snowflake.")
+    except Exception as e:
+        st.error(f"Error saving prediction: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+def get_snowflake_connection():
+    required_env_vars = [
+        'SNOWFLAKE_USER', 
+        'SNOWFLAKE_PASSWORD', 
+        'SNOWFLAKE_ACCOUNT', 
+        'SNOWFLAKE_WAREHOUSE', 
+        'SNOWFLAKE_DATABASE', 
+        'SNOWFLAKE_SCHEMA'
+    ]
+    for var in required_env_vars:
+        if os.getenv(var) is None:
+            raise EnvironmentError(f"Environment variable {var} is not set.")
+    return snowflake.connector.connect(
+        user=os.getenv('SNOWFLAKE_USER'),
+        password=os.getenv('SNOWFLAKE_PASSWORD'),
+        account=os.getenv('SNOWFLAKE_ACCOUNT'),
+        warehouse=os.getenv('SNOWFLAKE_WAREHOUSE'),
+        database=os.getenv('SNOWFLAKE_DATABASE'),
+        schema=os.getenv('SNOWFLAKE_SCHEMA')
+    )
+
 # Function to calculate class weights
 def calculate_class_weights(train_generator):
     # Assuming that the class labels are integers, e.g., 0 and 1 for binary classification
@@ -55,39 +107,61 @@ def focal_loss(alpha=0.25, gamma=2.0):
         return tf.reduce_mean(loss)
     return focal_loss_fixed
 
-def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
+def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1, learning_rate=1e-3):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze all layers initially
     for layer in base_model.layers:
-        layer.trainable = False  
+        layer.trainable = False
 
     # Unfreeze last 50 layers for fine-tuning
     for layer in base_model.layers[-50:]:
-        layer.trainable = True  
+        layer.trainable = True
 
-    # Use base_model.input directly
+    # Build the model
     x = base_model.output
-
-    # Global Average Pooling
     x = layers.GlobalAveragePooling2D()(x)
-
-    # Fully connected layers
     x = layers.Dense(256, activation='relu')(x)
-    x = layers.Dropout(0.4)(x)  
+    x = layers.Dropout(0.4)(x)
+    predictions = layers.Dense(1, activation='sigmoid')(x)
 
-    # Output layer
-    predictions = layers.Dense(1, activation='sigmoid')(x)  
+    model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
 
-    model = Model(inputs=base_model.input, outputs=predictions)
+    # Compile the model with the Adam optimizer
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 
-    # Use SGD with momentum
-    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+    return model  # Return the model
 
-    return model
+# Load model from file or create a new one
+def load_model_file():
+    global is_new_model
+    if os.path.exists(MODEL_FILE):
+        try:
+            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
+            # Set last 50 layers as trainable
+            for layer in model.layers[-50:]:
+                layer.trainable = True
+            st.success("Model loaded successfully!")
+            return model
+        except Exception as e:
+            st.error(f"Error loading model: {e}")
+            return None
+    else:
+        st.warning("No saved model found. Creating a new model.")
+        is_new_model = True  # Set the flag to indicate a new model is created
+        return create_efficientnet_model()
 
-model = create_efficientnet_model()
-model.summary()
+# Load or create the model
+model = load_model_file()
+
+# Compile the model after loading or creating
+if model is not None:
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+else:
+    st.error("Model is None. Cannot proceed to training.")
+
 
 def preprocess_image(img_path):
     try:
@@ -121,7 +195,6 @@ def preprocess_image(img_path):
         print(f"Error processing image: {str(e)}")  # More detailed error message for debugging
         return None
 
-
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
     train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
@@ -150,29 +223,6 @@ def load_data(train_dir, val_dir, batch_size):
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None, None
-
-# Load model from file
-def load_model_file():
-    if os.path.exists(MODEL_FILE):
-        try:
-            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})  # Load with focal loss
-            
-            # Use the same optimizer as in `create_efficientnet_model`
-            optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-
-            model.compile(optimizer=optimizer, 
-                          loss=focal_loss(alpha=0.25, gamma=2.0), 
-                          metrics=['accuracy'])
-            
-            st.success("Model loaded successfully!")
-
-            return model
-        except Exception as e:
-            st.error(f"Error loading model: {e}")
-            return None
-    else:
-        st.warning("No saved model found.")
-        return None
 
 def print_layer_names():
     try:
@@ -208,19 +258,24 @@ def plot_training_history(history):
 
 # Training function
 def train(train_dir, val_dir):
+    global model  # Use the global model variable
+
     train_generator, val_generator = load_data(train_dir, val_dir, BATCH_SIZE)
 
     if not train_generator or not val_generator:
+        st.error("Failed to load training or validation data.")
         return
 
     class_weights = calculate_class_weights(train_generator)
     imbalance_ratio = max(class_weights.values()) / sum(class_weights.values())
     loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'binary_crossentropy'
 
-    model = create_efficientnet_model()
-    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-    model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
+    # Compile the model if it hasn't been compiled yet
+    if not model._is_compiled:  # Check if the model is compiled
+        optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+        model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
+    # Train the model
     history = model.fit(
         train_generator,
         epochs=EPOCHS,
@@ -229,9 +284,9 @@ def train(train_dir, val_dir):
     )
 
     model.save(MODEL_FILE)
-    st.write("Model saved successfully!")
+    st.success("Model saved successfully!")
     st.write("Training completed.")
-
+    
 
 def test_model(model):
     test_datagen = ImageDataGenerator(rescale=1./255)
@@ -371,11 +426,7 @@ st.header("Thank you for using ONCO AI🌐")
 st.write("CNNs are the preferred network for detecting lung cancer due to their ability to process image data. They can perform tasks such as classification, segmentation, and object recognition. In the case of lung cancer detection, CNNs have surpassed radiologists.")
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("Visit [ONCO AI](https://readymag.website/u4174625345/5256774/) for more information.")
-
-# Show the model summary
-# model_summary = []
-# model.summary(print_fn=lambda x: model_summary.append(x))  # Capture the summary
-# st.text('\n'.join(model_summary))  # Display the summary in Streamlit
+st.markdown("Visit my [GitHub](https://github.com/HeavenlyCloudz/lung-cancer-detection-app) repository for insight on my code.")
 
 # Sidebar controls
 st.sidebar.title("Controls🎮")
@@ -391,36 +442,40 @@ batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, va
 eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_value=1, max_value=10, value=1)
 
 # Button to train model
-if st.sidebar.button("Train Model"):
+if st.sidebar.button("Train Model") and model is not None:
     with st.spinner("Training the model🤖..."):
-        model = create_efficientnet_model()  # Create a new EfficientNetB0 model
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
 
-        # Compute class weights
+        # Ensure generators are loaded
         if train_generator is not None and val_generator is not None:
             y_train = train_generator.classes
             class_labels = np.unique(y_train)
-            weights = class_weight.compute_class_weight('balanced', classes=class_labels, y=y_train)
+            weights = compute_class_weight('balanced', classes=class_labels, y=y_train)
             class_weights = {i: weights[i] for i in range(len(class_labels))}
 
-            # Check if class imbalance exists by comparing the class frequencies
+            # Calculate imbalance ratio
             class_0_count = np.sum(y_train == 0)
             class_1_count = np.sum(y_train == 1)
-            imbalance_ratio = max(class_0_count, class_1_count) / min(class_0_count, class_1_count) if min(class_0_count, class_1_count) > 0 else 1
+            imbalance_ratio = (
+                max(class_0_count, class_1_count) / min(class_0_count, class_1_count)
+                if min(class_0_count, class_1_count) > 0
+                else 1
+            )
 
-            # If imbalance ratio is high, use Focal Loss, otherwise use Binary Cross-Entropy
+            # Determine loss function based on imbalance
             if imbalance_ratio > 1.5:
-                loss_function = focal_loss(alpha=0.25, gamma=2.0)  # Use your Focal Loss
+                loss_function = focal_loss(alpha=0.25, gamma=2.0)
                 st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
             else:
-                loss_function = 'binary_crossentropy'  # Use Binary Cross-Entropy
+                loss_function = 'binary_crossentropy'
                 st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
 
-            # **Add ReduceLROnPlateau Callback**
+            # Add ReduceLROnPlateau Callback
             reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
             # Compile the model with the selected loss function
-            model.compile(optimizer='adam', loss=loss_function, metrics=['accuracy'])
+            optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)  # Ensure optimizer is defined
+            model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
             # Train the model
             history = model.fit(
@@ -428,7 +483,7 @@ if st.sidebar.button("Train Model"):
                 validation_data=val_generator,
                 epochs=epochs,
                 class_weight=class_weights,
-                callbacks=[reduce_lr]  # **Include ReduceLROnPlateau here**
+                callbacks=[reduce_lr]
             )
 
             # Save model
@@ -436,6 +491,17 @@ if st.sidebar.button("Train Model"):
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
 
+            # Add a download button for the model file after training completes
+            with open(MODEL_FILE, "rb") as f:
+                model_data = f.read()
+            st.download_button(
+                label="Download Trained Model",
+                data=model_data,
+                file_name=MODEL_FILE,
+                mime="application/octet-stream"
+            )
+else:
+    st.error("Model is not available for training.")
 
 # Button to test model
 if st.sidebar.button("Test Model"):
@@ -457,10 +523,10 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             prediction = model.predict(processed_image)[0][0]
             confidence = prediction if prediction > 0.5 else 1 - prediction  # Confidence Score
             confidence_percentage = confidence * 100  # Convert to percentage
-            
+
             # Determine result label
             result = 'Cancerous' if prediction > 0.5 else 'Non-Cancerous'
-            
+
             # Display Prediction Result
             st.subheader("Prediction Result:")
             st.write(f"**{result}**")
@@ -483,10 +549,10 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                     "Wheezing",
                     "Coughing up blood"
                 ]
-    
+
                 # Multi-select for symptoms
                 selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
-    
+
                 # Done button
                 if st.button("Done"):
                     # Check how many symptoms are selected
@@ -496,7 +562,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                         st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
                     else:
                         st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
-            
+
             # Generate Grad-CAM heatmap
             try:
                 heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
@@ -535,12 +601,10 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             except Exception as e:
                 st.warning(f"Error removing image file: {str(e)}")
 
-
 # Load Model
 last_conv_layer_name = 'top_conv'
 
 # Normal Image Upload
-
 uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
 if uploaded_file is not None:
     file_extension = uploaded_file.name.split('.')[-1]
@@ -562,7 +626,6 @@ if photo is not None:
         f.write(photo.getbuffer())
 
     process_and_predict(captured_filename, model, last_conv_layer_name)
-
 
 # Clear cache button
 if st.button("Clear Cache"):

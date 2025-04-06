@@ -9,3 +9,4 @@ pillow
 scikit-learn
 seaborn
 scikit-image
+snowflake-connector-python
