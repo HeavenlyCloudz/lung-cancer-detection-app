@@ -31,6 +31,8 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 # Set the last convolutional layer name for Grad-CAM 
 last_conv_layer_name = 'top_conv'
 
+is_new_model = False  # Global flag to indicate if a new model is created
+
 # Function to establish Snowflake connection
 def get_snowflake_connection():
     return snowflake.connector.connect(
@@ -128,6 +130,7 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1):
 
 # Load model from file or create a new one
 def load_model_file():
+    global is_new_model
     if os.path.exists(MODEL_FILE):
         try:
             model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
@@ -141,6 +144,7 @@ def load_model_file():
             return None
     else:
         st.warning("No saved model found. Creating a new model.")
+        is_new_model = True  # Set the flag to indicate a new model is created
         return create_efficientnet_model()
 
 # Load or create the model
@@ -249,19 +253,24 @@ def plot_training_history(history):
 
 # Training function
 def train(train_dir, val_dir):
+    global model  # Use the global model variable
+
     train_generator, val_generator = load_data(train_dir, val_dir, BATCH_SIZE)
 
     if not train_generator or not val_generator:
+        st.error("Failed to load training or validation data.")
         return
 
     class_weights = calculate_class_weights(train_generator)
     imbalance_ratio = max(class_weights.values()) / sum(class_weights.values())
     loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'binary_crossentropy'
 
-    model = create_efficientnet_model()
-    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
-    model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
+    # Compile the model if it hasn't been compiled yet
+    if not model._is_compiled:  # Check if the model is compiled
+        optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+        model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
+    # Train the model
     history = model.fit(
         train_generator,
         epochs=EPOCHS,
@@ -270,8 +279,9 @@ def train(train_dir, val_dir):
     )
 
     model.save(MODEL_FILE)
-    st.write("Model saved successfully!")
+    st.success("Model saved successfully!")
     st.write("Training completed.")
+    
 
 def test_model(model):
     test_datagen = ImageDataGenerator(rescale=1./255)
@@ -431,7 +441,7 @@ if st.sidebar.button("Train Model") and model is not None:
     with st.spinner("Training the model🤖..."):
         train_generator, val_generator = load_data(train_data_dir, val_data_dir, batch_size)
 
-        # Compute class weights
+        # Ensure generators are loaded
         if train_generator is not None and val_generator is not None:
             y_train = train_generator.classes
             class_labels = np.unique(y_train)
@@ -459,6 +469,7 @@ if st.sidebar.button("Train Model") and model is not None:
             reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
             # Compile the model with the selected loss function
+            optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)  # Ensure optimizer is defined
             model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
             # Train the model
@@ -474,18 +485,18 @@ if st.sidebar.button("Train Model") and model is not None:
             model.save(MODEL_FILE)
             st.success("Model trained and saved successfully!")
             plot_training_history(history)
+
+            # Add a download button for the model file after training completes
+            with open(MODEL_FILE, "rb") as f:
+                model_data = f.read()
+            st.download_button(
+                label="Download Trained Model",
+                data=model_data,
+                file_name=MODEL_FILE,
+                mime="application/octet-stream"
+            )
 else:
     st.error("Model is not available for training.")
-
-# Add a download button for the model file
-with open(MODEL_FILE, "rb") as f:
-    model_data = f.read()
-st.download_button(
-    label="Download Trained Model",
-    data=model_data,
-    file_name=MODEL_FILE,
-    mime="application/octet-stream"
-)
 
 # Button to test model
 if st.sidebar.button("Test Model"):
