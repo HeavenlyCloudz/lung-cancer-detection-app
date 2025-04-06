@@ -128,7 +128,7 @@ def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1, learning
     model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
 
     # Compile the model with the Adam optimizer
-    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
     model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 
     return model  # Return the model
@@ -157,7 +157,7 @@ model = load_model_file()
 
 # Compile the model after loading or creating
 if model is not None:
-    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
     model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 else:
     st.error("Model is None. Cannot proceed to training.")
@@ -272,7 +272,7 @@ def train(train_dir, val_dir):
 
     # Compile the model if it hasn't been compiled yet
     if not model._is_compiled:  # Check if the model is compiled
-        optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
         model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
     # Train the model
@@ -474,7 +474,7 @@ if st.sidebar.button("Train Model") and model is not None:
             reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
             # Compile the model with the selected loss function
-            optimizer = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.9, nesterov=True)  # Ensure optimizer is defined
+            optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
             model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
             # Train the model
