@@ -548,6 +548,8 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                     # Check how many symptoms are selected
                     if len(selected_symptoms) > 3:
                         st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses. Please contact medical support.")
+                    elif len(selected_symptoms) == 3:
+                        st.warning("These symptoms could possibly point to other diseases as well. Be sure to consult a health provider if they continue to worsen.")
                     elif len(selected_symptoms) > 0:
                         st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
                     else:
