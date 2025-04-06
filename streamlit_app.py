@@ -155,6 +155,11 @@ def load_model_file():
 # Load or create the model
 model = load_model_file()
 
+# Define the predict function with tf.function
+@tf.function(input_signature=[tf.TensorSpec(shape=[None, 224, 224, 3], dtype=tf.float32)])
+def predict(input_tensor):
+    return model(input_tensor)
+
 def preprocess_image(img_path):
     try:
         img = Image.open(img_path)
@@ -186,6 +191,14 @@ def preprocess_image(img_path):
     except Exception as e:
         print(f"Error processing image: {str(e)}")  # More detailed error message for debugging
         return None
+
+# Main function to run predictions
+def main():
+    # Example usage of the predict function
+    image_tensor = tf.random.uniform((1, 224, 224, 3))  # Simulate an image tensor
+    result = predict(image_tensor)
+    print(result)
+
 
 # Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
@@ -628,3 +641,6 @@ if st.sidebar.button("Show Layer Names"):
     st.write("Layer names in EfficientNetB0:")
     layer_names = print_layer_names()
     st.text("\n".join(layer_names))
+
+if __name__ == "__main__":
+    main()
