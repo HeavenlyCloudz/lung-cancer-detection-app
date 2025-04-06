@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
+from sklearn.preprocessing import OneHotEncoder
 import matplotlib.cm as cm
 
 # Constants
@@ -288,6 +289,33 @@ def train(train_dir, val_dir):
 
     if not train_generator or not val_generator:
         st.error("Failed to load training or validation data.")
+        return
+
+    # Prepare labels
+    try:
+        # Get the class indices from the generator
+        y_train = train_generator.classes
+        y_val = val_generator.classes
+
+        # Prepare binary labels for cancerous output (0 for non-cancerous, 1 for cancerous)
+        y_cancerous = np.array(y_train)
+
+        # Prepare cancer type labels (0 to 3 for types, -1 for non-cancerous)
+        y_cancer_type = np.where(y_cancerous == 1, y_train, -1)  # Only get cancer type where cancerous
+        y_non_cancerous = np.where(y_cancerous == 0, y_train, -1)  # Only get non-cancerous type
+
+        # One-hot encode the cancer type and non-cancerous type labels
+        encoder_cancer_type = OneHotEncoder(sparse=False)
+        y_cancer_type_encoded = encoder_cancer_type.fit_transform(y_cancer_type.reshape(-1, 1))
+
+        encoder_non_cancerous = OneHotEncoder(sparse=False)
+        y_non_cancerous_encoded = encoder_non_cancerous.fit_transform(y_non_cancerous.reshape(-1, 1))
+
+        # Combine labels into a tuple for model training
+        y_labels = (y_cancerous, y_cancer_type_encoded, y_non_cancerous_encoded)
+
+    except Exception as e:
+        st.error(f"Error preparing labels: {str(e)}")
         return
 
     class_weights = calculate_class_weights(train_generator)
