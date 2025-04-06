@@ -661,7 +661,7 @@ if uploaded_file is not None:
     with open(temp_filename, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    process_and_predict(temp_filename, model, last_conv_layer_name)
+    process_and_predict(temp_filename, model, last_conv_layer_name, label_mapping=label_mapping)
 
 # Mobile Capture Option
 st.sidebar.header("Take a Picture")
@@ -673,7 +673,7 @@ if photo is not None:
     with open(captured_filename, "wb") as f:
         f.write(photo.getbuffer())
 
-    process_and_predict(captured_filename, model, last_conv_layer_name)
+    process_and_predict(captured_filename, model, last_conv_layer_name, label_mapping=label_mapping)
 
 # Clear cache button
 if st.button("Clear Cache"):
