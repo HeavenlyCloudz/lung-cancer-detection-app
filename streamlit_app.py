@@ -155,14 +155,6 @@ def load_model_file():
 # Load or create the model
 model = load_model_file()
 
-# Compile the model after loading or creating
-if model is not None:
-    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-else:
-    st.error("Model is None. Cannot proceed to training.")
-
-
 def preprocess_image(img_path):
     try:
         img = Image.open(img_path)
