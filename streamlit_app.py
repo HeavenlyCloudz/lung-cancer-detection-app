@@ -92,9 +92,18 @@ def calculate_class_weights(train_generator):
 
 # Function to compute imbalance ratio
 def compute_class_weights(train_generator):
-    class_weights = calculate_class_weights(train_generator)
-    total_class_weight = sum(class_weights.values())
-    imbalance_ratio = max(class_weights.values()) / total_class_weight
+    # Extract class labels from generator
+    y_train = train_generator.classes
+    class_labels = np.unique(y_train)
+    
+    # Compute class weights
+    weights = compute_class_weight(class_weight='balanced', classes=class_labels, y=y_train)
+    class_weights = {int(label): weight for label, weight in zip(class_labels, weights)}
+
+    # Compute imbalance ratio
+    total_weight = sum(class_weights.values())
+    imbalance_ratio = max(class_weights.values()) / total_weight
+
     return class_weights, imbalance_ratio
 
 # Focal Loss Function
