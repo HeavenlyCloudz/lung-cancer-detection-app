@@ -451,7 +451,7 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
                    # mime="application/octet-stream"
               #  )
    # else:
-        st.error("Model is not available for training. Please check model initialization.")
+       # st.error("Model is not available for training. Please check model initialization.")
 
 # Button to test model
 if st.sidebar.button("Test Model"):
