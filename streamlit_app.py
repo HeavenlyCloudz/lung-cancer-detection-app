@@ -719,7 +719,7 @@ if st.sidebar.button("Show Layer Names"):
 
 # Function to collect feedback
 def collect_feedback():
-    st.title("Feedback Form")
+    st.title(":rainbow[Feedback] Form")
     
     # Add a text area for the feedback
     feedback = st.text_area("Please share your feedback", "", height=150)
