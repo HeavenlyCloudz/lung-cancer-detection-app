@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
-from tensorflow.keras import layers
+from tensorflow.keras import layers, models
 from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input
 from tensorflow.keras.callbacks import ReduceLROnPlateau
@@ -68,6 +68,7 @@ class CustomDataGenerator(Sequence):
 IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 BATCH_SIZE = 32
+model = 'lung_cancer_detection_model.keras'
 base_data_dir = os.path.join(os.getcwd(), 'data')
 train_data_dir = os.path.join(base_data_dir, 'train')
 val_data_dir = os.path.join(base_data_dir, 'val')
