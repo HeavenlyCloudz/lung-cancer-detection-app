@@ -12,19 +12,13 @@ venv/
 env/
 ENV/
 
+!data/
+!data/**/*
+
+
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
-# Ignore large files (but not if using Git LFS)
-*.csv
-*.json
-*.xlsx
-*.h5
-*.pkl
-*.pth
-*.jpg
-*.png
-*.gif
 
 # Ignore Streamlit cache
 .streamlit/
