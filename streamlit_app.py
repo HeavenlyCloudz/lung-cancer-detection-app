@@ -667,8 +667,8 @@ def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
         predicted_index = np.argmax(prediction[0])  # Get the index of the highest score
 
         # Initialize category and predicted_label
-        predicted_label = 'Unknown'
-        category = 'Unknown'
+        predicted_label = ''
+        category = ''
 
         # Determine the predicted label based on the index
         if predicted_index == 0:
