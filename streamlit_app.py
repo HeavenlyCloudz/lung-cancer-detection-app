@@ -367,19 +367,19 @@ def train(train_dir, val_dir):
 
 def test_model(model):
     test_datagen = ImageDataGenerator(rescale=1./255)
-    
+
     try:
         test_generator = test_datagen.flow_from_directory(
             test_data_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
             batch_size=BATCH_SIZE,
-            class_mode=None,  # No class mode; we handle labels manually
+            class_mode='categorical',  # Set class_mode to categorical
             shuffle=False  # Important for consistent ordering
         )
 
-        # Get true labels based on the directory structure
+        # Get true labels
         true_labels = test_generator.classes
-        
+
         # Evaluate the model
         test_loss, test_accuracy = model.evaluate(test_generator)
         st.sidebar.write(f"Test Loss: {test_loss:.4f}")
@@ -388,19 +388,17 @@ def test_model(model):
         # Get predictions
         y_pred = model.predict(test_generator)
 
+        # Check if predictions are None or empty
+        if y_pred is None or len(y_pred) == 0:
+            st.error("Prediction failed. Model output is None or empty.")
+            return
+
         # Extract binary and categorical predictions
         y_pred_binary = (y_pred[0] > 0.5).astype(int)  # Binary prediction for cancer presence
-        y_pred_categorical = np.argmax(y_pred[1], axis=1)  # Categorical prediction for type
+        y_pred_categorical = np.argmax(y_pred[1:], axis=1)  # Adjust based on your model outputs
 
         # Combine predictions for confusion matrix
-        # Combined prediction structure:
-        # 0: Benign
-        # 1: Adenocarcinoma
-        # 2: Squamous Cell Carcinoma
-        # 3: Large Cell Carcinoma
-        # 4: Malignant
-        # 5: Normal
-        combined_preds = np.where(y_pred_binary.flatten() == 0, 5, y_pred_categorical + 1)  # Map non-cancerous to class 5
+        combined_preds = np.where(y_pred_binary.flatten() == 0, 5, y_pred_categorical + 1)
 
         # Calculate confusion matrix
         cm = confusion_matrix(true_labels, combined_preds)
