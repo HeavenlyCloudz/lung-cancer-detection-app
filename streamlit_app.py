@@ -1,5 +1,4 @@
 import streamlit as st
-import snowflake.connector
 import os
 import tensorflow as tf
 from tensorflow.keras.models import load_model
@@ -30,55 +29,6 @@ test_data_dir = os.path.join(base_data_dir, 'test')
 last_conv_layer_name = 'top_conv'
 
 is_new_model = False  # Global flag to indicate if a new model is created
-
-# Function to establish Snowflake connection
-def get_snowflake_connection():
-    return snowflake.connector.connect(
-        user=os.getenv('SNOWFLAKE_USER'),
-        password=os.getenv('SNOWFLAKE_PASSWORD'),
-        account=os.getenv('SNOWFLAKE_ACCOUNT'),
-        warehouse=os.getenv('SNOWFLAKE_WAREHOUSE'),
-        database=os.getenv('SNOWFLAKE_DATABASE'),
-        schema=os.getenv('SNOWFLAKE_SCHEMA')
-    )
-
-# Function to save prediction to Snowflake
-def save_prediction_to_snowflake(image_path, prediction, confidence):
-    conn = get_snowflake_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute(
-            "INSERT INTO predictions (image_path, prediction, confidence) VALUES (%s, %s, %s)",
-            (image_path, prediction, confidence)
-        )
-        conn.commit()
-        st.success("Prediction saved to Snowflake.")
-    except Exception as e:
-        st.error(f"Error saving prediction: {str(e)}")
-    finally:
-        cursor.close()
-        conn.close()
-
-def get_snowflake_connection():
-    required_env_vars = [
-        'SNOWFLAKE_USER', 
-        'SNOWFLAKE_PASSWORD', 
-        'SNOWFLAKE_ACCOUNT', 
-        'SNOWFLAKE_WAREHOUSE', 
-        'SNOWFLAKE_DATABASE', 
-        'SNOWFLAKE_SCHEMA'
-    ]
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise EnvironmentError(f"Environment variable {var} is not set.")
-    return snowflake.connector.connect(
-        user=os.getenv('SNOWFLAKE_USER'),
-        password=os.getenv('SNOWFLAKE_PASSWORD'),
-        account=os.getenv('SNOWFLAKE_ACCOUNT'),
-        warehouse=os.getenv('SNOWFLAKE_WAREHOUSE'),
-        database=os.getenv('SNOWFLAKE_DATABASE'),
-        schema=os.getenv('SNOWFLAKE_SCHEMA')
-    )
 
 # Function to calculate class weights
 def calculate_class_weights(train_generator):
