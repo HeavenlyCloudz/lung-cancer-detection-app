@@ -9,6 +9,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input
 from tensorflow.keras.callbacks import ReduceLROnPlateau
+from keras.utils import Sequence
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.utils import class_weight
 import numpy as np
@@ -19,6 +20,49 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import OneHotEncoder
 import matplotlib.cm as cm
+
+# Custom Data Generator Class
+class CustomDataGenerator(Sequence):
+    def __init__(self, directory, batch_size, input_shape):
+        self.directory = directory
+        self.batch_size = batch_size
+        self.input_shape = input_shape
+        self.image_paths = []
+        self.labels = []
+        self.class_map = {
+            'normal': 0,
+            'benign': 1,
+            'adenocarcinoma': 2,
+            'squamous_cell_carcinoma': 3,
+            'large_cell_carcinoma': 4,
+            'malignant': 5
+        }
+        self._load_data()
+
+    def _load_data(self):
+        for tumor_status in os.listdir(self.directory):
+            status_dir = os.path.join(self.directory, tumor_status)
+            if os.path.isdir(status_dir):
+                for class_name in os.listdir(status_dir):
+                    class_dir = os.path.join(status_dir, class_name)
+                    if os.path.isdir(class_dir):
+                        for img_file in os.listdir(class_dir):
+                            img_path = os.path.join(class_dir, img_file)
+                            self.image_paths.append(img_path)
+                            self.labels.append(self.class_map[class_name])
+
+    def __len__(self):
+        return int(np.ceil(len(self.image_paths) / self.batch_size))
+
+    def __getitem__(self, index):
+        batch_x = self.image_paths[index * self.batch_size:(index + 1) * self.batch_size]
+        X = np.array([img_to_array(load_img(img_path, target_size=self.input_shape)) for img_path in batch_x])
+        
+        y_cancerous = np.array([(1 if label > 1 else 0) for label in self.labels])
+        y_cancer_type = np.array(self.labels)
+        y_non_cancerous = np.array([(1 if label == 0 else 0) for label in self.labels])
+        
+        return X, [y_cancerous, y_cancer_type, y_non_cancerous]
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
@@ -235,30 +279,12 @@ def main():
     print(result)
 
 
-# Load training and validation data
+# Load training and validation data using CustomDataGenerator
 def load_data(train_dir, val_dir, batch_size):
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
-                                       width_shift_range=0.2, height_shift_range=0.2,
-                                       shear_range=0.2, zoom_range=0.2,
-                                       horizontal_flip=True, fill_mode='nearest')
-
-    val_datagen = ImageDataGenerator(rescale=1./255)
-
     try:
-        train_generator = train_datagen.flow_from_directory(
-            train_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=batch_size,
-            class_mode='categorical'
-        )
-
-        val_generator = val_datagen.flow_from_directory(
-            val_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=batch_size,
-            class_mode='categorical'
-        )
-
+        train_generator = CustomDataGenerator(train_dir, batch_size, (IMAGE_HEIGHT, IMAGE_WIDTH))
+        val_generator = CustomDataGenerator(val_dir, batch_size, (IMAGE_HEIGHT, IMAGE_WIDTH))
+        
         return train_generator, val_generator
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
@@ -366,19 +392,12 @@ def train(train_dir, val_dir):
     
 
 def test_model(model):
-    test_datagen = ImageDataGenerator(rescale=1./255)
-
     try:
-        test_generator = test_datagen.flow_from_directory(
-            test_data_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=BATCH_SIZE,
-            class_mode='categorical',  # Set class_mode to categorical
-            shuffle=False  # Important for consistent ordering
-        )
+        # Use CustomDataGenerator for the test data
+        test_generator = CustomDataGenerator(test_data_dir, BATCH_SIZE, (IMAGE_HEIGHT, IMAGE_WIDTH))
 
         # Get true labels
-        true_labels = test_generator.classes
+        true_labels = test_generator.labels  # Assuming this returns the correct labels
 
         # Evaluate the model
         test_loss, test_accuracy = model.evaluate(test_generator)
@@ -695,42 +714,45 @@ def process_and_predict(image_path, model, label_mapping=label_mapping):
                         st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
 
             # Generate Grad-CAM heatmap
-            try:
-                heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
+try:
+    # Ensure processed_image has the correct shape
+    processed_image = preprocess_image(image_path)
+    if processed_image is None:
+        st.error("Failed to process the image. Please try again.")
+        return
 
-                if heatmap is not None:
-                    uploaded_image = Image.open(image_path)  # Open with PIL
+    heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
 
-                    # Convert PIL image to numpy array for OpenCV compatibility
-                    uploaded_image_np = np.array(uploaded_image)
+    if heatmap is not None:
+        uploaded_image = Image.open(image_path).convert('RGB')  # Open with PIL and ensure RGB format
 
-                    superimposed_img = display_gradcam(uploaded_image_np, heatmap)
+        # Convert PIL image to numpy array for OpenCV compatibility
+        uploaded_image_np = np.array(uploaded_image)
 
-                    # Show images
-                    st.image(image_path, caption='Uploaded Image', use_container_width=True)
+        superimposed_img = display_gradcam(uploaded_image_np, heatmap)
 
-                    if superimposed_img is not None:
-                        st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
-                    else:
-                        st.warning("Grad-CAM generation failed.")
+        # Show images
+        st.image(image_path, caption='Uploaded Image', use_container_width=True)
 
-                    uploaded_image.close()  # Close the PIL image
-                else:
-                    st.warning("Grad-CAM generation returned None.")
+        if superimposed_img is not None:
+            st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+        else:
+            st.warning("Grad-CAM generation failed.")
 
-            except Exception as e:
-                st.error(f"Error displaying Grad-CAM: {str(e)}")
+        uploaded_image.close()  # Close the PIL image
+    else:
+        st.warning("Grad-CAM generation returned None.")
 
-    except Exception as e:
-        st.error(f"Error during prediction: {str(e)}")
+except Exception as e:
+    st.error(f"Error displaying Grad-CAM: {str(e)}")
 
-    finally:
-        # Ensure cleanup of the image file
-        if os.path.exists(image_path):
-            try:
-                os.remove(image_path)
-            except Exception as e:
-                st.warning(f"Error removing image file: {str(e)}")
+finally:
+    # Ensure cleanup of the image file
+    if os.path.exists(image_path):
+        try:
+            os.remove(image_path)
+        except Exception as e:
+            st.warning(f"Error removing image file: {str(e)}")
 
 # Load Model
 last_conv_layer_name = 'top_conv'
