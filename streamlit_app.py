@@ -24,8 +24,6 @@ IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
 MODEL_FILE = 'lung_cancer_detection_model.keras'
 BATCH_SIZE = 32
 base_data_dir = os.path.join(os.getcwd(), 'data')
-train_data_dir = os.path.join(base_data_dir, 'train')
-val_data_dir = os.path.join(base_data_dir, 'val')
 test_data_dir = os.path.join(base_data_dir, 'test')
 
 # Set the last convolutional layer name for Grad-CAM 
@@ -210,34 +208,23 @@ def main():
     print(result)
 
 
-# Load training and validation data
-def load_data(train_dir, val_dir, batch_size):
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
-                                       width_shift_range=0.2, height_shift_range=0.2,
-                                       shear_range=0.2, zoom_range=0.2,
-                                       horizontal_flip=True, fill_mode='nearest')
-
-    val_datagen = ImageDataGenerator(rescale=1./255)
+def load_test_data(test_dir, batch_size):
+    test_datagen = ImageDataGenerator(rescale=1./255)
 
     try:
-        train_generator = train_datagen.flow_from_directory(
-            train_dir,
+        test_generator = test_datagen.flow_from_directory(
+            test_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
             batch_size=batch_size,
-            class_mode='binary'
+            class_mode='binary',
+            shuffle=False  # important for evaluation
         )
 
-        val_generator = val_datagen.flow_from_directory(
-            val_dir,
-            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
-            batch_size=batch_size,
-            class_mode='binary'
-        )
-
-        return train_generator, val_generator
+        return test_generator
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return None, None
+        print(f"Error loading test data: {str(e)}")
+        return None
+
 
 def print_layer_names():
     try:
