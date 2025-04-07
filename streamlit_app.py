@@ -311,24 +311,31 @@ def train(train_dir, val_dir):
         # Get the class indices from the generator
         y_train = train_generator.classes
         y_val = val_generator.classes
-    
+        
         # Prepare binary labels for cancerous output (0 for non-cancerous, 1 for cancerous)
-        y_cancerous = np.array(y_train)
-    
-        # Prepare cancer type labels (0 to 3 for types, -1 for non-cancerous)
-        y_cancer_type = np.where(y_cancerous == 1, y_train, -1)  # Only get cancer type where cancerous
-        y_non_cancerous = np.where(y_cancerous == 0, y_train, -1)  # Only get non-cancerous type
-    
-        # One-hot encode the cancer type and non-cancerous type labels
+        y_cancerous = (y_train >= 1).astype(int)  # Assuming class 0 is non-cancerous, 1+ are cancerous
+        
+        # Prepare cancer type labels
+        # Classes:
+        # 1 = Adenocarcinoma
+        # 2 = Squamous Cell Carcinoma
+        # 3 = Large Cell Carcinoma
+        # 4 = Malignant (general)
+        # 0 = Benign
+        # 5 = Normal
+        y_cancer_type = np.where(y_cancerous == 1, y_train, 0)  # Non-cancerous to 0
+        y_cancer_type[y_cancerous == 0] = 5  # Assign non-cancerous to class 5 (Normal)
+
+        # Ensure malignant cases are represented correctly, you might need to adjust y_train accordingly
+        y_cancer_type[y_cancer_type == 1] = 4  # If class 1 is malignant, assign it to class 4
+
+        # One-hot encode the cancer type labels (0-5: 0=Benign, 1=Adenocarcinoma, 2=Squamous, 3=Large Cell, 4=Malignant, 5=Normal)
         encoder_cancer_type = OneHotEncoder(sparse=False)
         y_cancer_type_encoded = encoder_cancer_type.fit_transform(y_cancer_type.reshape(-1, 1))
-    
-        encoder_non_cancerous = OneHotEncoder(sparse=False)
-        y_non_cancerous_encoded = encoder_non_cancerous.fit_transform(y_non_cancerous.reshape(-1, 1))
-    
+
         # Combine labels into a tuple for model training
-        y_labels = (y_cancerous, y_cancer_type_encoded, y_non_cancerous_encoded)
-    
+        y_labels = (y_cancerous, y_cancer_type_encoded)
+
     except Exception as e:
         st.error(f"Error preparing labels: {str(e)}")
         return  # Exit the function
@@ -340,7 +347,10 @@ def train(train_dir, val_dir):
     # Compile the model if it hasn't been compiled yet
     if not model._is_compiled:  # Check if the model is compiled
         optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-        model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
+        model.compile(optimizer=optimizer, loss={
+            'cancerous_output': 'binary_crossentropy',  # For binary classification of cancer presence
+            'non_cancerous_output': 'categorical_crossentropy'  # For types of cancer or non-cancerous
+        }, metrics=['accuracy'])
 
     # Train the model
     history = model.fit(
@@ -357,49 +367,82 @@ def train(train_dir, val_dir):
 
 def test_model(model):
     test_datagen = ImageDataGenerator(rescale=1./255)
+    
     try:
         test_generator = test_datagen.flow_from_directory(
             test_data_dir,
             target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
             batch_size=BATCH_SIZE,
-            class_mode='categorical'
+            class_mode=None,  # No class mode; we handle labels manually
+            shuffle=False  # Important for consistent ordering
         )
 
+        # Get true labels based on the directory structure
+        true_labels = test_generator.classes
+        
+        # Evaluate the model
         test_loss, test_accuracy = model.evaluate(test_generator)
         st.sidebar.write(f"Test Loss: {test_loss:.4f}")
         st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
 
+        # Get predictions
         y_pred = model.predict(test_generator)
-        y_pred_classes = np.where(y_pred > 0.5, 1, 0)
-        cm = confusion_matrix(test_generator.classes, y_pred_classes)
 
-        # Calculate precision and recall
-        tp = cm[1, 1]  
-        fp = cm[0, 1]  
-        fn = cm[1, 0]  
+        # Extract binary and categorical predictions
+        y_pred_binary = (y_pred[0] > 0.5).astype(int)  # Binary prediction for cancer presence
+        y_pred_categorical = np.argmax(y_pred[1], axis=1)  # Categorical prediction for type
 
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        # Combine predictions for confusion matrix
+        # Combined prediction structure:
+        # 0: Benign
+        # 1: Adenocarcinoma
+        # 2: Squamous Cell Carcinoma
+        # 3: Large Cell Carcinoma
+        # 4: Malignant
+        # 5: Normal
+        combined_preds = np.where(y_pred_binary.flatten() == 0, 5, y_pred_categorical + 1)  # Map non-cancerous to class 5
 
-        # Calculate F1 Score
-        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        # Calculate confusion matrix
+        cm = confusion_matrix(true_labels, combined_preds)
 
-        st.sidebar.write(f"Precision: {precision:.4f}")
-        st.sidebar.write(f"Recall: {recall:.4f}")
-        st.sidebar.write(f"F1 Score: {f1_score:.4f}")
+        # Calculate precision and recall for each class
+        precision = {}
+        recall = {}
+        f1_score = {}
+        for i in range(len(np.unique(true_labels))):
+            tp = cm[i, i]  # True Positives
+            fp = cm[:, i].sum() - tp  # False Positives
+            fn = cm[i, :].sum() - tp  # False Negatives
+            
+            precision[i] = tp / (tp + fp) if (tp + fp) > 0 else 0
+            recall[i] = tp / (tp + fn) if (tp + fn) > 0 else 0
+            f1_score[i] = 2 * (precision[i] * recall[i]) / (precision[i] + recall[i]) if (precision[i] + recall[i]) > 0 else 0
+
+        # Display average metrics
+        average_precision = np.mean(list(precision.values()))
+        average_recall = np.mean(list(recall.values()))
+        average_f1 = np.mean(list(f1_score.values()))
+
+        st.sidebar.write(f"Average Precision: {average_precision:.4f}")
+        st.sidebar.write(f"Average Recall: {average_recall:.4f}")
+        st.sidebar.write(f"Average F1 Score: {average_f1:.4f}")
 
         # Plot confusion matrix
         fig, ax = plt.subplots(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                     xticklabels=['Non-Cancerous', 'Cancerous'], 
-                     yticklabels=['Non-Cancerous', 'Cancerous'], ax=ax)
+                     xticklabels=['Benign', 'Adenocarcinoma', 'Squamous Cell Carcinoma', 
+                                  'Large Cell Carcinoma', 'Malignant', 'Normal'], 
+                     yticklabels=['Benign', 'Adenocarcinoma', 'Squamous Cell Carcinoma', 
+                                  'Large Cell Carcinoma', 'Malignant', 'Normal'], 
+                     ax=ax)
         ax.set_ylabel('Actual')
         ax.set_xlabel('Predicted')
         ax.set_title('Confusion Matrix')
         st.pyplot(fig)
+
     except Exception as e:
         st.error(f"Error during testing: {str(e)}")
-
+        
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
     try:
         grad_model = tf.keras.models.Model(
@@ -519,14 +562,9 @@ if st.sidebar.button("Train Model"):
                 weights = compute_class_weight('balanced', classes=class_labels, y=y_train)
                 class_weights = {i: weights[i] for i in range(len(class_labels))}
 
-                # Calculate imbalance ratio
-                class_0_count = np.sum(y_train == 0)
-                class_1_count = np.sum(y_train == 1)
-                imbalance_ratio = (
-                    max(class_0_count, class_1_count) / min(class_0_count, class_1_count)
-                    if min(class_0_count, class_1_count) > 0
-                    else 1
-                )
+                # Calculate imbalance ratio for 6 classes
+                class_counts = np.bincount(y_train)
+                imbalance_ratio = max(class_counts) / min(class_counts[class_counts > 0])
 
                 # Determine loss function based on imbalance
                 if imbalance_ratio > 1.5:
@@ -541,7 +579,10 @@ if st.sidebar.button("Train Model"):
 
                 # Compile the model with the selected loss function
                 optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-                model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
+                model.compile(optimizer=optimizer, loss={
+                    'cancerous_output': 'binary_crossentropy',
+                    'non_cancerous_output': 'categorical_crossentropy'
+                }, metrics=['accuracy'])
 
                 # Train the model
                 history = model.fit(
@@ -578,16 +619,17 @@ if st.sidebar.button("Test Model"):
     else:
         st.warning("No model found. Please train the model first.")
 
+# Updated label mapping to reflect the new classification scheme
 label_mapping = {
-    0: 'malignant',
-    1: 'squamous cell carcinoma',
-    2: 'large cell carcinoma',
-    3: 'adenocarcinoma',
-    4: 'normal',
-    5: 'benign'
+    0: 'Benign',
+    1: 'Adenocarcinoma',
+    2: 'Squamous Cell Carcinoma',
+    3: 'Large Cell Carcinoma',
+    4: 'Malignant',
+    5: 'Normal'
 }
 
-def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=label_mapping):
+def process_and_predict(image_path, model, label_mapping=label_mapping):
     try:
         # Preprocess the image
         processed_image = preprocess_image(image_path)
@@ -612,13 +654,12 @@ def process_and_predict(image_path, model, last_conv_layer_name, label_mapping=l
             if confidence > cancerous_threshold:
                 # Category is cancerous, classify as cancer type
                 category = 'Cancerous'
-                predicted_index = np.argmax(prediction[0])  # Get the cancer type index
+                predicted_index = np.argmax(prediction[1])  # Get the cancer type index
                 predicted_label = label_mapping[predicted_index] if label_mapping else str(predicted_index)
             else:
                 # Category is non-cancerous, classify as benign or normal
                 category = 'Non-Cancerous'
-                predicted_index = np.argmax(prediction[0])  # Get the non-cancerous type index
-                predicted_label = label_mapping[predicted_index] if label_mapping else str(predicted_index)
+                predicted_label = 'Normal'  # Default for non-cancerous
 
             # Display the result
             st.subheader("Prediction Result:")
