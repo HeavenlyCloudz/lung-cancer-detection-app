@@ -161,7 +161,7 @@ def load_model_file():
             model = tf.keras.models.load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
             for layer in model.layers[-50:]:
                 layer.trainable = True
-            st.success("✅Model loaded")
+            st.success("✅ Model loaded")
             return model
         except Exception as e:
             st.error(f"Error loading model: {e}")
@@ -177,11 +177,6 @@ model = load_model_file()
 if model is None:
     st.error("Failed to load model. Please check the model file.")
     st.stop()  # Stops further execution of the Streamlit app
-
-# Define the predict function with tf.function
-@tf.function(input_signature=[tf.TensorSpec(shape=[None, 224, 224, 3], dtype=tf.float32)])
-def predict(input_tensor):
-    return model(input_tensor)
 
 def preprocess_image(img_path):
     try:
@@ -213,6 +208,23 @@ def preprocess_image(img_path):
 
     except Exception as e:
         print(f"Error processing image: {str(e)}")  # More detailed error message for debugging
+        return None
+
+# Define the predict function
+def predict(input_tensor):
+    if model is not None:
+        return model(input_tensor)
+    else:
+        raise ValueError("Model not loaded. Cannot make predictions.")
+
+# Example usage of the prediction function
+def make_prediction(image_path):
+    try:
+        input_tensor = preprocess_image(image_path)  # Preprocess the image
+        predictions = predict(input_tensor)  # Call the predict function
+        return predictions
+    except Exception as e:
+        st.error(f"Error during prediction: {str(e)}")
         return None
 
 # Main function to run predictions
