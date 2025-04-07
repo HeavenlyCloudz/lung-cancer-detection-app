@@ -646,7 +646,7 @@ label_mapping = {
     5: 'Normal'
 }
 
-def process_and_predict(image_path, model, label_mapping=label_mapping):
+def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
     try:
         # Preprocess the image
         processed_image = preprocess_image(image_path)
@@ -766,7 +766,7 @@ if uploaded_file is not None:
     with open(temp_filename, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    process_and_predict(temp_filename, model, last_conv_layer_name, label_mapping=label_mapping)
+    process_and_predict(temp_filename, model, last_conv_layer_name)
 
 # Mobile Capture Option
 st.sidebar.header("Take a Picture")
@@ -778,7 +778,7 @@ if photo is not None:
     with open(captured_filename, "wb") as f:
         f.write(photo.getbuffer())
 
-    process_and_predict(captured_filename, model, last_conv_layer_name, label_mapping=label_mapping)
+    process_and_predict(captured_filename, model, last_conv_layer_name)
 
 # Clear cache button
 if st.button("Clear Cache"):
