@@ -567,10 +567,10 @@ if st.sidebar.button("Test Model"):
         st.warning("No model found. Please train the model first.")
 
 label_mapping = {
-    0: 'adenocarcinoma',
+    0: 'malignant',
     1: 'squamous cell carcinoma',
     2: 'large cell carcinoma',
-    3: 'malignant',
+    3: 'adenocarcinoma',
     4: 'normal',
     5: 'benign'
 }
@@ -722,16 +722,16 @@ def collect_feedback():
     st.title(":rainbow[Feedback] Form")
     
     # Add a text area for the feedback
-    feedback = st.text_area("Please share your feedback", "", height=150)
+    feedback = st.text_area("Please share your feedback to improve this app💕", "", height=150)
     
     # Add a submit button
     if st.button("Submit Feedback"):
         if feedback:
-            st.success("Thank you for your feedback!")
+            st.success("Thank you for your feedback🫶!")
             # Save feedback to a file, database, or send it via email, etc.
             save_feedback(feedback)
         else:
-            st.error("Please enter some feedback before submitting.")
+            st.error("Please enter some feedback before submitting😡.")
 
 # Function to save feedback (can be customized to store feedback anywhere)
 def save_feedback(feedback):
