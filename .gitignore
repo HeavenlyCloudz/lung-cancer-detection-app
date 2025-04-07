@@ -12,6 +12,10 @@ venv/
 env/
 ENV/
 
+!data/
+!data/**/*
+
+
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
