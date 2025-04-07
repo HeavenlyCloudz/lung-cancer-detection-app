@@ -655,7 +655,14 @@ def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
             st.error("Failed to process the image. Please try again.")
             return
 
-       # Confidence and threshold logic
+        # Make prediction
+        prediction = model.predict(processed_image)
+
+        if prediction is None or len(prediction) == 0:
+            st.error("Prediction failed. Please check the input image or try again.")
+            return
+
+        # Confidence and threshold logic
         if prediction.shape[1] == 1:  # Binary classification case
             confidence = prediction[0][0] * 100  # Get the confidence score
             category = 'Cancerous' if confidence > 50 else 'Non-Cancerous'
@@ -664,60 +671,60 @@ def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
             confidence = np.max(prediction[0]) * 100  # Get the highest confidence score
             predicted_index = np.argmax(prediction[0])  # Use prediction[0] for multi-class
             predicted_label = label_mapping[predicted_index] if label_mapping else str(predicted_index)
-    
+
         # Display the result
         st.subheader("Prediction Result:")
         st.write(f"**Category:** {category}")
         st.write(f"**Type:** {predicted_label}")
         st.write(f"**Confidence: {confidence:.2f}%**")
 
-            # Notes and symptoms
-            if category == 'Cancerous':
-                st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional.")
-            else:
-                st.write("**Note:** The model has determined this CT scan to be non-cancerous. However, please consult a health professional.")
+        # Notes and symptoms
+        if category == 'Cancerous':
+            st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional.")
+        else:
+            st.write("**Note:** The model has determined this CT scan to be non-cancerous. However, please consult a health professional.")
 
-                # Symptoms for non-cancerous cases
-                symptoms = [
-                    "Persistent cough", "Shortness of breath", "Chest pain",
-                    "Fatigue", "Weight loss", "Wheezing", "Coughing up blood"
-                ]
+            # Symptoms for non-cancerous cases
+            symptoms = [
+                "Persistent cough", "Shortness of breath", "Chest pain",
+                "Fatigue", "Weight loss", "Wheezing", "Coughing up blood"
+            ]
 
-                selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
+            selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
 
-                if st.button("Done"):
-                    if len(selected_symptoms) > 3:
-                        st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses.")
-                    elif len(selected_symptoms) == 3:
-                        st.warning("These symptoms could possibly point to other diseases as well.")
-                    elif len(selected_symptoms) > 0:
-                        st.success("Monitor your health and consult a healthcare provider if necessary.")
-                    else:
-                        st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
-
-            # Generate Grad-CAM heatmap
-            try:
-                heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
-
-                if heatmap is not None:
-                    uploaded_image = Image.open(image_path).convert('RGB')
-                    uploaded_image_np = np.array(uploaded_image)
-
-                    superimposed_img = display_gradcam(uploaded_image_np, heatmap)
-
-                    st.image(image_path, caption='Uploaded Image', use_container_width=True)
-
-                    if superimposed_img is not None:
-                        st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
-                    else:
-                        st.warning("Grad-CAM generation failed.")
-
-                    uploaded_image.close()  # Close the PIL image
+            if st.button("Done"):
+                if len(selected_symptoms) > 3:
+                    st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses.")
+                elif len(selected_symptoms) == 3:
+                    st.warning("These symptoms could possibly point to other diseases as well.")
+                elif len(selected_symptoms) > 0:
+                    st.success("Monitor your health and consult a healthcare provider if necessary.")
                 else:
-                    st.warning("Grad-CAM generation returned None.")
+                    st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
 
-            except Exception as e:
-                st.error(f"Error displaying Grad-CAM: {str(e)}")
+        # Generate Grad-CAM heatmap
+        try:
+            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
+
+            if heatmap is not None:
+                uploaded_image = Image.open(image_path).convert('RGB')
+                uploaded_image_np = np.array(uploaded_image)
+
+                superimposed_img = display_gradcam(uploaded_image_np, heatmap)
+
+                st.image(image_path, caption='Uploaded Image', use_container_width=True)
+
+                if superimposed_img is not None:
+                    st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+                else:
+                    st.warning("Grad-CAM generation failed.")
+
+                uploaded_image.close()  # Close the PIL image
+            else:
+                st.warning("Grad-CAM generation returned None.")
+
+        except Exception as e:
+            st.error(f"Error displaying Grad-CAM: {str(e)}")
 
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
