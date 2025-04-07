@@ -667,14 +667,12 @@ def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
             confidence = np.max(prediction[0]) * 100  # Get the highest confidence score
             cancerous_threshold = 0.5  # Set the threshold for classification as cancerous
 
-            # Determine if the result is cancerous or non-cancerous based on confidence
+            # Determine category
             if confidence > cancerous_threshold:
-                # Category is cancerous, classify as cancer type
                 category = 'Cancerous'
                 predicted_index = np.argmax(prediction[1])  # Get the cancer type index
                 predicted_label = label_mapping[predicted_index] if label_mapping else str(predicted_index)
             else:
-                # Category is non-cancerous, classify as benign or normal
                 category = 'Non-Cancerous'
                 predicted_label = 'Normal'  # Default for non-cancerous
 
@@ -686,73 +684,62 @@ def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
 
             # Notes and symptoms
             if category == 'Cancerous':
-                st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional and other experts on these results.")
-            elif category == 'Non-Cancerous':
-                st.write("**Note:** The model has determined this CT scan to be exempt from the presence of cancer. However, please continue to consult a health professional and other experts on these results.")
+                st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional.")
+            else:
+                st.write("**Note:** The model has determined this CT scan to be non-cancerous. However, please consult a health professional.")
 
                 # Symptoms for non-cancerous cases
                 symptoms = [
-                    "Persistent cough",
-                    "Shortness of breath",
-                    "Chest pain",
-                    "Fatigue",
-                    "Weight loss",
-                    "Wheezing",
-                    "Coughing up blood"
+                    "Persistent cough", "Shortness of breath", "Chest pain",
+                    "Fatigue", "Weight loss", "Wheezing", "Coughing up blood"
                 ]
 
                 selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
 
                 if st.button("Done"):
                     if len(selected_symptoms) > 3:
-                        st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses. Please contact medical support.")
+                        st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses.")
                     elif len(selected_symptoms) == 3:
-                        st.warning("These symptoms could possibly point to other diseases as well. Be sure to consult a health provider if they continue to worsen.")
+                        st.warning("These symptoms could possibly point to other diseases as well.")
                     elif len(selected_symptoms) > 0:
-                        st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
+                        st.success("Monitor your health and consult a healthcare provider if necessary.")
                     else:
                         st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
 
             # Generate Grad-CAM heatmap
-try:
-    # Ensure processed_image has the correct shape
-    processed_image = preprocess_image(image_path)
-    if processed_image is None:
-        st.error("Failed to process the image. Please try again.")
-        return
+            try:
+                heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
 
-    heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
+                if heatmap is not None:
+                    uploaded_image = Image.open(image_path).convert('RGB')
+                    uploaded_image_np = np.array(uploaded_image)
 
-    if heatmap is not None:
-        uploaded_image = Image.open(image_path).convert('RGB')  # Open with PIL and ensure RGB format
+                    superimposed_img = display_gradcam(uploaded_image_np, heatmap)
 
-        # Convert PIL image to numpy array for OpenCV compatibility
-        uploaded_image_np = np.array(uploaded_image)
+                    st.image(image_path, caption='Uploaded Image', use_container_width=True)
 
-        superimposed_img = display_gradcam(uploaded_image_np, heatmap)
+                    if superimposed_img is not None:
+                        st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+                    else:
+                        st.warning("Grad-CAM generation failed.")
 
-        # Show images
-        st.image(image_path, caption='Uploaded Image', use_container_width=True)
+                    uploaded_image.close()  # Close the PIL image
+                else:
+                    st.warning("Grad-CAM generation returned None.")
 
-        if superimposed_img is not None:
-            st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
-        else:
-            st.warning("Grad-CAM generation failed.")
+            except Exception as e:
+                st.error(f"Error displaying Grad-CAM: {str(e)}")
 
-        uploaded_image.close()  # Close the PIL image
-    else:
-        st.warning("Grad-CAM generation returned None.")
+    except Exception as e:
+        st.error(f"Error during prediction: {str(e)}")
 
-except Exception as e:
-    st.error(f"Error displaying Grad-CAM: {str(e)}")
-
-finally:
-    # Ensure cleanup of the image file
-    if os.path.exists(image_path):
-        try:
-            os.remove(image_path)
-        except Exception as e:
-            st.warning(f"Error removing image file: {str(e)}")
+    finally:
+        # Ensure cleanup of the image file
+        if os.path.exists(image_path):
+            try:
+                os.remove(image_path)
+            except Exception as e:
+                st.warning(f"Error removing image file: {str(e)}")
 
 # Load Model
 last_conv_layer_name = 'top_conv'
