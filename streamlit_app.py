@@ -395,7 +395,7 @@ def test_model(model):
 
         # Extract binary and categorical predictions
         y_pred_binary = (y_pred[0] > 0.5).astype(int)  # Binary prediction for cancer presence
-        y_pred_categorical = np.argmax(y_pred[1:], axis=1)  # Adjust based on your model outputs
+        y_pred_categorical = np.argmax(y_pred[1], axis=1)
 
         # Combine predictions for confusion matrix
         combined_preds = np.where(y_pred_binary.flatten() == 0, 5, y_pred_categorical + 1)
