@@ -666,24 +666,29 @@ def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
         confidence = np.max(prediction[0]) * 100  # Get the highest confidence score
         predicted_index = np.argmax(prediction[0])  # Get the index of the highest score
 
+        # Initialize category and predicted_label
+        predicted_label = 'Unknown'
+        category = 'Unknown'
+
         # Determine the predicted label based on the index
         if predicted_index == 0:
             predicted_label = 'Adenocarcinoma'
+            category = 'Cancerous'
         elif predicted_index == 1:
             predicted_label = 'Squamous Cell Carcinoma'
+            category = 'Cancerous'
         elif predicted_index == 2:
             predicted_label = 'Large Cell Carcinoma'
+            category = 'Cancerous'
         elif predicted_index == 3:
             predicted_label = 'Malignant'
+            category = 'Cancerous'
         elif predicted_index == 4:
             predicted_label = 'Benign'
+            category = 'Non-Cancerous'
         elif predicted_index == 5:
             predicted_label = 'Normal'
-        else:
-            predicted_label = 'Unknown'
-
-        # Set category based on the predicted label
-        category = 'Cancerous' if predicted_index in [0, 1, 2, 3] else 'Non-Cancerous'
+            category = 'Non-Cancerous'
 
         # Display the result
         st.subheader("Prediction Result:")
