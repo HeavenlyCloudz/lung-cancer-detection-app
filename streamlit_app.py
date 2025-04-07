@@ -153,12 +153,12 @@ def create_efficientnet_model(input_shape=(224, 224, 3), learning_rate=1e-3):
 
     return model
     
-# Load model from file or create a new one
+# Function to load model from file
 def load_model_file():
     global is_new_model
     if os.path.exists(MODEL_FILE):
         try:
-            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
+            model = tf.keras.models.load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
             for layer in model.layers[-50:]:
                 layer.trainable = True
             st.success("✅Model loaded")
@@ -169,10 +169,11 @@ def load_model_file():
     else:
         st.warning("No saved model found. Creating a new model.")
         is_new_model = True
-        return create_efficientnet_model()
+        return create_efficientnet_model()  # Ensure you have defined this function
 
 # Load or create the model
 model = load_model_file()
+
 if model is None:
     st.error("Failed to load model. Please check the model file.")
     st.stop()  # Stops further execution of the Streamlit app
