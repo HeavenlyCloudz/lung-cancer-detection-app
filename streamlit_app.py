@@ -9,7 +9,6 @@ from tensorflow.keras import layers
 from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input
 from tensorflow.keras.callbacks import ReduceLROnPlateau
-from keras.utils import Sequence
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.utils import class_weight
 import numpy as np
@@ -18,51 +17,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
-from sklearn.preprocessing import OneHotEncoder
 import matplotlib.cm as cm
-
-# Custom Data Generator Class
-class CustomDataGenerator(Sequence):
-    def __init__(self, directory, batch_size, input_shape):
-        self.directory = directory
-        self.batch_size = batch_size
-        self.input_shape = input_shape
-        self.image_paths = []
-        self.labels = []
-        self.class_map = {
-            'normal': 0,
-            'benign': 1,
-            'adenocarcinoma': 2,
-            'squamous_cell_carcinoma': 3,
-            'large_cell_carcinoma': 4,
-            'malignant': 5
-        }
-        self._load_data()
-
-    def _load_data(self):
-        for tumor_status in os.listdir(self.directory):
-            status_dir = os.path.join(self.directory, tumor_status)
-            if os.path.isdir(status_dir):
-                for class_name in os.listdir(status_dir):
-                    class_dir = os.path.join(status_dir, class_name)
-                    if os.path.isdir(class_dir):
-                        for img_file in os.listdir(class_dir):
-                            img_path = os.path.join(class_dir, img_file)
-                            self.image_paths.append(img_path)
-                            self.labels.append(self.class_map[class_name])
-
-    def __len__(self):
-        return int(np.ceil(len(self.image_paths) / self.batch_size))
-
-    def __getitem__(self, index):
-        batch_x = self.image_paths[index * self.batch_size:(index + 1) * self.batch_size]
-        X = np.array([img_to_array(load_img(img_path, target_size=self.input_shape)) for img_path in batch_x])
-        
-        y_cancerous = np.array([(1 if label > 1 else 0) for label in self.labels])
-        y_cancer_type = np.array(self.labels)
-        y_non_cancerous = np.array([(1 if label == 0 else 0) for label in self.labels])
-        
-        return X, [y_cancerous, y_cancer_type, y_non_cancerous]
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
@@ -129,7 +84,7 @@ def get_snowflake_connection():
 
 # Function to calculate class weights
 def calculate_class_weights(train_generator):
-    # Assuming that the class labels are integers
+    # Assuming that the class labels are integers, e.g., 0 and 1 for binary classification
     labels = train_generator.classes
     class_weights = compute_class_weight('balanced', classes=np.unique(labels), y=labels)
     class_weights_dict = {i: class_weights[i] for i in range(len(class_weights))}
@@ -152,7 +107,7 @@ def focal_loss(alpha=0.25, gamma=2.0):
         return tf.reduce_mean(loss)
     return focal_loss_fixed
 
-def create_efficientnet_model(input_shape=(224, 224, 3), learning_rate=1e-3):
+def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1, learning_rate=1e-3):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
     # Freeze all layers initially
@@ -168,59 +123,42 @@ def create_efficientnet_model(input_shape=(224, 224, 3), learning_rate=1e-3):
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(256, activation='relu')(x)
     x = layers.Dropout(0.4)(x)
+    predictions = layers.Dense(1, activation='sigmoid')(x)
 
-    # First output: Binary classification for cancerous vs non-cancerous
-    cancerous_output = layers.Dense(1, activation='sigmoid', name='cancerous_output')(x)
-    
-    # Second output: Predict cancer type if the image is cancerous
-    cancer_type_output = layers.Dense(4, activation='softmax', name='cancer_type_output')(x)  # 4 types of cancer
-    
-    # Third output: Predict non-cancerous type (benign or normal)
-    non_cancerous_type_output = layers.Dense(2, activation='softmax', name='non_cancerous_type_output')(x)  # 2 types: benign or normal
-    
-    model = models.Model(inputs=base_model.input, outputs=[cancerous_output, cancer_type_output, non_cancerous_type_output])
+    model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
 
-    # Compile the model
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-        loss={
-            'cancerous_output': 'binary_crossentropy',  # For binary output
-            'cancer_type_output': 'categorical_crossentropy',  # For cancerous types
-            'non_cancerous_type_output': 'categorical_crossentropy'  # For non-cancerous types
-        },
-        metrics={
-            'cancerous_output': 'accuracy',
-            'cancer_type_output': 'accuracy',
-            'non_cancerous_type_output': 'accuracy'
-        }
-    )
+    # Compile the model with the Adam optimizer
+    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 
-    return model
-    
-# Function to load model from file
+    return model  # Return the model
+
+# Load model from file or create a new one
 def load_model_file():
     global is_new_model
     if os.path.exists(MODEL_FILE):
         try:
-            model = tf.keras.models.load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
+            model = load_model(MODEL_FILE, custom_objects={"focal_loss": focal_loss})
+            # Set last 50 layers as trainable
             for layer in model.layers[-50:]:
                 layer.trainable = True
-            st.success("✅ Model loaded")
+            st.success("✅")
             return model
         except Exception as e:
             st.error(f"Error loading model: {e}")
             return None
     else:
         st.warning("No saved model found. Creating a new model.")
-        is_new_model = True
-        return create_efficientnet_model()  # Ensure you have defined this function
+        is_new_model = True  # Set the flag to indicate a new model is created
+        return create_efficientnet_model()
 
 # Load or create the model
 model = load_model_file()
 
-if model is None:
-    st.error("Failed to load model. Please check the model file.")
-    st.stop()  # Stops further execution of the Streamlit app
+# Define the predict function with tf.function
+@tf.function(input_signature=[tf.TensorSpec(shape=[None, 224, 224, 3], dtype=tf.float32)])
+def predict(input_tensor):
+    return model(input_tensor)
 
 def preprocess_image(img_path):
     try:
@@ -254,23 +192,6 @@ def preprocess_image(img_path):
         print(f"Error processing image: {str(e)}")  # More detailed error message for debugging
         return None
 
-# Define the predict function
-def predict(input_tensor):
-    if model is not None:
-        return model(input_tensor)
-    else:
-        raise ValueError("Model not loaded. Cannot make predictions.")
-
-# Example usage of the prediction function
-def make_prediction(image_path):
-    try:
-        input_tensor = preprocess_image(image_path)  # Preprocess the image
-        predictions = predict(input_tensor)  # Call the predict function
-        return predictions
-    except Exception as e:
-        st.error(f"Error during prediction: {str(e)}")
-        return None
-
 # Main function to run predictions
 def main():
     # Example usage of the predict function
@@ -279,12 +200,30 @@ def main():
     print(result)
 
 
-# Load training and validation data using CustomDataGenerator
+# Load training and validation data
 def load_data(train_dir, val_dir, batch_size):
+    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20,
+                                       width_shift_range=0.2, height_shift_range=0.2,
+                                       shear_range=0.2, zoom_range=0.2,
+                                       horizontal_flip=True, fill_mode='nearest')
+
+    val_datagen = ImageDataGenerator(rescale=1./255)
+
     try:
-        train_generator = CustomDataGenerator(train_dir, batch_size, (IMAGE_HEIGHT, IMAGE_WIDTH))
-        val_generator = CustomDataGenerator(val_dir, batch_size, (IMAGE_HEIGHT, IMAGE_WIDTH))
-        
+        train_generator = train_datagen.flow_from_directory(
+            train_dir,
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=batch_size,
+            class_mode='binary'
+        )
+
+        val_generator = val_datagen.flow_from_directory(
+            val_dir,
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=batch_size,
+            class_mode='binary'
+        )
+
         return train_generator, val_generator
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
@@ -332,51 +271,14 @@ def train(train_dir, val_dir):
         st.error("Failed to load training or validation data.")
         return
 
-    # Prepare labels
-    try:
-        # Get the class indices from the generator
-        y_train = train_generator.classes
-        y_val = val_generator.classes
-        
-        # Prepare binary labels for cancerous output (0 for non-cancerous, 1 for cancerous)
-        y_cancerous = (y_train >= 1).astype(int)  # Assuming class 0 is non-cancerous, 1+ are cancerous
-        
-        # Prepare cancer type labels
-        # Classes:
-        # 1 = Adenocarcinoma
-        # 2 = Squamous Cell Carcinoma
-        # 3 = Large Cell Carcinoma
-        # 4 = Malignant (general)
-        # 0 = Benign
-        # 5 = Normal
-        y_cancer_type = np.where(y_cancerous == 1, y_train, 0)  # Non-cancerous to 0
-        y_cancer_type[y_cancerous == 0] = 5  # Assign non-cancerous to class 5 (Normal)
-
-        # Ensure malignant cases are represented correctly, you might need to adjust y_train accordingly
-        y_cancer_type[y_cancer_type == 1] = 4  # If class 1 is malignant, assign it to class 4
-
-        # One-hot encode the cancer type labels (0-5: 0=Benign, 1=Adenocarcinoma, 2=Squamous, 3=Large Cell, 4=Malignant, 5=Normal)
-        encoder_cancer_type = OneHotEncoder(sparse=False)
-        y_cancer_type_encoded = encoder_cancer_type.fit_transform(y_cancer_type.reshape(-1, 1))
-
-        # Combine labels into a tuple for model training
-        y_labels = (y_cancerous, y_cancer_type_encoded)
-
-    except Exception as e:
-        st.error(f"Error preparing labels: {str(e)}")
-        return  # Exit the function
-
     class_weights = calculate_class_weights(train_generator)
     imbalance_ratio = max(class_weights.values()) / sum(class_weights.values())
-    loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'categorical_crossentropy'
+    loss_function = focal_loss(alpha=0.25, gamma=2.0) if imbalance_ratio > 1.5 else 'binary_crossentropy'
 
     # Compile the model if it hasn't been compiled yet
     if not model._is_compiled:  # Check if the model is compiled
         optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-        model.compile(optimizer=optimizer, loss={
-            'cancerous_output': 'binary_crossentropy',  # For binary classification of cancer presence
-            'non_cancerous_output': 'categorical_crossentropy'  # For types of cancer or non-cancerous
-        }, metrics=['accuracy'])
+        model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
     # Train the model
     history = model.fit(
@@ -392,74 +294,50 @@ def train(train_dir, val_dir):
     
 
 def test_model(model):
+    test_datagen = ImageDataGenerator(rescale=1./255)
     try:
-        # Use CustomDataGenerator for the test data
-        test_generator = CustomDataGenerator(test_data_dir, BATCH_SIZE, (IMAGE_HEIGHT, IMAGE_WIDTH))
+        test_generator = test_datagen.flow_from_directory(
+            test_data_dir,
+            target_size=(IMAGE_HEIGHT, IMAGE_WIDTH),
+            batch_size=BATCH_SIZE,
+            class_mode='binary'
+        )
 
-        # Get true labels
-        true_labels = test_generator.labels  # Assuming this returns the correct labels
-
-        # Evaluate the model
         test_loss, test_accuracy = model.evaluate(test_generator)
         st.sidebar.write(f"Test Loss: {test_loss:.4f}")
         st.sidebar.write(f"Test Accuracy: {test_accuracy:.4f}")
 
-        # Get predictions
         y_pred = model.predict(test_generator)
+        y_pred_classes = np.where(y_pred > 0.5, 1, 0)
+        cm = confusion_matrix(test_generator.classes, y_pred_classes)
 
-        # Check if predictions are None or empty
-        if y_pred is None or len(y_pred) == 0:
-            st.error("Prediction failed. Model output is None or empty.")
-            return
+        # Calculate precision and recall
+        tp = cm[1, 1]  
+        fp = cm[0, 1]  
+        fn = cm[1, 0]  
 
-        # Extract binary and categorical predictions
-        y_pred_binary = (y_pred[0] > 0.5).astype(int)  # Binary prediction for cancer presence
-        y_pred_categorical = np.argmax(y_pred[1], axis=1)
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
 
-        # Combine predictions for confusion matrix
-        combined_preds = np.where(y_pred_binary.flatten() == 0, 5, y_pred_categorical + 1)
+        # Calculate F1 Score
+        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
-        # Calculate confusion matrix
-        cm = confusion_matrix(true_labels, combined_preds)
-
-        # Calculate precision and recall for each class
-        precision = {}
-        recall = {}
-        f1_score = {}
-        for i in range(len(np.unique(true_labels))):
-            tp = cm[i, i]  # True Positives
-            fp = cm[:, i].sum() - tp  # False Positives
-            fn = cm[i, :].sum() - tp  # False Negatives
-            
-            precision[i] = tp / (tp + fp) if (tp + fp) > 0 else 0
-            recall[i] = tp / (tp + fn) if (tp + fn) > 0 else 0
-            f1_score[i] = 2 * (precision[i] * recall[i]) / (precision[i] + recall[i]) if (precision[i] + recall[i]) > 0 else 0
-
-        # Display average metrics
-        average_precision = np.mean(list(precision.values()))
-        average_recall = np.mean(list(recall.values()))
-        average_f1 = np.mean(list(f1_score.values()))
-
-        st.sidebar.write(f"Average Precision: {average_precision:.4f}")
-        st.sidebar.write(f"Average Recall: {average_recall:.4f}")
-        st.sidebar.write(f"Average F1 Score: {average_f1:.4f}")
+        st.sidebar.write(f"Precision: {precision:.4f}")
+        st.sidebar.write(f"Recall: {recall:.4f}")
+        st.sidebar.write(f"F1 Score: {f1_score:.4f}")
 
         # Plot confusion matrix
         fig, ax = plt.subplots(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                     xticklabels=['Benign', 'Adenocarcinoma', 'Squamous Cell Carcinoma', 
-                                  'Large Cell Carcinoma', 'Malignant', 'Normal'], 
-                     yticklabels=['Benign', 'Adenocarcinoma', 'Squamous Cell Carcinoma', 
-                                  'Large Cell Carcinoma', 'Malignant', 'Normal'], 
-                     ax=ax)
+                     xticklabels=['Non-Cancerous', 'Cancerous'], 
+                     yticklabels=['Non-Cancerous', 'Cancerous'], ax=ax)
         ax.set_ylabel('Actual')
         ax.set_xlabel('Predicted')
         ax.set_title('Confusion Matrix')
         st.pyplot(fig)
-
     except Exception as e:
         st.error(f"Error during testing: {str(e)}")
-        
+
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
     try:
         grad_model = tf.keras.models.Model(
@@ -468,9 +346,8 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
         with tf.GradientTape() as tape:
             last_conv_layer_output, preds = grad_model(img_array)
-            
+
             if pred_index is None:
-                # Get the index of the predicted class if none is provided
                 pred_index = tf.argmax(preds[0])
 
             class_channel = preds[:, pred_index]
@@ -478,12 +355,12 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         grads = tape.gradient(class_channel, last_conv_layer_output)
         pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
 
-        last_conv_layer_output = last_conv_layer_output[0]  # Remove batch dimension
+        last_conv_layer_output = last_conv_layer_output[0]
         heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
         heatmap = tf.maximum(heatmap, 0)
-        heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1  # Normalize heatmap
+        heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
 
-        # Resize the heatmap to match the original image size (if necessary)
+        # Resize the heatmap to match the original image size
         heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
         return heatmap
 
@@ -491,28 +368,28 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         st.error(f"Error generating Grad-CAM heatmap: {str(e)}")
         return None
 
-def display_gradcam(img_array, heatmap, alpha=0.4):
+def display_gradcam(img, heatmap, alpha=0.4):
     try:
-        # Ensure img_array is RGB and convert to float32
-        if img_array.ndim != 3 or img_array.shape[2] != 3:
-            raise ValueError("Input image must have 3 channels (RGB).")
-        
-        img_array = img_array.astype(np.float32) / 255.0  # Normalize image to [0, 1]
+        # Ensure img is in the correct format (BGR to RGB if needed)
+        if img.shape[2] == 3:  # Check if the image has 3 channels
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        else:
+            img_rgb = img
 
-        # Resize heatmap to match image dimensions
-        heatmap_resized = cv2.resize(heatmap, (img_array.shape[1], img_array.shape[0]))
+        heatmap = np.uint8(255 * heatmap)
 
-        # Normalize heatmap to be in the range [0, 255]
-        heatmap_normalized = np.uint8(255 * heatmap_resized)
-        jet = plt.cm.jet(np.arange(256))[:, :3]  # Get jet colormap
-        jet_heatmap = jet[heatmap_normalized]  # Apply colormap to heatmap
-        jet_heatmap = np.uint8(jet_heatmap * 255)  # Convert to uint8
+        # Use the updated method to get the colormap
+        jet = plt.colormaps['jet']
+        jet_colors = jet(np.arange(256))[:, :3]
+        jet_heatmap = jet_colors[heatmap]
+        jet_heatmap = np.uint8(jet_heatmap * 255)
+        jet_heatmap = cv2.cvtColor(jet_heatmap, cv2.COLOR_RGB2BGR)
 
-        # Ensure both images are uint8 before blending
-        img_array = np.uint8(img_array * 255)  # Convert back to uint8
-        superimposed_img = cv2.addWeighted(img_array, 1 - alpha, jet_heatmap, alpha, 0)
+        # Resize the heatmap to the original image size
+        jet_heatmap = cv2.resize(jet_heatmap, (img_rgb.shape[1], img_rgb.shape[0]))
 
-        return superimposed_img  # Return the blended image
+        superimposed_img = cv2.addWeighted(jet_heatmap, alpha, img_rgb, 1 - alpha, 0)
+        return superimposed_img
 
     except Exception as e:
         st.error(f"Error displaying Grad-CAM: {str(e)}")
@@ -579,27 +456,29 @@ if st.sidebar.button("Train Model"):
                 weights = compute_class_weight('balanced', classes=class_labels, y=y_train)
                 class_weights = {i: weights[i] for i in range(len(class_labels))}
 
-                # Calculate imbalance ratio for 6 classes
-                class_counts = np.bincount(y_train)
-                imbalance_ratio = max(class_counts) / min(class_counts[class_counts > 0])
+                # Calculate imbalance ratio
+                class_0_count = np.sum(y_train == 0)
+                class_1_count = np.sum(y_train == 1)
+                imbalance_ratio = (
+                    max(class_0_count, class_1_count) / min(class_0_count, class_1_count)
+                    if min(class_0_count, class_1_count) > 0
+                    else 1
+                )
 
                 # Determine loss function based on imbalance
                 if imbalance_ratio > 1.5:
                     loss_function = focal_loss(alpha=0.25, gamma=2.0)
                     st.sidebar.write(f"Detected significant class imbalance (ratio: {imbalance_ratio:.2f}). Using Focal Loss.")
                 else:
-                    loss_function = 'categorical_crossentropy'
-                    st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Categorical Cross-Entropy.")
+                    loss_function = 'binary_crossentropy'
+                    st.sidebar.write(f"Class balance is acceptable (ratio: {imbalance_ratio:.2f}). Using Binary Cross-Entropy.")
 
                 # Add ReduceLROnPlateau Callback
                 reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
                 # Compile the model with the selected loss function
                 optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-                model.compile(optimizer=optimizer, loss={
-                    'cancerous_output': 'binary_crossentropy',
-                    'non_cancerous_output': 'categorical_crossentropy'
-                }, metrics=['accuracy'])
+                model.compile(optimizer=optimizer, loss=loss_function, metrics=['accuracy'])
 
                 # Train the model
                 history = model.fit(
@@ -636,116 +515,85 @@ if st.sidebar.button("Test Model"):
     else:
         st.warning("No model found. Please train the model first.")
 
-# Updated label mapping to reflect the new classification scheme
-label_mapping = {
-    0: 'Benign',
-    1: 'Adenocarcinoma',
-    2: 'Squamous Cell Carcinoma',
-    3: 'Large Cell Carcinoma',
-    4: 'Malignant',
-    5: 'Normal'
-}
-
-def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
+# Function to process and predict image
+def process_and_predict(image_path, model, last_conv_layer_name):
     try:
         # Preprocess the image
         processed_image = preprocess_image(image_path)
 
-        if processed_image is None:
-            st.error("Failed to process the image. Please try again.")
-            return
+        if processed_image is not None and model:
+            # Make prediction
+            prediction = model.predict(processed_image)[0][0]
+            confidence = prediction if prediction > 0.5 else 1 - prediction  # Confidence Score
+            confidence_percentage = confidence * 100  # Convert to percentage
 
-        # Make prediction
-        prediction = model.predict(processed_image)
+            # Determine result label
+            result = 'Cancerous' if prediction > 0.5 else 'Non-Cancerous'
 
-        if prediction is None or len(prediction) == 0:
-            st.error("Prediction failed. Please check the input image or try again.")
-            return
+            # Display Prediction Result
+            st.subheader("Prediction Result:")
+            st.write(f"**{result}**")
+            st.write(f"**Confidence: {confidence_percentage:.2f}%**")  # Show confidence
 
-        # Multi-class classification case
-        confidence = np.max(prediction[0]) * 100  # Get the highest confidence score
-        predicted_index = np.argmax(prediction[0])  # Get the index of the highest score
+            # Add description for cancerous result
+            if result == 'Cancerous':
+                st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional and other experts on these results.")
 
-        # Initialize category and predicted_label
-        predicted_label = ''
-        category = ''
+            if result == 'Non-Cancerous':
+                st.write("**Note:** The model has determined this CT scan to be exempt from the presence of cancer. However, please continue to consult a health professional and other experts on these results.")
 
-        # Determine the predicted label based on the index
-        if predicted_index == 0:
-            predicted_label = 'Adenocarcinoma'
-            category = 'Cancerous'
-        elif predicted_index == 1:
-            predicted_label = 'Squamous Cell Carcinoma'
-            category = 'Cancerous'
-        elif predicted_index == 2:
-            predicted_label = 'Large Cell Carcinoma'
-            category = 'Cancerous'
-        elif predicted_index == 3:
-            predicted_label = 'Malignant'
-            category = 'Cancerous'
-        elif predicted_index == 4:
-            predicted_label = 'Benign'
-            category = 'Non-Cancerous'
-        elif predicted_index == 5:
-            predicted_label = 'Normal'
-            category = 'Non-Cancerous'
+                # Symptoms checkboxes
+                symptoms = [
+                    "Persistent cough",
+                    "Shortness of breath",
+                    "Chest pain",
+                    "Fatigue",
+                    "Weight loss",
+                    "Wheezing",
+                    "Coughing up blood"
+                ]
 
-        # Display the result
-        st.subheader("Prediction Result:")
-        st.write(f"**Category:** {category}")
-        st.write(f"**Type:** {predicted_label}")
-        st.write(f"**Confidence: {confidence:.2f}%**")
+                # Multi-select for symptoms
+                selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
 
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
+                # Done button
+                if st.button("Done"):
+                    # Check how many symptoms are selected
+                    if len(selected_symptoms) > 3:
+                        st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses. Please contact medical support.")
+                    elif len(selected_symptoms) == 3:
+                        st.warning("These symptoms could possibly point to other diseases as well. Be sure to consult a health provider if they continue to worsen.")
+                    elif len(selected_symptoms) > 0:
+                        st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
+                    else:
+                        st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
 
-        # Notes and symptoms
-        if category == 'Cancerous':
-            st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional.")
-        else:
-            st.write("**Note:** The model has determined this CT scan to be non-cancerous. However, please consult a health professional.")
+            # Generate Grad-CAM heatmap
+            try:
+                heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
 
-            # Symptoms for non-cancerous cases
-            symptoms = [
-                "Persistent cough", "Shortness of breath", "Chest pain",
-                "Fatigue", "Weight loss", "Wheezing", "Coughing up blood"
-            ]
+                if heatmap is not None:
+                    uploaded_image = Image.open(image_path)  # Open with PIL
 
-            selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
+                    # Convert PIL image to numpy array for OpenCV compatibility
+                    uploaded_image_np = np.array(uploaded_image)
 
-            if st.button("Done"):
-                if len(selected_symptoms) > 3:
-                    st.warning("Even if it isn't cancer according to the model, these symptoms could point to other possible illnesses.")
-                elif len(selected_symptoms) == 3:
-                    st.warning("These symptoms could possibly point to other diseases as well.")
-                elif len(selected_symptoms) > 0:
-                    st.success("Monitor your health and consult a healthcare provider if necessary.")
+                    superimposed_img = display_gradcam(uploaded_image_np, heatmap)
+
+                    # Show images
+                    st.image(image_path, caption='Uploaded Image', use_container_width=True)
+
+                    if superimposed_img is not None:
+                        st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
+                    else:
+                        st.warning("Grad-CAM generation failed.")
+
+                    uploaded_image.close()  # Close the PIL image
                 else:
-                    st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
+                    st.warning("Grad-CAM generation returned None.")
 
-        # Generate Grad-CAM heatmap
-        try:
-            heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
-
-            if heatmap is not None:
-                uploaded_image = Image.open(image_path).convert('RGB')
-                uploaded_image_np = np.array(uploaded_image)
-
-                superimposed_img = display_gradcam(uploaded_image_np, heatmap)
-
-                st.image(image_path, caption='Uploaded Image', use_container_width=True)
-
-                if superimposed_img is not None:
-                    st.image(superimposed_img, caption='Superimposed Grad-CAM', use_container_width=True)
-                else:
-                    st.warning("Grad-CAM generation failed.")
-
-                uploaded_image.close()  # Close the PIL image
-            else:
-                st.warning("Grad-CAM generation returned None.")
-
-        except Exception as e:
-            st.error(f"Error displaying Grad-CAM: {str(e)}")
+            except Exception as e:
+                st.error(f"Error displaying Grad-CAM: {str(e)}")
 
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
@@ -770,7 +618,7 @@ if uploaded_file is not None:
     with open(temp_filename, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    process_and_predict(temp_filename, model, label_mapping, last_conv_layer_name)
+    process_and_predict(temp_filename, model, last_conv_layer_name)
 
 # Mobile Capture Option
 st.sidebar.header("Take a Picture")
@@ -782,7 +630,7 @@ if photo is not None:
     with open(captured_filename, "wb") as f:
         f.write(photo.getbuffer())
 
-    process_and_predict(captured_filename, model, label_mapping, last_conv_layer_name)
+    process_and_predict(captured_filename, model, last_conv_layer_name)
 
 # Clear cache button
 if st.button("Clear Cache"):
