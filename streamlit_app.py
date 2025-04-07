@@ -107,6 +107,7 @@ def focal_loss(alpha=0.25, gamma=2.0):
         return tf.reduce_mean(loss)
     return focal_loss_fixed
 
+@st.cache_resource
 def create_efficientnet_model(input_shape=(224, 224, 3), num_classes=1, learning_rate=1e-3):
     base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=input_shape)
 
