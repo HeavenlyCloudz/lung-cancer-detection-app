@@ -396,8 +396,9 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
         with tf.GradientTape() as tape:
             last_conv_layer_output, preds = grad_model(img_array)
-
+            
             if pred_index is None:
+                # Get the index of the predicted class if none is provided
                 pred_index = tf.argmax(preds[0])
 
             class_channel = preds[:, pred_index]
@@ -405,12 +406,12 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         grads = tape.gradient(class_channel, last_conv_layer_output)
         pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
 
-        last_conv_layer_output = last_conv_layer_output[0]
+        last_conv_layer_output = last_conv_layer_output[0]  # Remove batch dimension
         heatmap = tf.reduce_sum(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
         heatmap = tf.maximum(heatmap, 0)
-        heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1
+        heatmap /= tf.reduce_max(heatmap) if tf.reduce_max(heatmap) > 0 else 1  # Normalize heatmap
 
-        # Resize the heatmap to match the original image size
+        # Resize the heatmap to match the original image size (if necessary)
         heatmap = cv2.resize(heatmap.numpy(), (IMAGE_WIDTH, IMAGE_HEIGHT))
         return heatmap
 
