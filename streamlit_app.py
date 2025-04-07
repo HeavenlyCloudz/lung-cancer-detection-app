@@ -670,7 +670,23 @@ def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
         else:  # Multi-class classification case
             confidence = np.max(prediction[0]) * 100  # Get the highest confidence score
             predicted_index = np.argmax(prediction[0])  # Use prediction[0] for multi-class
-            predicted_label = label_mapping[predicted_index] if label_mapping else str(predicted_index)
+
+            # Determine the category based on the predicted index
+            if predicted_index in [0, 1, 2, 3]:  # Assuming these indices correspond to cancer types
+                category = 'Cancerous'
+                # Determine the predicted label based on the index
+                if predicted_index == 0:
+                    predicted_label = 'Adenocarcinoma'
+                elif predicted_index == 1:
+                    predicted_label = 'Squamous Cell Carcinoma'
+                elif predicted_index == 2:
+                    predicted_label = 'Large Cell Carcinoma'
+                elif predicted_index == 3:
+                    predicted_label = 'Malignant'
+            else:
+                category = 'Non-Cancerous'
+                # Assuming index 4 is for benign
+                predicted_label = 'Normal' if predicted_index == 4 else 'Benign'
 
         # Display the result
         st.subheader("Prediction Result:")
