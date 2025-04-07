@@ -1,1 +1,41 @@
+# Ignore Python bytecode files
+__pycache__/
+*.py[cod]
+
+# Ignore IDE and text editor files
+.vscode/
+.idea/
+*.swp
+
+# Ignore virtual environments
+venv/
+env/
+ENV/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore large files (e.g., CSVs, models, images)
+*.csv
+*.json
+*.xlsx
+*.h5
+*.pkl
+*.pth
+*.jpg
+*.png
+*.gif
+
+# Ignore Streamlit cache
+.streamlit/
+
+# Ignore log files
+*.log
+
+# Ignore Git LFS files (if you're using LFS for large files)
+.git/lfs/
+
+# Ignore temporary or system files
+.DS_Store
+Thumbs.db
 
