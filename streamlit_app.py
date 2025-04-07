@@ -449,7 +449,7 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
                  #   data=model_data,
                   #  file_name=MODEL_FILE,
                    # mime="application/octet-stream"
-                )
+              #  )
    # else:
         st.error("Model is not available for training. Please check model initialization.")
 
