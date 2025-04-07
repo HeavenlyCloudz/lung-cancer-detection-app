@@ -662,37 +662,37 @@ def process_and_predict(image_path, model, label_mapping, last_conv_layer_name):
             st.error("Prediction failed. Please check the input image or try again.")
             return
 
-        # Confidence and threshold logic
-        if prediction.shape[1] == 1:  # Binary classification case
-            confidence = prediction[0][0] * 100  # Get the confidence score
-            category = 'Cancerous' if confidence > 50 else 'Non-Cancerous'
-            predicted_label = 'Cancerous' if category == 'Cancerous' else 'Normal'
-        else:  # Multi-class classification case
-            confidence = np.max(prediction[0]) * 100  # Get the highest confidence score
-            predicted_index = np.argmax(prediction[0])  # Use prediction[0] for multi-class
+        # Multi-class classification case
+        confidence = np.max(prediction[0]) * 100  # Get the highest confidence score
+        predicted_index = np.argmax(prediction[0])  # Get the index of the highest score
 
-            # Determine the category based on the predicted index
-            if predicted_index in [0, 1, 2, 3]:  # Assuming these indices correspond to cancer types
-                category = 'Cancerous'
-                # Determine the predicted label based on the index
-                if predicted_index == 0:
-                    predicted_label = 'Adenocarcinoma'
-                elif predicted_index == 1:
-                    predicted_label = 'Squamous Cell Carcinoma'
-                elif predicted_index == 2:
-                    predicted_label = 'Large Cell Carcinoma'
-                elif predicted_index == 3:
-                    predicted_label = 'Malignant'
-            else:
-                category = 'Non-Cancerous'
-                # Assuming index 4 is for benign
-                predicted_label = 'Normal' if predicted_index == 4 else 'Benign'
+        # Determine the predicted label based on the index
+        if predicted_index == 0:
+            predicted_label = 'Adenocarcinoma'
+        elif predicted_index == 1:
+            predicted_label = 'Squamous Cell Carcinoma'
+        elif predicted_index == 2:
+            predicted_label = 'Large Cell Carcinoma'
+        elif predicted_index == 3:
+            predicted_label = 'Malignant'
+        elif predicted_index == 4:
+            predicted_label = 'Benign'
+        elif predicted_index == 5:
+            predicted_label = 'Normal'
+        else:
+            predicted_label = 'Unknown'
+
+        # Set category based on the predicted label
+        category = 'Cancerous' if predicted_index in [0, 1, 2, 3] else 'Non-Cancerous'
 
         # Display the result
         st.subheader("Prediction Result:")
         st.write(f"**Category:** {category}")
         st.write(f"**Type:** {predicted_label}")
         st.write(f"**Confidence: {confidence:.2f}%**")
+
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
 
         # Notes and symptoms
         if category == 'Cancerous':
