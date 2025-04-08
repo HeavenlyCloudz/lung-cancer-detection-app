@@ -597,7 +597,7 @@ def collect_feedback():
     feedback = st.text_area("Please share your feedback to improve this app💕", "", height=150)
     
     # Add a submit button
-    if st.button("Submit Feedback"):
+    if st.button("Submit Feedback📩"):
         if feedback:
             st.success("Thank you for your feedback🫶!")
             # Save feedback to a file, database, or send it via email, etc.
