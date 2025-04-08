@@ -384,11 +384,11 @@ st.sidebar.title("Controls🎮")
 model = load_model_file()
 
 # Hyperparameter inputs
-epochs = st.sidebar.number_input("Number of epochs for training", min_value=1, max_value=100, value=10)
-batch_size = st.sidebar.number_input("Batch size", min_value=1, max_value=64, value=BATCH_SIZE)
+epochs = st.sidebar.number_input("Number of epochs for training🔋", min_value=1, max_value=100, value=10)
+batch_size = st.sidebar.number_input("Batch size🎚️", min_value=1, max_value=64, value=BATCH_SIZE)
 
 # Add input for number of evaluations during testing
-eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_value=1, max_value=10, value=1)
+eval_epochs = st.sidebar.number_input("Number of evaluations for testing🧾", min_value=1, max_value=10, value=1)
 
 # Button to train model
 # if st.sidebar.button("Train Model"):
@@ -454,7 +454,7 @@ eval_epochs = st.sidebar.number_input("Number of evaluations for testing", min_v
        # st.error("Model is not available for training. Please check model initialization.")
 
 # Button to test model
-if st.sidebar.button("Test Model"):
+if st.sidebar.button("Test Model🏫"):
     if model:
         with st.spinner("Testing the model📝..."):
             for _ in range(eval_epochs):  # Repeat testing as per user input
@@ -475,7 +475,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             confidence_percentage = confidence * 100  # Convert to percentage
 
             # Determine result label
-            result = 'Cancerous' if prediction > 0.5 else 'Non-Cancerous'
+            result = 'Cancerous✔️' if prediction > 0.5 else 'Non-Cancerous✖️'
 
             # Display Prediction Result
             st.subheader("Prediction Result:")
@@ -501,7 +501,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                 ]
 
                 # Multi-select for symptoms
-                selected_symptoms = st.multiselect("Please select any symptoms you are experiencing:", symptoms)
+                selected_symptoms = st.multiselect("Please select any symptoms you are experiencing🤢:", symptoms)
 
                 # Done button
                 if st.button("Done"):
@@ -557,7 +557,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 last_conv_layer_name = 'top_conv'
 
 # Normal Image Upload
-uploaded_file = st.sidebar.file_uploader("Upload your image (JPG, PNG)", type=["jpg", "jpeg", "png"])
+uploaded_file = st.sidebar.file_uploader("Upload your image🖼️(JPG, PNG)", type=["jpg", "jpeg", "png"])
 if uploaded_file is not None:
     file_extension = uploaded_file.name.split('.')[-1]
     temp_filename = f"temp_image.{file_extension}"
@@ -568,8 +568,8 @@ if uploaded_file is not None:
     process_and_predict(temp_filename, model, last_conv_layer_name)
 
 # Mobile Capture Option
-st.sidebar.header("Take a Picture")
-photo = st.sidebar.file_uploader("Capture a photo", type=["jpg", "jpeg", "png"])
+st.sidebar.header("Take a Picture📸")
+photo = st.sidebar.file_uploader("Capture a photo🤳", type=["jpg", "jpeg", "png"])
 if photo is not None:
     file_extension = photo.name.split('.')[-1]
     captured_filename = f"captured_image.{file_extension}"
@@ -580,7 +580,7 @@ if photo is not None:
     process_and_predict(captured_filename, model, last_conv_layer_name)
 
 # Clear cache button
-if st.button("Clear Cache"):
+if st.button("Clear Cache🗑️"):
     st.cache_data.clear()  # Clear the cache
     st.success("Cache cleared successfully!🎯")
 
@@ -591,7 +591,7 @@ if st.sidebar.button("Show Layer Names"):
 
 # Function to collect feedback
 def collect_feedback():
-    st.title(":rainbow[Feedback] Form")
+    st.title(":rainbow[Feedback] Form✍️")
     
     # Add a text area for the feedback
     feedback = st.text_area("Please share your feedback to improve this app💕", "", height=150)
@@ -610,7 +610,7 @@ def save_feedback(feedback):
     # Example: Save to a text file (or database)
     with open("user_feedback.txt", "a") as f:
         f.write(f"Feedback: {feedback}\n{'-'*50}\n")
-    st.info("Your feedback has been recorded.")
+    st.info("Your feedback has been recorded😊.")
 
 # Show the feedback form
 collect_feedback()
