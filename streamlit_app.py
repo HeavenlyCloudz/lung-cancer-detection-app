@@ -584,7 +584,7 @@ if st.button("Clear Cache🗑️"):
     st.cache_data.clear()  # Clear the cache
     st.success("Cache cleared successfully!🎯")
 
-if st.sidebar.button("Show Layer Names"):
+if st.sidebar.button("Show Layer Names🌱"):
     st.write("Layer names in EfficientNetB0:")
     layer_names = print_layer_names()
     st.text("\n".join(layer_names))
