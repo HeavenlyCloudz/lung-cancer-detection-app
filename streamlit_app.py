@@ -115,9 +115,14 @@ def load_model_file():
 model = load_model_file()
 
 # Define the predict function with tf.function
-@tf.function(input_signature=[tf.TensorSpec(shape=[None, 224, 224, 3], dtype=tf.float32)])
-def predict(input_tensor):
-    return model(input_tensor)
+def predict(image_tensor):
+    print(f"Image tensor shape: {image_tensor.shape}")
+    # Check if the tensor is in the right shape
+    if image_tensor.ndim != 4:
+        raise ValueError("Input tensor must have shape (1, height, width, channels)")
+    
+    predictions = model.predict(image_tensor)
+    return predictions
 
 def preprocess_image(img_path):
     try:
