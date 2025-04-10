@@ -112,7 +112,7 @@ def load_model_file():
         return create_efficientnet_model()
 
 # Load or create the model
-model = load_model_file('lung_cancer_detection_model.keras')
+model = load_model_file()
 
 def predict(image_tensor):
     if model is None:
