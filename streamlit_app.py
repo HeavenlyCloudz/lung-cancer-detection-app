@@ -515,6 +515,16 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                     else:
                         st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
 
+            # Collect feedback for incorrect predictions
+            correct_label = st.text_input("If the prediction is wrong, provide the correct label:")
+            if st.button("Submit Feedback📩"):
+                if correct_label:
+                    save_feedback(image_path, prediction, correct_label)
+                    st.success("Feedback recorded! Thank you!😊")
+                    # Optionally, call retrain_model() here if you want immediate retraining
+                else:
+                    st.error("Please enter the correct label before submitting.")
+            
             # Generate Grad-CAM heatmap
             try:
                 heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
@@ -555,6 +565,11 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 
 # Load Model
 last_conv_layer_name = 'top_conv'
+
+# Function to save feedback
+def save_feedback(image_path, predicted_label, correct_label):
+    with open("feedback.csv", "a") as f:
+        f.write(f"{image_path},{predicted_label},{correct_label}\n")
 
 # Normal Image Upload
 uploaded_file = st.sidebar.file_uploader("Upload your image🖼️(JPG, PNG)", type=["jpg", "jpeg", "png"])
