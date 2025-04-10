@@ -112,12 +112,13 @@ def load_model_file():
         return create_efficientnet_model()
 
 # Load or create the model
-model = load_model_file()
+model = load_model_file('lung_cancer_detection_model.keras')
 
-# Define the predict function with tf.function
 def predict(image_tensor):
-    print(f"Image tensor shape: {image_tensor.shape}")
-    # Check if the tensor is in the right shape
+    if model is None:
+        raise ValueError("The model has not been initialized.")
+    
+    # Ensure the input tensor has the correct shape
     if image_tensor.ndim != 4:
         raise ValueError("Input tensor must have shape (1, height, width, channels)")
     
