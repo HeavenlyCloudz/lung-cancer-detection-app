@@ -462,6 +462,28 @@ if st.sidebar.button("Test Model🏫"):
     else:
         st.warning("No model found. Please train the model first.")
 
+
+def retrain_model():
+    try:
+        # Load feedback data
+        feedback_data = pd.read_csv("feedback.csv", names=["image", "predicted", "correct"])
+
+        # Preprocess feedback dataset
+        training_data, training_labels = preprocess_feedback(feedback_data)
+
+        # Load your existing model
+        model = load_model('lung_cancer_detection_model.keras')
+        
+        # Retrain the model
+        model.fit(training_data, training_labels, epochs=10)  # Adjust epochs as needed
+        
+        # Save the updated model
+        model.save('lung_cancer_detection_model.keras')
+        st.success("Model retrained successfully!🎉")
+    except Exception as e:
+        st.error(f"Error during retraining: {str(e)}")
+        
+
 # Function to process and predict image
 def process_and_predict(image_path, model, last_conv_layer_name):
     try:
@@ -520,6 +542,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             if st.button("Submit Your Feedback📩"):
                 if correct_label:
                     save_feedback(image_path, prediction, correct_label)
+                    retrain_model()
                     st.success("Feedback recorded! Thank you!😊")
                     # Optionally, call retrain_model() here if you want immediate retraining
                 else:
