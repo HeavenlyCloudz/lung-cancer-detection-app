@@ -21,7 +21,7 @@ import matplotlib.cm as cm
 
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
-MODEL_FILE = 'lung_cancer_detection_model.keras'
+MODEL_FILE = 'other_lung_cancer_detection_model.keras'
 BATCH_SIZE = 32
 base_data_dir = os.path.join(os.getcwd(), 'data')
 test_data_dir = os.path.join(base_data_dir, 'test')
@@ -468,38 +468,6 @@ if st.sidebar.button("Test Model🏫"):
                 test_model(model)
     else:
         st.warning("No model found. Please train the model first.")
-
-
-# Define the preprocess_feedback function
-def preprocess_feedback(feedback_data):
-    images = []
-    labels = []
-    for index, row in feedback_data.iterrows():
-        img_path = row['image']
-        label = 1 if row['correct'] == 'Cancerous' else 0
-        
-        # Load and preprocess the image
-        img = image.load_img(img_path, target_size=(224, 224))
-        img_array = image.img_to_array(img)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array /= 255.0
-
-        images.append(img_array)
-        labels.append(label)
-
-    return np.vstack(images), np.array(labels)
-
-# Function to retrain the model
-def retrain_model():
-    try:
-        feedback_data = pd.read_csv("feedback.csv", names=["image", "predicted", "correct"])
-        training_data, training_labels = preprocess_feedback(feedback_data)
-        model = load_model('lung_cancer_detection_model.keras')
-        model.fit(training_data, training_labels, epochs=10)
-        model.save('lung_cancer_detection_model.keras')
-        st.success("Model retrained successfully!🎉")
-    except Exception as e:
-        st.error(f"Error during retraining: {str(e)}")
         
 
 # Function to process and predict image
@@ -554,18 +522,8 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                         st.success("You have selected a manageable number of symptoms. Monitor your health and consult a healthcare provider if necessary.")
                     else:
                         st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
+                        
 
-            # Collect feedback for incorrect predictions
-            correct_label = st.text_input("If the prediction is wrong, provide the correct label:")
-            if st.button("Submit Your Feedback📩"):
-                if correct_label:
-                    save_feedback(image_path, prediction, correct_label)
-                    retrain_model()
-                    st.success("Feedback recorded! Thank you!😊")
-                    # Optionally, call retrain_model() here if you want immediate retraining
-                else:
-                    st.error("Please enter the correct label before submitting.")
-            
             # Generate Grad-CAM heatmap
             try:
                 heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
@@ -606,11 +564,6 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 
 # Load Model
 last_conv_layer_name = 'top_conv'
-
-# Function to save feedback
-def save_feedback(image_path, predicted_label, correct_label):
-    with open("feedback.csv", "a") as f:
-        f.write(f"{image_path},{predicted_label},{correct_label}\n")
 
 # Normal Image Upload
 uploaded_file = st.sidebar.file_uploader("Upload your image🖼️(JPG, PNG)", type=["jpg", "jpeg", "png"])
