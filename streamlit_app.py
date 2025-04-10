@@ -517,7 +517,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 
             # Collect feedback for incorrect predictions
             correct_label = st.text_input("If the prediction is wrong, provide the correct label:")
-            if st.button("Submit Feedback📩"):
+            if st.button("Submit Your Feedback📩"):
                 if correct_label:
                     save_feedback(image_path, prediction, correct_label)
                     st.success("Feedback recorded! Thank you!😊")
