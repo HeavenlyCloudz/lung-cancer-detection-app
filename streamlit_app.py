@@ -464,21 +464,32 @@ if st.sidebar.button("Test Model🏫"):
         st.warning("No model found. Please train the model first.")
 
 
+# Define the preprocess_feedback function
+def preprocess_feedback(feedback_data):
+    images = []
+    labels = []
+    for index, row in feedback_data.iterrows():
+        img_path = row['image']
+        label = 1 if row['correct'] == 'Cancerous' else 0
+        
+        # Load and preprocess the image
+        img = image.load_img(img_path, target_size=(224, 224))
+        img_array = image.img_to_array(img)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array /= 255.0
+
+        images.append(img_array)
+        labels.append(label)
+
+    return np.vstack(images), np.array(labels)
+
+# Function to retrain the model
 def retrain_model():
     try:
-        # Load feedback data
         feedback_data = pd.read_csv("feedback.csv", names=["image", "predicted", "correct"])
-
-        # Preprocess feedback dataset
         training_data, training_labels = preprocess_feedback(feedback_data)
-
-        # Load your existing model
         model = load_model('lung_cancer_detection_model.keras')
-        
-        # Retrain the model
-        model.fit(training_data, training_labels, epochs=10)  # Adjust epochs as needed
-        
-        # Save the updated model
+        model.fit(training_data, training_labels, epochs=10)
         model.save('lung_cancer_detection_model.keras')
         st.success("Model retrained successfully!🎉")
     except Exception as e:
