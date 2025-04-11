@@ -318,7 +318,7 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
 def display_gradcam(img, heatmap, alpha=0.4):
     try:
-        # Ensure img is in the correct format (BGR to RGB if needed)
+        # Ensure img is in the correct format 
         if img.shape[2] == 3:  # Check if the image has 3 channels
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         else:
@@ -326,7 +326,7 @@ def display_gradcam(img, heatmap, alpha=0.4):
 
         heatmap = np.uint8(255 * heatmap)
 
-        # Use the updated method to get the colormap
+        # Colormap
         jet = plt.colormaps['jet']
         jet_colors = jet(np.arange(256))[:, :3]
         jet_heatmap = jet_colors[heatmap]
@@ -343,7 +343,7 @@ def display_gradcam(img, heatmap, alpha=0.4):
         st.error(f"Error displaying Grad-CAM: {str(e)}")
         return None
         
-# Streamlit UI
+# Streamlit interface
 st.title("Lung Cancer Detection💻")
 st.markdown(
     """
@@ -379,7 +379,7 @@ st.markdown("Visit [ONCO AI](https://readymag.website/u4174625345/5256774/) for 
 st.markdown("Visit my [GitHub](https://github.com/HeavenlyCloudz/lung-cancer-detection-app) repository for insight on my code.")
 st.write("In the case of this project, CT scans display the full outlook of the lungs condensed into an image with a strictly two-dimensional, flat appearance, serving a pivotal role in the identification of early-stage diseases due to the clarity of the images, and the noticeable lack of noise in the scans. ​The presence of white marks, or nodules, in the scan might point towards the presence of cancer.")
 
-# Sidebar controls
+# Sidebar control
 st.sidebar.title("Controls🎮")
 
 # Load the model
@@ -389,7 +389,7 @@ model = load_model_file()
 epochs = st.sidebar.number_input("Number of epochs for training🔋", min_value=1, max_value=100, value=10)
 batch_size = st.sidebar.number_input("Batch size🎚️", min_value=1, max_value=64, value=BATCH_SIZE)
 
-# Add input for number of evaluations during testing
+# Number of evaluations during testing
 eval_epochs = st.sidebar.number_input("Number of evaluations for testing🧾", min_value=1, max_value=10, value=1)
 
 # Button to train model
@@ -579,6 +579,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 
                 if heatmap is not None:
                     uploaded_image = Image.open(image_path)  # Open with PIL
+                    uploaded_image = uploaded_image.convert("RGB")
 
                     # Convert PIL image to numpy array for OpenCV compatibility
                     uploaded_image_np = np.array(uploaded_image)
