@@ -19,6 +19,8 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import matplotlib.cm as cm
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 # Constants
 IMAGE_HEIGHT, IMAGE_WIDTH = 224, 224
 MODEL_FILE = 'other_lung_cancer_detection_model.keras'
