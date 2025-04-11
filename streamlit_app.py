@@ -157,13 +157,6 @@ def preprocess_image(img_path):
         print(f"Error processing image: {str(e)}")  # More detailed error message for debugging
         return None
 
-# Main function to run predictions
-def main():
-    # Example usage of the predict function
-    image_tensor = tf.random.uniform((1, 224, 224, 3))  # Simulate an image tensor
-    result = predict(image_tensor)
-    print(result)
-
 
 def load_test_data(test_dir, batch_size):
     test_datagen = ImageDataGenerator(rescale=1./255)
@@ -679,5 +672,3 @@ def save_feedback(feedback):
 # Show the feedback form
 collect_feedback()
 
-if __name__ == "__main__":
-    main()
