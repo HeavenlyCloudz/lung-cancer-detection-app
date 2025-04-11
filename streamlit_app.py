@@ -383,6 +383,7 @@ st.write("CNNs are the preferred network for detecting lung cancer due to their 
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("Visit [ONCO AI](https://readymag.website/u4174625345/5256774/) for more information.")
 st.markdown("Visit my [GitHub](https://github.com/HeavenlyCloudz/lung-cancer-detection-app) repository for insight on my code.")
+st.write("In the case of this project, CT scans display the full outlook of the lungs condensed into an image with a strictly two-dimensional, flat appearance, serving a pivotal role in the identification of early-stage diseases due to the clarity of the images, and the noticeable lack of noise in the scans. ​The presence of white marks, or nodules, in the scan might point towards the presence of cancer.")
 
 # Sidebar controls
 st.sidebar.title("Controls🎮")
