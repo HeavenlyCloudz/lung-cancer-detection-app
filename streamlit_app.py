@@ -575,7 +575,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
 
             # Generate Grad-CAM heatmap
             try:
-                heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name)
+                heatmap = make_gradcam_heatmap(processed_image, model, last_conv_layer_name= 'top_conv')
 
                 if heatmap is not None:
                     uploaded_image = Image.open(image_path)  # Open with PIL
