@@ -521,21 +521,26 @@ def process_and_predict(image_path, model, last_conv_layer_name):
                         treatment_plan = []
                         
                         if "Persistent cough" in selected_symptoms:
-                            treatment_plan.append("Please consider the use of bronchodilators or corticosteroids.")
+                            treatment_plan.append("Consider using bronchodilators, which help open your airways, or corticosteroids to reduce inflammation in your lungs. Both can alleviate persistent coughing, but it’s best to consult your doctor to find the right option for you.")
+                        
                         if "Shortness of breath" in selected_symptoms:
-                            treatment_plan.append("Oxygen therapy may be of aid.")
+                            treatment_plan.append("Oxygen therapy may be beneficial to ensure your body gets enough oxygen. Talk to your healthcare provider about whether this is appropriate for your situation, as it can significantly improve your quality of life.")
+                        
                         if "Chest pain" in selected_symptoms:
-                            treatment_plan.append("Pain management options should be explored.")
+                            treatment_plan.append("Discuss pain management strategies with your doctor. This may include prescription pain relievers or over-the-counter medications. Identifying the cause of your chest pain is crucial, so don't hesitate to seek medical advice.")
+                        
                         if "Fatigue" in selected_symptoms:
-                            treatment_plan.append("Perform light exercise and ensure you are eating a nutritious diet.")
+                            treatment_plan.append("Engaging in light exercise, like walking or stretching, can help boost your energy levels. Pair this with a nutritious diet rich in fruits, vegetables, and whole grains to support your overall health. Consider speaking with a nutritionist for personalized advice.")
+                        
                         if "Weight loss" in selected_symptoms:
-                            treatment_plan.append("Nutritional support and possible appetite stimulants are greatly recommended.")
+                            treatment_plan.append("It’s important to address unexplained weight loss. Consider nutritional support options, such as high-calorie snacks or supplements, and appetite stimulants that your doctor may recommend to help you maintain a healthy weight.")
+                        
                         if "Wheezing" in selected_symptoms:
-                            treatment_plan.append("Consider inhalers to relieve wheezing to ensure lung stability.")
+                            treatment_plan.append("Using an inhaler can help relieve wheezing by opening your airways. Make sure to discuss this with your doctor, who can prescribe the right type of inhaler based on your specific needs.")
+                        
                         if "Coughing up blood" in selected_symptoms:
-                            treatment_plan.append("Seek immediate medical attention now.")
-                
-                        # Display the treatment plan
+                            treatment_plan.append("Coughing up blood is a serious symptom that requires immediate medical attention. Please seek help from a healthcare provider right away, as this could indicate a significant issue that needs prompt evaluation.")
+                                               
                         if treatment_plan:
                             st.subheader("Suggested Treatment Plan:")
                             for treatment in treatment_plan:
