@@ -494,6 +494,55 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             # Add description for cancerous result
             if result == 'Cancerous':
                 st.write("**Note:** The model has determined this CT scan to stipulate the presence of cancer. Please consult with a health professional and other experts on these results.")
+                 
+                # Symptoms checkboxes
+                symptoms = [
+                    "Persistent cough",
+                    "Shortness of breath",
+                    "Chest pain",
+                    "Fatigue",
+                    "Weight loss",
+                    "Wheezing",
+                    "Coughing up blood"
+                ]
+                
+                # Multi-select for symptoms
+                selected_symptoms = st.multiselect("Please select any symptoms you are experiencing🤢:", symptoms)
+                
+                # Done button
+                if st.button("Done"):
+                    # Check how many symptoms are selected
+                    symptom_count = len(selected_symptoms)
+                
+                    if symptom_count > 0:
+                        st.success("You have selected symptoms. Here are some suggested treatments:")
+                        
+                        # Provide customized treatment recommendations based on symptoms
+                        treatment_plan = []
+                        
+                        if "Persistent cough" in selected_symptoms:
+                            treatment_plan.append("Please consider the use of bronchodilators or corticosteroids.")
+                        if "Shortness of breath" in selected_symptoms:
+                            treatment_plan.append("Oxygen therapy may be of aid.")
+                        if "Chest pain" in selected_symptoms:
+                            treatment_plan.append("Pain management options should be explored.")
+                        if "Fatigue" in selected_symptoms:
+                            treatment_plan.append("Perform light exercise and ensure you are eating a nutritious diet.")
+                        if "Weight loss" in selected_symptoms:
+                            treatment_plan.append("Nutritional support and possible appetite stimulants are greatly recommended.")
+                        if "Wheezing" in selected_symptoms:
+                            treatment_plan.append("Consider inhalers to relieve wheezing to ensure lung stability.")
+                        if "Coughing up blood" in selected_symptoms:
+                            treatment_plan.append("Seek immediate medical attention now.")
+                
+                        # Display the treatment plan
+                        if treatment_plan:
+                            st.subheader("Suggested Treatment Plan:")
+                            for treatment in treatment_plan:
+                                st.write(f"- {treatment}")
+                
+                    else:
+                        st.info("No symptoms selected. If you are feeling unwell, please consult a healthcare provider.")
 
             if result == 'Non-Cancerous':
                 st.write("**Note:** The model has determined this CT scan to be exempt from the presence of cancer. However, please continue to consult a health professional and other experts on these results.")
