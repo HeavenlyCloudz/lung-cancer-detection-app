@@ -7,6 +7,11 @@ __pycache__/
 .idea/
 *.swp
 
+# Ignore virtual environments
+venv/
+env/
+ENV/
+
 
 !data/
 !data/**/*
