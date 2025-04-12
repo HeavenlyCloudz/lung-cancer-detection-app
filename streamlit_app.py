@@ -478,7 +478,7 @@ def process_and_predict(image_path, model, last_conv_layer_name):
             confidence_percentage = confidence * 100  # Convert to percentage
 
             # Determine result label
-            result = 'Cancerous✔️' if prediction > 0.5 else 'Non-Cancerous✖️'
+            result = 'Non-Cancerous✖️' if prediction > 0.5 else 'Cancerous✔️'
 
             # Display Prediction Result
             st.subheader("Prediction Result:")
