@@ -179,7 +179,7 @@ def load_test_data(test_dir, batch_size):
 
 def print_layer_names():
     try:
-        base_model = EfficientNetB0(include_top=False, weights='', input_shape=(224, 224, 3))
+        base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
         layer_names = [layer.name for layer in base_model.layers]
         return layer_names
     except Exception as e:
@@ -643,10 +643,14 @@ if st.button("Clear Cache🗑️"):
     st.cache_data.clear()  # Clear the cache
     st.success("Cache cleared successfully!🎯")
 
+
 if st.sidebar.button("Show Layer Names🌱"):
     st.write("Layer names in EfficientNetB0:")
-    layer_names = print_layer_names()
-    st.text("\n".join(layer_names))
+    try:
+        layer_names = print_layer_names()
+        st.text("\n".join(layer_names))
+    except Exception as e:
+        st.error(f"Error in print_layer_names: {e}")
 
 # Function to collect feedback
 def collect_feedback():
